@@ -127,6 +127,9 @@ export function YearlyDividendTrendChart({ items }: YearlyDividendTrendChartProp
   return (
     <AppCard title="年度股息变化">
       <div style={{ marginBottom: 8, color: '#8b949e', fontSize: 12 }}>柱状图：自然年股息率；折线图：分红次数</div>
+      <div style={{ marginBottom: 10, color: '#8b949e', fontSize: 12 }}>
+        分红次数按自然年去重统计（同日同方案重复记录只计一次）。
+      </div>
       <div ref={chartRef} style={{ width: '100%', height: 320 }} />
     </AppCard>
   )

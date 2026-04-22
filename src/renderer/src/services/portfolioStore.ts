@@ -2,6 +2,7 @@ export type PortfolioPosition = {
   id: string
   symbol?: string
   name: string
+  direction?: 'BUY' | 'SELL'
   shares: number
   avgCost: number
   updatedAt: string
@@ -38,6 +39,7 @@ function normalizePosition(position: PortfolioPosition): PortfolioPosition | nul
     id: position.id,
     symbol: symbol || undefined,
     name: normalizeName(position.name),
+    direction: position.direction === 'SELL' ? 'SELL' : 'BUY',
     shares,
     avgCost,
     updatedAt: position.updatedAt || new Date().toISOString()
@@ -71,12 +73,13 @@ export function savePortfolioPositions(positions: PortfolioPosition[]) {
 export function upsertPortfolioPosition(input: Omit<PortfolioPosition, 'updatedAt'>) {
   const positions = readPortfolioPositions()
   const symbol = input.symbol?.trim() ?? ''
-  const id = input.id?.trim() || symbol || `asset-${Date.now()}`
+  const id = input.id?.trim() || `asset-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   const next: PortfolioPosition = {
     ...input,
     id,
     symbol: symbol || undefined,
     name: normalizeName(input.name),
+    direction: input.direction === 'SELL' ? 'SELL' : 'BUY',
     updatedAt: new Date().toISOString()
   }
   const index = positions.findIndex((item) => item.id === next.id)
@@ -92,6 +95,16 @@ export function upsertPortfolioPosition(input: Omit<PortfolioPosition, 'updatedA
 export function removePortfolioPosition(id: string) {
   const target = id.trim()
   const positions = readPortfolioPositions().filter((item) => item.id !== target)
+  savePortfolioPositions(positions)
+  return positions
+}
+
+export function removePortfolioPositionsBySymbol(symbol: string) {
+  const target = symbol.trim()
+  if (!target) {
+    return readPortfolioPositions()
+  }
+  const positions = readPortfolioPositions().filter((item) => item.symbol !== target)
   savePortfolioPositions(positions)
   return positions
 }

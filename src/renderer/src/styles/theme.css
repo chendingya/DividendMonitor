@@ -1293,6 +1293,12 @@ button.ledger-breadcrumb-item:hover {
   outline-offset: 2px;
 }
 
+.ledger-transaction-hint {
+  margin: 8px 0 0;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
 .ledger-data-card {
   background: rgba(255, 255, 255, 0.9);
   border-radius: 30px;
