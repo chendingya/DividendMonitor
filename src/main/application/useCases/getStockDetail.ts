@@ -1,5 +1,5 @@
-﻿import type { StockDetailDto } from '@shared/contracts/api'
-import { buildHistoricalYields } from '@main/domain/services/dividendYieldService'
+import type { StockDetailDto } from '@shared/contracts/api'
+import { buildHistoricalYields, NATURAL_YEAR_YIELD_BASIS } from '@main/domain/services/dividendYieldService'
 import { estimateFutureYield } from '@main/domain/services/futureYieldEstimator'
 import { StockRepository } from '@main/repositories/stockRepository'
 
@@ -23,7 +23,12 @@ export async function getStockDetail(symbol: string): Promise<StockDetailDto> {
     latestPrice: source.stock.latestPrice,
     marketCap: source.stock.marketCap,
     peRatio: source.stock.peRatio,
+    totalShares: source.stock.totalShares,
+    dataSource: source.dataSource,
+    yieldBasis: NATURAL_YEAR_YIELD_BASIS,
     yearlyYields,
-    futureYieldEstimate: estimates.baseline
+    dividendEvents: source.dividendEvents,
+    futureYieldEstimate: estimates.baseline,
+    futureYieldEstimates: [estimates.baseline, estimates.conservative]
   }
 }

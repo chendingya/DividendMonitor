@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Lucid Analyst - 收益追踪器回测</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary": "#f3f1ff",
+                        "surface-container-highest": "#d9dde0",
+                        "surface": "#f5f7f9",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-tint": "#0052d0",
+                        "on-error": "#ffefee",
+                        "surface-container": "#e5e9eb",
+                        "primary-fixed-dim": "#638eff",
+                        "inverse-primary": "#5e8bff",
+                        "tertiary-fixed": "#f797f0",
+                        "tertiary-fixed-dim": "#e88ae1",
+                        "background": "#f5f7f9",
+                        "secondary": "#4551b7",
+                        "inverse-surface": "#0b0f10",
+                        "outline-variant": "#abadaf",
+                        "on-surface-variant": "#595c5e",
+                        "on-tertiary-fixed": "#400042",
+                        "on-primary-fixed-variant": "#00276c",
+                        "secondary-fixed": "#cbceff",
+                        "primary-dim": "#0047b7",
+                        "surface-container-high": "#dfe3e6",
+                        "secondary-fixed-dim": "#babfff",
+                        "on-primary-container": "#001e58",
+                        "primary-container": "#799dff",
+                        "outline": "#747779",
+                        "inverse-on-surface": "#9a9d9f",
+                        "on-secondary-container": "#303ba2",
+                        "secondary-container": "#cbceff",
+                        "on-tertiary-fixed-variant": "#6c1a6c",
+                        "tertiary-dim": "#7f2d7e",
+                        "primary": "#0052d0",
+                        "surface-dim": "#d0d5d8",
+                        "on-tertiary-container": "#610e63",
+                        "on-error-container": "#570008",
+                        "on-tertiary": "#ffeef8",
+                        "tertiary-container": "#f797f0",
+                        "surface-bright": "#f5f7f9",
+                        "tertiary": "#8d3a8b",
+                        "error": "#b31b25",
+                        "error-dim": "#9f0519",
+                        "on-primary-fixed": "#000000",
+                        "on-secondary-fixed-variant": "#3a45ac",
+                        "secondary-dim": "#3944ab",
+                        "on-background": "#2c2f31",
+                        "primary-fixed": "#799dff",
+                        "on-secondary-fixed": "#19248e",
+                        "surface-variant": "#d9dde0",
+                        "on-primary": "#f1f2ff",
+                        "surface-container-low": "#eef1f3",
+                        "error-container": "#fb5151",
+                        "on-surface": "#2c2f31"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {},
+                    "fontFamily": {
+                        "headline": [
+                            "Plus Jakarta Sans"
+                        ],
+                        "body": [
+                            "Inter"
+                        ],
+                        "label": [
+                            "Inter"
+                        ]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f5f7f9;
+        }
+        h1, h2, h3, h4, h5, h6, .font-headline {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen antialiased flex">
+<!-- SideNavBar -->
+<nav class="h-screen w-64 fixed left-0 top-0 rounded-r-[32px] bg-surface-container-low/80 backdrop-blur-2xl text-primary font-headline tracking-tight text-on-background shadow-[0_8px_30px_rgb(0,0,0,0.04)] z-50 flex flex-col py-8 px-4 border-r border-outline-variant/10">
+<div class="mb-10 px-4">
+<h1 class="text-xl font-black text-primary tracking-tighter">Lucid Analyst</h1>
+<p class="text-xs text-on-surface-variant mt-1 font-body">财富智能</p>
+</div>
+<div class="flex-1 space-y-2">
+<a class="flex items-center space-x-3 px-4 py-3 rounded-full text-on-surface-variant hover:bg-surface-container-highest/50 transition-all duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="pie_chart">pie_chart</span>
+<span class="font-medium text-sm">投资组合</span>
+</a>
+<a class="flex items-center space-x-3 px-4 py-3 rounded-full text-on-surface-variant hover:bg-surface-container-highest/50 transition-all duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-medium text-sm">股息</span>
+</a>
+<a class="flex items-center space-x-3 px-4 py-3 rounded-full text-on-surface-variant hover:bg-surface-container-highest/50 transition-all duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="monitoring">monitoring</span>
+<span class="font-medium text-sm">分析</span>
+</a>
+<a class="flex items-center space-x-3 px-4 py-3 rounded-full bg-primary text-on-primary shadow-lg shadow-primary/30 font-semibold scale-95 duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined" data-icon="show_chart">show_chart</span>
+<span class="font-medium text-sm">收益追踪器</span>
+</a>
+<a class="flex items-center space-x-3 px-4 py-3 rounded-full text-on-surface-variant hover:bg-surface-container-highest/50 transition-all duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span class="font-medium text-sm">设置</span>
+</a>
+</div>
+<div class="mt-auto space-y-4">
+<button class="w-full py-3 px-4 bg-gradient-to-r from-primary to-primary-dim text-on-primary rounded-DEFAULT font-medium text-sm hover:opacity-90 transition-opacity">
+                升级到专业版
+            </button>
+<a class="flex items-center space-x-3 px-4 py-3 rounded-full text-on-surface-variant hover:bg-surface-container-highest/50 transition-all duration-300" href="#">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+<span class="font-medium text-sm">帮助中心</span>
+</a>
+<div class="flex items-center space-x-3 px-4 pt-4 border-t border-outline-variant/20">
+<img alt="用户资料" class="w-8 h-8 rounded-full" data-alt="professional headshot of a person looking forward slightly smiling, good lighting, clean background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB1hkcB-iqCWg6o61rfQdC641vg_HizkU25sZAMfljkonDVOysaL8I9Du2l-DlcvpwP-twXlScGe2VSty-vaI9Qqxu1vpaBuhZFIrwPBnU-z0o-zdc5kN6f1hq7YMd1NtwnPbGKjbyjd1kLJzH2p6BZqaj2z_foNocGHeCRQELtl1g4RX-PwwDy051Y3-DKx7g_sIBE48jCb71YMl4DwIqabN8DyQXMeP5n9kMLq1Hk2Lu-51buYrHROkBJ0xBFv7IuGwRj8_-LE3Ud"/>
+<span class="text-sm font-medium text-on-surface">用户资料</span>
+</div>
+</div>
+</nav>
+<!-- Main Content Wrapper -->
+<main class="ml-64 flex-1 flex flex-col min-h-screen">
+<!-- TopAppBar -->
+<header class="fixed top-0 right-0 left-64 h-16 bg-surface/60 backdrop-blur-md text-primary font-headline font-medium text-sm flex items-center justify-between px-8 z-40">
+<div class="flex items-center text-lg font-bold text-on-surface">
+<span class="text-on-surface-variant font-normal mr-2">收益追踪器</span> / 策略回测
+            </div>
+<div class="flex items-center space-x-4">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm">search</span>
+<input class="bg-surface-container text-sm rounded-full pl-9 pr-4 py-2 border-none focus:ring-2 focus:ring-primary/30 w-64 text-on-surface placeholder:text-on-surface-variant" placeholder="搜索..." type="text"/>
+</div>
+<button class="text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined cursor-pointer hover:scale-105 transition-transform" data-icon="notifications_active">notifications_active</span>
+</button>
+<button class="text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined cursor-pointer hover:scale-105 transition-transform" data-icon="tune">tune</span>
+</button>
+<button class="text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined cursor-pointer hover:scale-105 transition-transform" data-icon="account_circle">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Content Canvas -->
+<div class="pt-24 px-8 pb-12 space-y-8 max-w-7xl mx-auto w-full">
+<!-- Header Section -->
+<div class="flex justify-between items-end">
+<div>
+<h2 class="text-3xl font-headline font-bold tracking-tight text-on-surface mb-2">策略回测</h2>
+<p class="text-on-surface-variant font-body text-sm">使用再投资模型评估历史股息收益表现。</p>
+</div>
+<button class="bg-primary text-on-primary px-6 py-2.5 rounded-DEFAULT font-medium text-sm shadow-[0_4px_14px_0_rgba(0,82,208,0.39)] hover:bg-primary-dim transition-colors flex items-center space-x-2">
+<span class="material-symbols-outlined text-sm">play_arrow</span>
+<span>运行模拟</span>
+</button>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-6">
+<!-- Parameters Form (Left Column) -->
+<div class="col-span-12 lg:col-span-4 space-y-6">
+<div class="bg-surface-container-lowest rounded-DEFAULT p-6 shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-outline-variant/10">
+<h3 class="font-headline font-semibold text-lg text-on-surface mb-6 flex items-center">
+<span class="material-symbols-outlined mr-2 text-primary">tune</span> 参数
+                        </h3>
+<div class="space-y-5">
+<div>
+<label class="block text-xs font-semibold text-on-surface-variant tracking-wider uppercase mb-2">初始资金</label>
+<div class="relative">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">$</span>
+<input class="w-full bg-surface-container rounded-sm border-none pl-8 pr-4 py-2.5 text-on-surface focus:bg-surface-container-highest focus:ring-0 focus:outline-none focus:border-b-2 focus:border-b-primary font-medium transition-all" type="text" value="100,000"/>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div>
+<label class="block text-xs font-semibold text-on-surface-variant tracking-wider uppercase mb-2">开始日期</label>
+<input class="w-full bg-surface-container rounded-sm border-none px-3 py-2.5 text-on-surface focus:bg-surface-container-highest focus:ring-0 focus:outline-none focus:border-b-2 focus:border-b-primary text-sm font-medium transition-all" type="date" value="2018-01-01"/>
+</div>
+<div>
+<label class="block text-xs font-semibold text-on-surface-variant tracking-wider uppercase mb-2">结束日期</label>
+<input class="w-full bg-surface-container rounded-sm border-none px-3 py-2.5 text-on-surface focus:bg-surface-container-highest focus:ring-0 focus:outline-none focus:border-b-2 focus:border-b-primary text-sm font-medium transition-all" type="date" value="2023-12-31"/>
+</div>
+</div>
+<div>
+<label class="block text-xs font-semibold text-on-surface-variant tracking-wider uppercase mb-2">策略</label>
+<select class="w-full bg-surface-container rounded-sm border-none px-4 py-2.5 text-on-surface focus:bg-surface-container-highest focus:ring-0 focus:outline-none focus:border-b-2 focus:border-b-primary text-sm font-medium transition-all appearance-none">
+<option>高收益贵族 (DRIP)</option>
+<option>科技增长 + 股息</option>
+<option>REIT 收入重点</option>
+<option>自定义分配</option>
+</select>
+</div>
+<div class="pt-2">
+<label class="flex items-center space-x-3 cursor-pointer">
+<input checked="" class="form-checkbox h-5 w-5 text-primary border-outline-variant/30 rounded focus:ring-primary/30 bg-surface-container" type="checkbox"/>
+<span class="text-sm font-medium text-on-surface">启用股息再投资 (DRIP)</span>
+</label>
+</div>
+<div class="pt-2">
+<label class="flex items-center space-x-3 cursor-pointer">
+<input class="form-checkbox h-5 w-5 text-primary border-outline-variant/30 rounded focus:ring-primary/30 bg-surface-container" type="checkbox"/>
+<span class="text-sm font-medium text-on-surface">考虑预估税费 (15%)</span>
+</label>
+</div>
+</div>
+</div>
+<!-- Quick Stats Mini Card -->
+<div class="bg-gradient-to-br from-primary to-primary-dim rounded-DEFAULT p-6 shadow-lg text-on-primary">
+<div class="flex justify-between items-center mb-4">
+<span class="text-sm font-medium opacity-80">数据质量</span>
+<span class="material-symbols-outlined text-sm">verified</span>
+</div>
+<div class="text-2xl font-bold tracking-tight mb-1">99.8%</div>
+<div class="text-xs opacity-80">选定期间内的历史定价和股息数据完整性。</div>
+</div>
+</div>
+<!-- Results & Chart (Right Column) -->
+<div class="col-span-12 lg:col-span-8 space-y-6">
+<!-- Summary Cards Row -->
+<div class="grid grid-cols-3 gap-6">
+<div class="bg-surface-container-lowest rounded-DEFAULT p-6 shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-outline-variant/10 relative overflow-hidden">
+<div class="absolute top-0 right-0 p-4 opacity-10">
+<span class="material-symbols-outlined text-6xl" data-weight="fill">account_balance_wallet</span>
+</div>
+<h4 class="text-xs font-semibold text-on-surface-variant tracking-wider uppercase mb-2">最终价值</h4>
+<div class="text-3xl font-headline font-bold text-on-surface tracking-tight mb-1">$174,283.45</div>
+<div class="flex items-center text-sm font-medium text-secondary">
+<span class="material-symbols-outlined text-sm mr-1">trending_up</span>
+                                +74.28% 总回报
+                            </div>
+</div>
+<div class="bg-surface-container-lowest rounded-DEFAULT p-6 shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-outline-variant/10 relative overflow-hidden">
+<div class="absolute top-0 right-0 p-4 opacity-10">
+<span class="material-symbols-outlined text-6xl" data-weight="fill">monitoring</span>
+</div>
+<h4 class="text-xs font-semibold text-on-surface-variant tracking-wider uppercase mb-2">年化复合增长率</h4>
+<div class="text-3xl font-headline font-bold text-primary tracking-tight mb-1">11.7%</div>
+<div class="flex items-center text-sm font-medium text-on-surface-variant">
+                                vs 9.2% 基准 (标普 500)
+                            </div>
+</div>
+<div class="bg-surface-container-lowest rounded-DEFAULT p-6 shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-outline-variant/10 relative overflow-hidden">
+<div class="absolute top-0 right-0 p-4 opacity-10">
+<span class="material-symbols-outlined text-6xl" data-weight="fill">payments</span>
+</div>
+<h4 class="text-xs font-semibold text-on-surface-variant tracking-wider uppercase mb-2">总股息</h4>
+<div class="text-3xl font-headline font-bold text-on-surface tracking-tight mb-1">$28,450.00</div>
+<div class="flex items-center text-sm font-medium text-secondary">
+                                再投资以实现复合增长
+                            </div>
+</div>
+</div>
+<!-- Main Chart Card -->
+<div class="bg-surface-container-lowest rounded-DEFAULT p-6 shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-outline-variant/10 h-[400px] flex flex-col">
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-headline font-semibold text-lg text-on-surface">增长轨迹</h3>
+<div class="flex space-x-4 text-sm font-medium">
+<div class="flex items-center">
+<div class="w-3 h-3 rounded-full bg-primary mr-2"></div>
+<span class="text-on-surface-variant">包含 DRIP</span>
+</div>
+<div class="flex items-center">
+<div class="w-3 h-3 rounded-full bg-surface-container-highest mr-2 border border-outline-variant/30"></div>
+<span class="text-on-surface-variant">无再投资</span>
+</div>
+</div>
+</div>
+<!-- Chart Area Placeholder (Stylized using CSS gradients to simulate a multi-line chart area) -->
+<div class="flex-1 relative w-full rounded-sm border-b border-l border-outline-variant/20 flex items-end pt-4 pr-4 pl-1">
+<!-- Y-axis labels -->
+<div class="absolute left-[-40px] h-full flex flex-col justify-between text-xs text-on-surface-variant font-medium py-2">
+<span>$180k</span>
+<span>$140k</span>
+<span>$100k</span>
+</div>
+<!-- Grid lines -->
+<div class="absolute inset-0 flex flex-col justify-between pointer-events-none pb-[2px] pl-[2px]">
+<div class="w-full h-px bg-outline-variant/10"></div>
+<div class="w-full h-px bg-outline-variant/10"></div>
+<div class="w-full h-px bg-outline-variant/10"></div>
+</div>
+<!-- X-axis labels -->
+<div class="absolute bottom-[-24px] w-full flex justify-between text-xs text-on-surface-variant font-medium pl-2">
+<span>2018</span>
+<span>2019</span>
+<span>2020</span>
+<span>2021</span>
+<span>2022</span>
+<span>2023</span>
+</div>
+<!-- Decorative Chart Lines -->
+<div class="relative w-full h-full overflow-hidden">
+<!-- Base line (No Reinvestment) -->
+<svg class="absolute bottom-0 w-full h-full" preserveaspectratio="none" viewbox="0 0 100 100">
+<path d="M0,80 Q20,75 40,60 T70,40 T100,30" fill="none" stroke="#abadaf" stroke-dasharray="4 4" stroke-width="2"></path>
+</svg>
+<!-- DRIP Line (Primary) -->
+<svg class="absolute bottom-0 w-full h-full" preserveaspectratio="none" viewbox="0 0 100 100">
+<!-- Gradient Fill -->
+<defs>
+<lineargradient id="chartGradient" x1="0%" x2="0%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#0052d0" stop-opacity="0.2"></stop>
+<stop offset="100%" stop-color="#0052d0" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+<path d="M0,80 Q20,70 40,50 T70,20 T100,5 L100,100 L0,100 Z" fill="url(#chartGradient)"></path>
+<!-- Solid Line -->
+<path d="M0,80 Q20,70 40,50 T70,20 T100,5" fill="none" stroke="#0052d0" stroke-width="3"></path>
+</svg>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Detailed Log Table -->
+<div class="bg-surface-container-lowest rounded-DEFAULT shadow-[0_8px_30px_rgb(0,0,0,0.02)] border border-outline-variant/10 overflow-hidden mt-8">
+<div class="px-6 py-5 border-b border-outline-variant/10 flex justify-between items-center bg-surface/30">
+<h3 class="font-headline font-semibold text-lg text-on-surface">股息再投资日志</h3>
+<button class="text-sm font-medium text-primary hover:text-primary-dim transition-colors">导出 CSV</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low/50 text-xs font-semibold text-on-surface-variant tracking-wider uppercase border-b border-outline-variant/10">
+<th class="px-6 py-4 font-medium">日期</th>
+<th class="px-6 py-4 font-medium">资产</th>
+<th class="px-6 py-4 font-medium text-right">支付股息</th>
+<th class="px-6 py-4 font-medium text-right">再投资价格</th>
+<th class="px-6 py-4 font-medium text-right">获得股份</th>
+<th class="px-6 py-4 font-medium text-right">新余额</th>
+</tr>
+</thead>
+<tbody class="text-sm font-medium divide-y divide-outline-variant/5">
+<tr class="hover:bg-surface-container-lowest/50 transition-colors group">
+<td class="px-6 py-4 text-on-surface">2023年12月15日</td>
+<td class="px-6 py-4">
+<div class="flex items-center space-x-2">
+<div class="w-6 h-6 rounded-sm bg-surface-container-highest flex items-center justify-center text-[10px] font-bold text-on-surface">AAPL</div>
+<span class="text-on-surface">苹果公司</span>
+</div>
+</td>
+<td class="px-6 py-4 text-right text-secondary">+$342.50</td>
+<td class="px-6 py-4 text-right text-on-surface-variant">$197.57</td>
+<td class="px-6 py-4 text-right text-on-surface">1.733</td>
+<td class="px-6 py-4 text-right font-semibold text-on-surface">$174,283.45</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest/50 transition-colors group">
+<td class="px-6 py-4 text-on-surface">2023年12月01日</td>
+<td class="px-6 py-4">
+<div class="flex items-center space-x-2">
+<div class="w-6 h-6 rounded-sm bg-surface-container-highest flex items-center justify-center text-[10px] font-bold text-on-surface">JNJ</div>
+<span class="text-on-surface">强生公司</span>
+</div>
+</td>
+<td class="px-6 py-4 text-right text-secondary">+$412.00</td>
+<td class="px-6 py-4 text-right text-on-surface-variant">$155.30</td>
+<td class="px-6 py-4 text-right text-on-surface">2.652</td>
+<td class="px-6 py-4 text-right font-semibold text-on-surface">$173,940.95</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest/50 transition-colors group">
+<td class="px-6 py-4 text-on-surface">2023年11月15日</td>
+<td class="px-6 py-4">
+<div class="flex items-center space-x-2">
+<div class="w-6 h-6 rounded-sm bg-surface-container-highest flex items-center justify-center text-[10px] font-bold text-on-surface">PG</div>
+<span class="text-on-surface">宝洁公司</span>
+</div>
+</td>
+<td class="px-6 py-4 text-right text-secondary">+$285.75</td>
+<td class="px-6 py-4 text-right text-on-surface-variant">$151.02</td>
+<td class="px-6 py-4 text-right text-on-surface">1.892</td>
+<td class="px-6 py-4 text-right font-semibold text-on-surface">$173,528.95</td>
+</tr>
+<tr class="hover:bg-surface-container-lowest/50 transition-colors group">
+<td class="px-6 py-4 text-on-surface">2023年10月28日</td>
+<td class="px-6 py-4">
+<div class="flex items-center space-x-2">
+<div class="w-6 h-6 rounded-sm bg-surface-container-highest flex items-center justify-center text-[10px] font-bold text-on-surface">KO</div>
+<span class="text-on-surface">可口可乐</span>
+</div>
+</td>
+<td class="px-6 py-4 text-right text-secondary">+$195.20</td>
+<td class="px-6 py-4 text-right text-on-surface-variant">$56.75</td>
+<td class="px-6 py-4 text-right text-on-surface">3.439</td>
+<td class="px-6 py-4 text-right font-semibold text-on-surface">$173,243.20</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</main>
+</body></html>

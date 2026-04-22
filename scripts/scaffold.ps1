@@ -5,11 +5,11 @@ $files = @(
     Path = 'package.json'
     Content = @'
 {
-  "name": "dividend-monitor",
+  "name": "shou-xi-lao",
   "version": "0.1.0",
   "private": true,
-  "description": "DividendMonitor desktop app scaffold",
-  "main": "dist/main/index.js",
+  "description": "收息佬 desktop app scaffold",
+  "main": "out/main/index.js",
   "type": "module",
   "scripts": {
     "dev": "electron-vite dev",
@@ -18,6 +18,7 @@ $files = @(
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "axios": "^1.9.0",
     "antd": "^5.27.0",
     "echarts": "^5.6.0",
     "electron-log": "^5.4.0",

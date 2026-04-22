@@ -11,6 +11,8 @@
 
 本文档是 `SDD.md` 的补充设计，默认技术栈为 `Electron + React + Ant Design + TypeScript + SQLite`。
 
+当前工程目录的“简化方案与迁移步骤”单独记录在 `DIRECTORY-SIMPLIFICATION-PLAN.md`。本文档继续描述稳定的职责边界，不要求为了分层而保留过深目录。
+
 ## 2. 架构目标
 
 ### 2.1 目标
@@ -502,56 +504,55 @@ src/renderer/src/services/
 
 ## 9. 建议目录结构
 
+以下目录结构是当前阶段更推荐的“简化后结构”，目标是在保留边界的同时降低跳转成本。
+
 ```text
 src/
   main/
+    adapters/
+      AShareDataSource.ts
+      eastmoney/
     application/
       useCases/
     domain/
-      entities/
-      policies/
       services/
-      validators/
+      entities/
     repositories/
-    adapters/
     infrastructure/
     ipc/
   preload/
     index.ts
-    api.ts
-    contracts/
   renderer/
     src/
-      app/
-        router/
-        providers/
-        layouts/
+      layouts/
+      router/
       pages/
-      containers/
-      features/
-        stock-search/
+      components/
+        app/
         stock-detail/
         comparison/
-        yield-map/
-        backtest/
         watchlist/
-      components/
-        base/
-        app/
+        backtest/
       hooks/
       services/
-        api/
-        mappers/
-      store/
-      types/
-      utils/
+      styles/
 shared/
   contracts/
-  constants/
-  utils/
 ```
 
-## 10. Feature 模块建议
+## 10. 当前阶段的简化规则
+
+针对首期工程，补充以下简化约束：
+
+1. 页面如果只是“拿数据再透传给一个容器”，则优先删除 `Container`
+2. 业务组件允许直接放在 `components/<feature>/`，不强制保留 `features/*/components`
+3. 只有当某个业务模块同时出现组件、局部 hook、mapper、types 时，才重新升格回 `features/<module>/`
+4. `services/api` 这一层级对当前工程偏重，优先收拢为 `services/`
+5. `app/layouts`、`app/router` 这种单一子目录优先拆平
+
+这样做的目的不是否定分层，而是把“分层”保留在职责上，而不是堆到路径深度上。
+
+## 11. Feature 模块建议
 
 建议前端按业务模块组织，而不是按组件类型平铺所有文件。
 
@@ -578,7 +579,7 @@ src/renderer/src/features/stock-detail/
 2. 修改一个功能时更容易定位
 3. 后期拆包或抽共用模块更容易
 
-## 11. DTO 与 ViewModel 规范
+## 12. DTO 与 ViewModel 规范
 
 ### 11.1 DTO
 
@@ -621,7 +622,7 @@ type HistoricalYieldChartViewModel = {
 3. renderer service / mapper 生成 ViewModel
 4. component 接收 ViewModel 或更轻量 props
 
-## 12. 一个完整调用链示例
+## 13. 一个完整调用链示例
 
 以“打开股票详情页”场景为例：
 
@@ -648,7 +649,7 @@ StockDetailPage
 2. 图表组件不关心数据来自哪里
 3. 计算逻辑不会散落到 React 组件中
 
-## 13. 回测模块的特别约束
+## 14. 回测模块的特别约束
 
 回测模块是首期最容易失控的部分，必须额外约束：
 
@@ -657,7 +658,7 @@ StockDetailPage
 3. 回测过程必须可重放，输入条件一致时结果必须一致
 4. 所有回测假设必须在 UI 中可见
 
-## 14. 命名与边界建议
+## 15. 命名与边界建议
 
 ### 14.1 命名建议
 
@@ -675,14 +676,14 @@ StockDetailPage
 - 一个 use case 尽量只响应一个用户动作
 - 一个 repository 不要同时承载太多不同领域数据
 
-## 15. 首期落地顺序建议
+## 16. 首期落地顺序建议
 
 1. 先搭 `shared contracts`、`main domain`、`renderer service` 的边界
 2. 再做 `stock-detail` 这一条主链路，验证分层设计
 3. 然后复用同样模式扩展到 `watchlist`、`comparison`、`backtest`
 4. 最后再补齐地图、设置和缓存优化
 
-## 16. 建议的下一步产出
+## 17. 建议的下一步产出
 
 基于本文档，建议马上继续补以下内容：
 

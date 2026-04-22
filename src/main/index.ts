@@ -1,4 +1,4 @@
-﻿import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { registerIpcHandlers } from '@main/ipc/channels'
@@ -8,14 +8,16 @@ const __dirname = dirname(__filename)
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
+    title: '收息佬',
     width: 1440,
     height: 960,
     minWidth: 1200,
     minHeight: 760,
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(__dirname, '../preload/index.mjs'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      sandbox: false
     }
   })
 

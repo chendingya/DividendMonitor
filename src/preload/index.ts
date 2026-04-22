@@ -1,10 +1,20 @@
-﻿import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import type { DividendMonitorApi } from '@shared/contracts/api'
 
 const api: DividendMonitorApi = {
   stock: {
     search: (keyword) => ipcRenderer.invoke('stock:search', keyword),
-    getDetail: (symbol) => ipcRenderer.invoke('stock:get-detail', symbol)
+    getDetail: (symbol) => ipcRenderer.invoke('stock:get-detail', symbol),
+    compare: (symbols) => ipcRenderer.invoke('stock:compare', symbols)
+  },
+  watchlist: {
+    list: () => ipcRenderer.invoke('watchlist:list')
+  },
+  calculation: {
+    getHistoricalYield: (symbol) => ipcRenderer.invoke('calculation:historical-yield', symbol),
+    estimateFutureYield: (symbol) => ipcRenderer.invoke('calculation:estimate-future-yield', symbol),
+    runDividendReinvestmentBacktest: (symbol, buyDate) =>
+      ipcRenderer.invoke('calculation:run-dividend-reinvestment-backtest', symbol, buyDate)
   }
 }
 

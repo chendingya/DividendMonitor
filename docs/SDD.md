@@ -101,33 +101,35 @@
 
 ## 6. 目录建议
 
+首期目录在保证边界的前提下，应优先选择“够用的分层”，避免过深目录。当前目录简化计划见 `DIRECTORY-SIMPLIFICATION-PLAN.md`。
+
 ```text
 DividendMonitor/
   docs/
     ARCHITECTURE.md
+    DIRECTORY-SIMPLIFICATION-PLAN.md
     PRD.md
     SDD.md
   src/
     main/
-      index.ts
-      ipc/
-      services/
-      db/
       adapters/
+      application/
+      domain/
+      infrastructure/
+      ipc/
+      repositories/
+      index.ts
     preload/
       index.ts
-      api.ts
     renderer/
       src/
-        app/
+        layouts/
+        router/
         pages/
         components/
-        features/
-        store/
-        services/
         hooks/
-        utils/
-        types/
+        services/
+        styles/
   resources/
   scripts/
   package.json
