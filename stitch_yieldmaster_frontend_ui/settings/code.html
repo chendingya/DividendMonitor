@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>收息佬 - 设置</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, h4, h5, h6, .font-headline { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .glass-panel { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(24px); }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "secondary-fixed": "#cbceff",
+                        "surface-bright": "#f5f7f9",
+                        "surface": "#f5f7f9",
+                        "on-surface": "#2c2f31",
+                        "surface-container": "#e5e9eb",
+                        "primary-container": "#799dff",
+                        "inverse-surface": "#0b0f10",
+                        "tertiary": "#8d3a8b",
+                        "on-error-container": "#570008",
+                        "on-secondary-fixed-variant": "#3a45ac",
+                        "tertiary-dim": "#7f2d7e",
+                        "secondary-fixed-dim": "#babfff",
+                        "on-primary-container": "#001e58",
+                        "surface-container-highest": "#d9dde0",
+                        "on-tertiary-fixed": "#400042",
+                        "on-surface-variant": "#595c5e",
+                        "on-secondary-fixed": "#19248e",
+                        "on-tertiary": "#ffeef8",
+                        "primary-dim": "#0047b7",
+                        "on-background": "#2c2f31",
+                        "on-secondary-container": "#303ba2",
+                        "inverse-on-surface": "#9a9d9f",
+                        "secondary": "#4551b7",
+                        "on-secondary": "#f3f1ff",
+                        "background": "#f5f7f9",
+                        "surface-variant": "#d9dde0",
+                        "primary-fixed": "#799dff",
+                        "outline": "#747779",
+                        "tertiary-container": "#f797f0",
+                        "primary": "#0052d0",
+                        "on-primary-fixed-variant": "#00276c",
+                        "outline-variant": "#abadaf",
+                        "error": "#b31b25",
+                        "surface-dim": "#d0d5d8",
+                        "surface-container-low": "#eef1f3",
+                        "secondary-container": "#cbceff",
+                        "surface-container-high": "#dfe3e6",
+                        "on-error": "#ffefee",
+                        "on-primary": "#f1f2ff",
+                        "tertiary-fixed": "#f797f0",
+                        "error-container": "#fb5151",
+                        "on-primary-fixed": "#000000",
+                        "secondary-dim": "#3944ab",
+                        "error-dim": "#9f0519",
+                        "on-tertiary-fixed-variant": "#6c1a6c",
+                        "inverse-primary": "#5e8bff",
+                        "tertiary-fixed-dim": "#e88ae1",
+                        "primary-fixed-dim": "#638eff",
+                        "surface-tint": "#0052d0",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-container": "#610e63"
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-surface text-on-surface antialiased min-h-screen flex">
+<!-- SideNavBar (Shared Component) -->
+<aside class="bg-surface-container-low/80 backdrop-blur-[24px] h-screen w-72 flex flex-col sticky left-0 top-0 shadow-[0_32px_64px_rgba(0,0,0,0.04)] hidden md:flex z-40 border-r border-surface-container-highest">
+<div class="p-8 flex-shrink-0">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary font-headline font-bold text-xl shadow-sm">
+                    收
+                </div>
+<div>
+<h1 class="text-2xl font-extrabold tracking-tight text-primary font-headline">收息佬</h1>
+<p class="text-xs text-on-surface-variant font-medium tracking-wide">专业股息分析系统</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 px-4 py-2 space-y-1 overflow-y-auto">
+<a class="text-on-surface-variant flex items-center px-4 py-3 mx-2 my-1 hover:bg-surface-container-highest/50 rounded-full transition-all" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">dashboard</span>
+<span class="font-medium">总览</span>
+</a>
+<a class="text-on-surface-variant flex items-center px-4 py-3 mx-2 my-1 hover:bg-surface-container-highest/50 rounded-full transition-all" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">analytics</span>
+<span class="font-medium">股票详情</span>
+</a>
+<a class="text-on-surface-variant flex items-center px-4 py-3 mx-2 my-1 hover:bg-surface-container-highest/50 rounded-full transition-all" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">visibility</span>
+<span class="font-medium">观察名单</span>
+</a>
+<a class="text-on-surface-variant flex items-center px-4 py-3 mx-2 my-1 hover:bg-surface-container-highest/50 rounded-full transition-all" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">compare_arrows</span>
+<span class="font-medium">板块对比</span>
+</a>
+<a class="text-on-surface-variant flex items-center px-4 py-3 mx-2 my-1 hover:bg-surface-container-highest/50 rounded-full transition-all" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">history_edu</span>
+<span class="font-medium">回测分析</span>
+</a>
+<a class="text-on-surface-variant flex items-center px-4 py-3 mx-2 my-1 hover:bg-surface-container-highest/50 rounded-full transition-all" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">map</span>
+<span class="font-medium">分布地图</span>
+</a>
+<a class="bg-primary text-on-primary rounded-full flex items-center px-4 py-3 mx-2 my-1 transition-all duration-300 shadow-md" href="#">
+<span class="material-symbols-outlined mr-3 text-xl">settings</span>
+<span class="font-medium">设置</span>
+</a>
+</nav>
+<div class="p-6 flex-shrink-0">
+<button class="w-full bg-gradient-to-r from-primary to-primary-dim text-on-primary py-3 rounded-full font-medium tracking-wide shadow-md hover:shadow-lg transition-shadow">
+                升级至 Pro
+            </button>
+</div>
+<div class="px-4 pb-8 pt-2 border-t border-surface-container-highest/30">
+<a class="text-on-surface-variant flex items-center px-4 py-2 mx-2 hover:bg-surface-container-highest/50 rounded-full transition-all text-sm" href="#">
+<span class="material-symbols-outlined mr-3 text-lg">help</span>
+<span>帮助</span>
+</a>
+<a class="text-on-surface-variant flex items-center px-4 py-2 mx-2 hover:bg-surface-container-highest/50 rounded-full transition-all text-sm" href="#">
+<span class="material-symbols-outlined mr-3 text-lg">logout</span>
+<span>登出</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col min-w-0">
+<!-- TopAppBar (Shared Component) -->
+<header class="bg-surface-container-low/40 backdrop-blur-xl full-width h-16 sticky top-0 z-30 flex justify-between items-center w-full px-8 py-2 border-none">
+<div class="flex items-center gap-4">
+<div class="md:hidden flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-2xl">menu</span>
+<span class="text-xl font-extrabold text-primary font-headline">收息佬</span>
+</div>
+</div>
+<div class="flex-1 max-w-xl px-8 hidden md:block">
+<!-- Search bar intentionally omitted for Settings page context -->
+<h2 class="font-headline text-xl font-bold text-on-surface">设置 (Settings)</h2>
+</div>
+<div class="flex items-center gap-4">
+<button class="text-on-surface-variant hover:bg-surface-container-highest/40 p-2 rounded-lg transition-colors relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="text-on-surface-variant hover:bg-surface-container-highest/40 p-2 rounded-lg transition-colors">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+</button>
+<button class="bg-gradient-to-r from-primary to-primary-dim text-on-primary px-4 py-2 rounded-lg font-medium text-sm shadow-sm hidden md:block">
+                    新增持股
+                </button>
+<img alt="个人档案" class="w-8 h-8 rounded-full border border-surface-container-highest cursor-pointer object-cover" data-alt="professional portrait of a user for profile avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBCvlPvHePJbwtDmVTbTW6x1mqSA4es7YegIIY_Cc4biFG1mupz47wuknsByqIKO24XZOgm2w6-dpyKtHhn2LBJrxs5cF0vejEK-UsSvr5qbokOSpFKNWXfdirnQY8SIodoKdR8Ma-8964k7qmUtMOH62T2LmwOu64CgRiOHSvRpwqIIfGNSMkp0NES2C5wP7KfvYCk3Vppqq8Q4DIM1KejSyf1XJN3eQsmkVMcYCzlWA1GjCrqj8vr9lWAJEJcpfVuCh65IaFQWMwM"/>
+</div>
+</header>
+<!-- Settings Content -->
+<div class="flex-1 overflow-y-auto p-4 md:p-8 lg:px-12">
+<div class="max-w-4xl mx-auto space-y-8 pb-16">
+<!-- Section: Data Source Settings -->
+<section>
+<h3 class="font-headline text-lg font-bold text-on-surface mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">database</span>
+                        数据源设置
+                    </h3>
+<div class="bg-surface-container-lowest rounded-DEFAULT p-6 shadow-[0_8px_24px_rgba(0,0,0,0.02)] border border-outline-variant/10">
+<p class="text-sm text-on-surface-variant mb-6">选择用于获取股票价格和股息数据的首选提供商。</p>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<label class="relative flex items-start p-4 cursor-pointer rounded-lg border-2 border-primary bg-primary/5 transition-all">
+<div class="flex items-center h-5">
+<input checked="" class="w-4 h-4 text-primary bg-surface border-outline focus:ring-primary focus:ring-2" name="datasource" type="radio" value="akshare"/>
+</div>
+<div class="ml-3 text-sm flex-1">
+<span class="font-medium text-on-surface block">AkShare (推荐)</span>
+<span class="text-on-surface-variant text-xs mt-1 block">提供全面的A股、港股及部分美股数据，更新及时。</span>
+</div>
+<span class="material-symbols-outlined text-primary ml-2">check_circle</span>
+</label>
+<label class="relative flex items-start p-4 cursor-pointer rounded-lg border border-outline-variant/30 hover:bg-surface-container-low transition-all">
+<div class="flex items-center h-5">
+<input class="w-4 h-4 text-primary bg-surface border-outline focus:ring-primary focus:ring-2" name="datasource" type="radio" value="yahoo"/>
+</div>
+<div class="ml-3 text-sm flex-1">
+<span class="font-medium text-on-surface block">Yahoo Finance</span>
+<span class="text-on-surface-variant text-xs mt-1 block">全球市场数据覆盖广，但在某些特定市场可能存在延迟。</span>
+</div>
+</label>
+</div>
+</div>
+</section>
+<!-- Section: Default Parameters -->
+<section>
+<h3 class="font-headline text-lg font-bold text-on-surface mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">tune</span>
+                        默认参数
+                    </h3>
+<div class="bg-surface-container-lowest rounded-DEFAULT p-6 shadow-[0_8px_24px_rgba(0,0,0,0.02)] border border-outline-variant/10 space-y-6">
+<!-- Chart Range -->
+<div>
+<label class="block text-sm font-medium text-on-surface mb-2">图表默认显示年份范围</label>
+<div class="flex gap-2">
+<button class="px-4 py-2 rounded-lg text-sm font-medium border border-outline-variant/30 text-on-surface hover:bg-surface-container-low">1年</button>
+<button class="px-4 py-2 rounded-lg text-sm font-medium border border-outline-variant/30 text-on-surface hover:bg-surface-container-low">3年</button>
+<button class="px-4 py-2 rounded-lg text-sm font-medium bg-primary-container text-on-primary-container border-transparent">5年</button>
+<button class="px-4 py-2 rounded-lg text-sm font-medium border border-outline-variant/30 text-on-surface hover:bg-surface-container-low">10年</button>
+</div>
+</div>
+<hr class="border-t border-outline-variant/10"/>
+<!-- Backtest Defaults -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div>
+<label class="block text-sm font-medium text-on-surface mb-2" for="initial_capital">默认回测初始资金</label>
+<div class="relative rounded-sm">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="text-on-surface-variant sm:text-sm">¥</span>
+</div>
+<input class="focus:ring-primary focus:border-primary block w-full pl-7 pr-12 sm:text-sm border-outline-variant/30 rounded-sm bg-surface-container py-2 text-on-surface transition-colors focus:bg-surface-container-highest" id="initial_capital" name="initial_capital" type="text" value="100,000"/>
+</div>
+</div>
+<div>
+<label class="block text-sm font-medium text-on-surface mb-2" for="tax_rate">默认股息税率 (%)</label>
+<div class="relative rounded-sm">
+<input class="focus:ring-primary focus:border-primary block w-full pr-12 sm:text-sm border-outline-variant/30 rounded-sm bg-surface-container py-2 text-on-surface transition-colors focus:bg-surface-container-highest" id="tax_rate" name="tax_rate" type="text" value="20"/>
+<div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+<span class="text-on-surface-variant sm:text-sm">%</span>
+</div>
+</div>
+<p class="mt-1 text-xs text-on-surface-variant">通常A股红利税率为20%，持有超过1年免征。</p>
+</div>
+</div>
+<div class="flex justify-end pt-4">
+<button class="bg-gradient-to-r from-primary to-primary-dim text-on-primary px-6 py-2.5 rounded-DEFAULT font-medium text-sm shadow-sm hover:shadow-md transition-shadow">
+                                保存参数设置
+                            </button>
+</div>
+</div>
+</section>
+<!-- Section: Indicator Descriptions -->
+<section>
+<h3 class="font-headline text-lg font-bold text-on-surface mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">info</span>
+                        指标说明
+                    </h3>
+<div class="bg-surface-container-lowest rounded-DEFAULT overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.02)] border border-outline-variant/10">
+<div class="divide-y divide-outline-variant/10">
+<!-- Accordion Item 1 -->
+<details class="group" open="">
+<summary class="flex justify-between items-center font-medium cursor-pointer list-none p-5 text-on-surface hover:bg-surface-container-low transition-colors">
+<span>股息率 (Dividend Yield)</span>
+<span class="transition group-open:rotate-180 material-symbols-outlined text-on-surface-variant">expand_more</span>
+</summary>
+<div class="text-on-surface-variant text-sm px-5 pb-5 leading-relaxed bg-surface-container-low/30">
+                                    股息率是一年的总派息额与当时市价的比例。计算公式：(年度每股总派息 / 当前股价) × 100%。它是衡量企业是否具有投资价值的重要标尺之一。
+                                </div>
+</details>
+<!-- Accordion Item 2 -->
+<details class="group">
+<summary class="flex justify-between items-center font-medium cursor-pointer list-none p-5 text-on-surface hover:bg-surface-container-low transition-colors">
+<span>派息比率 (Payout Ratio)</span>
+<span class="transition group-open:rotate-180 material-symbols-outlined text-on-surface-variant">expand_more</span>
+</summary>
+<div class="text-on-surface-variant text-sm px-5 pb-5 leading-relaxed bg-surface-container-low/30">
+                                    派息比率指公司将其净利润支付给股东作为股息的比例。计算公式：(每股股息 / 每股收益) × 100%。通常健康的派息比率在30%-70%之间。
+                                </div>
+</details>
+<!-- Accordion Item 3 -->
+<details class="group">
+<summary class="flex justify-between items-center font-medium cursor-pointer list-none p-5 text-on-surface hover:bg-surface-container-low transition-colors">
+<span>成本收益率 (Yield on Cost)</span>
+<span class="transition group-open:rotate-180 material-symbols-outlined text-on-surface-variant">expand_more</span>
+</summary>
+<div class="text-on-surface-variant text-sm px-5 pb-5 leading-relaxed bg-surface-container-low/30">
+                                    基于您最初买入股票的成本计算的股息率。计算公式：(当前年度每股总派息 / 您的平均买入成本) × 100%。随着公司股息增长，长期持有的成本收益率通常会显著上升。
+                                </div>
+</details>
+</div>
+</div>
+</section>
+<!-- Section: About -->
+<section>
+<h3 class="font-headline text-lg font-bold text-on-surface mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">verified</span>
+                        关于
+                    </h3>
+<div class="bg-surface-container-lowest rounded-DEFAULT p-6 shadow-[0_8px_24px_rgba(0,0,0,0.02)] border border-outline-variant/10 text-center py-8">
+<div class="w-16 h-16 rounded-2xl bg-primary-container text-on-primary-container flex items-center justify-center font-headline font-bold text-3xl mx-auto mb-4">
+                            收
+                        </div>
+<h4 class="font-headline text-xl font-bold text-on-surface mb-1">收息佬 (Dividend Analyst)</h4>
+<p class="text-sm text-on-surface-variant mb-6">版本 2.4.0 (Build 892)</p>
+<div class="flex justify-center gap-4 text-sm font-medium">
+<a class="text-primary hover:underline" href="#">检查更新</a>
+<span class="text-outline-variant">•</span>
+<a class="text-primary hover:underline" href="#">隐私政策</a>
+<span class="text-outline-variant">•</span>
+<a class="text-primary hover:underline" href="#">服务条款</a>
+</div>
+<p class="text-xs text-on-surface-variant mt-8 max-w-md mx-auto">
+                            由高收益策略团队倾力打造。数据仅供参考，不构成投资建议。<br/>
+                            © 2024 收息佬科技. 保留所有权利。
+                        </p>
+</div>
+</section>
+</div>
+</div>
+</main>
+</body></html>

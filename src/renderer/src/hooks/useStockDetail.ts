@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { StockDetailDto } from '@shared/contracts/api'
-import { stockApi } from '@renderer/services/api/stockApi'
+import { stockApi } from '@renderer/services/stockApi'
+
+function isAShareSymbol(symbol: string) {
+  return /^(6|0|3)\d{5}$/.test(symbol.trim())
+}
 
 export function useStockDetail(symbol: string) {
   const [data, setData] = useState<StockDetailDto | null>(null)
@@ -13,6 +17,15 @@ export function useStockDetail(symbol: string) {
     async function load() {
       setLoading(true)
       setError(null)
+
+      if (!isAShareSymbol(symbol)) {
+        if (!disposed) {
+          setData(null)
+          setError(`仅支持A股6位代码，当前代码无效：${symbol}`)
+          setLoading(false)
+        }
+        return
+      }
 
       try {
         const detail = await stockApi.getDetail(symbol)
@@ -39,3 +52,4 @@ export function useStockDetail(symbol: string) {
 
   return { data, loading, error }
 }
+

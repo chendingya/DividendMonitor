@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+
+<html class="light" lang="zh-CN"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Lucid Analyst - 对比分析</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary": "#f3f1ff",
+                    "surface-container-highest": "#d9dde0",
+                    "surface": "#f5f7f9",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-tint": "#0052d0",
+                    "on-error": "#ffefee",
+                    "surface-container": "#e5e9eb",
+                    "primary-fixed-dim": "#638eff",
+                    "inverse-primary": "#5e8bff",
+                    "tertiary-fixed": "#f797f0",
+                    "tertiary-fixed-dim": "#e88ae1",
+                    "background": "#f5f7f9",
+                    "secondary": "#4551b7",
+                    "inverse-surface": "#0b0f10",
+                    "outline-variant": "#abadaf",
+                    "on-surface-variant": "#595c5e",
+                    "on-tertiary-fixed": "#400042",
+                    "on-primary-fixed-variant": "#00276c",
+                    "secondary-fixed": "#cbceff",
+                    "primary-dim": "#0047b7",
+                    "surface-container-high": "#dfe3e6",
+                    "secondary-fixed-dim": "#babfff",
+                    "on-primary-container": "#001e58",
+                    "primary-container": "#799dff",
+                    "outline": "#747779",
+                    "inverse-on-surface": "#9a9d9f",
+                    "on-secondary-container": "#303ba2",
+                    "secondary-container": "#cbceff",
+                    "on-tertiary-fixed-variant": "#6c1a6c",
+                    "tertiary-dim": "#7f2d7e",
+                    "primary": "#0052d0",
+                    "surface-dim": "#d0d5d8",
+                    "on-tertiary-container": "#610e63",
+                    "on-error-container": "#570008",
+                    "on-tertiary": "#ffeef8",
+                    "tertiary-container": "#f797f0",
+                    "surface-bright": "#f5f7f9",
+                    "tertiary": "#8d3a8b",
+                    "error": "#b31b25",
+                    "error-dim": "#9f0519",
+                    "on-primary-fixed": "#000000",
+                    "on-secondary-fixed-variant": "#3a45ac",
+                    "secondary-dim": "#3944ab",
+                    "on-background": "#2c2f31",
+                    "primary-fixed": "#799dff",
+                    "on-secondary-fixed": "#19248e",
+                    "surface-variant": "#d9dde0",
+                    "on-primary": "#f1f2ff",
+                    "surface-container-low": "#eef1f3",
+                    "error-container": "#fb5151",
+                    "on-surface": "#2c2f31"
+            },
+            "borderRadius": {
+                    "DEFAULT": "1rem",
+                    "lg": "2rem",
+                    "xl": "3rem",
+                    "full": "9999px"
+            },
+            "spacing": {},
+            "fontFamily": {
+                    "headline": ["Plus Jakarta Sans", "sans-serif"],
+                    "body": ["Inter", "sans-serif"],
+                    "label": ["Inter", "sans-serif"]
+            }
+          },
+        },
+      }
+    </script>
+<style type="text/tailwindcss">
+        @layer utilities {
+            .glass-panel {
+                @apply bg-surface-container-lowest/80 backdrop-blur-2xl shadow-[0_8px_32px_rgba(44,47,49,0.04)];
+            }
+            .text-gradient-primary {
+                @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary-dim;
+            }
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-background font-body min-h-screen antialiased selection:bg-primary-container selection:text-on-primary-container flex">
+<!-- Shared Component: SideNavBar -->
+<nav class="bg-surface-bright/80 dark:bg-slate-900/80 backdrop-blur-2xl h-screen w-64 fixed left-0 top-0 rounded-r-[32px] flex flex-col py-8 px-4 z-50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hidden md:flex">
+<!-- Brand Area -->
+<div class="px-4 mb-12 flex items-center gap-4">
+<div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-dim flex items-center justify-center shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-on-primary" data-weight="fill">analytics</span>
+</div>
+<div>
+<h2 class="font-headline text-xl font-black text-primary tracking-tighter">Lucid Analyst</h2>
+<p class="text-xs font-label text-on-surface-variant tracking-wider uppercase mt-0.5">财富智能</p>
+</div>
+</div>
+<!-- Navigation Links -->
+<div class="flex-1 space-y-2">
+<!-- Portfolio -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-full text-on-surface-variant hover:text-primary hover:bg-surface-container-low/50 transition-all duration-300 font-label font-medium text-sm" href="#">
+<span class="material-symbols-outlined text-[20px]">pie_chart</span>
+                投资组合
+            </a>
+<!-- Dividends -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-full text-on-surface-variant hover:text-primary hover:bg-surface-container-low/50 transition-all duration-300 font-label font-medium text-sm" href="#">
+<span class="material-symbols-outlined text-[20px]">payments</span>
+                股息
+            </a>
+<!-- Analytics -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-full text-on-surface-variant hover:text-primary hover:bg-surface-container-low/50 transition-all duration-300 font-label font-medium text-sm" href="#">
+<span class="material-symbols-outlined text-[20px]">monitoring</span>
+                分析
+            </a>
+<!-- Yield Tracker (ACTIVE) -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-full bg-primary text-on-primary shadow-lg shadow-primary/30 font-label font-semibold text-sm scale-95 duration-150 ease-in-out" href="#">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">show_chart</span>
+                收益追踪器
+            </a>
+<!-- Settings -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-full text-on-surface-variant hover:text-primary hover:bg-surface-container-low/50 transition-all duration-300 font-label font-medium text-sm" href="#">
+<span class="material-symbols-outlined text-[20px]">settings</span>
+                设置
+            </a>
+</div>
+<!-- Footer / CTA -->
+<div class="mt-auto space-y-4">
+<a class="flex items-center gap-3 px-4 py-3 rounded-full text-on-surface-variant hover:text-primary hover:bg-surface-container-low/50 transition-all duration-300 font-label font-medium text-sm" href="#">
+<span class="material-symbols-outlined text-[20px]">help_outline</span>
+                帮助中心
+            </a>
+<button class="w-full py-3.5 px-4 bg-gradient-to-r from-primary to-primary-dim text-on-primary rounded-DEFAULT font-label font-semibold text-sm shadow-lg shadow-primary/20 hover:shadow-xl hover:shadow-primary/30 transition-all hover:-translate-y-0.5">
+                升级到专业版
+            </button>
+</div>
+</nav>
+<!-- Main Content Area Wrapper -->
+<div class="flex-1 ml-0 md:ml-64 flex flex-col min-h-screen">
+<!-- Shared Component: TopAppBar -->
+<header class="bg-surface-bright/60 backdrop-blur-md fixed top-0 right-0 left-0 md:left-64 h-16 flex items-center justify-between px-8 w-auto z-40">
+<!-- Search -->
+<div class="flex-1 max-w-md">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant group-focus-within:text-primary transition-colors">search</span>
+<input class="w-full bg-surface-container-low text-on-background placeholder:text-on-surface-variant rounded-full py-2 pl-10 pr-4 text-sm font-body border-0 focus:ring-2 focus:ring-primary/30 focus:bg-surface-container-highest transition-all outline-none" placeholder="搜索账本、代码或查询..." type="text"/>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex items-center gap-6 text-on-surface-variant">
+<button class="hover:text-primary transition-colors hover:opacity-80 relative">
+<span class="material-symbols-outlined">notifications_active</span>
+<span class="absolute top-0 right-0 w-2 h-2 rounded-full bg-error border-2 border-surface-bright"></span>
+</button>
+<button class="hover:text-primary transition-colors hover:opacity-80">
+<span class="material-symbols-outlined">tune</span>
+</button>
+<button class="flex items-center gap-2 hover:opacity-80 transition-opacity pl-2 ml-2 border-l border-surface-container">
+<div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-headline font-bold text-sm">
+                        LA
+                    </div>
+</button>
+</div>
+</header>
+<!-- Canvas -->
+<main class="flex-1 pt-24 px-8 pb-16 max-w-7xl w-full mx-auto">
+<!-- Page Header -->
+<div class="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div>
+<div class="flex items-center gap-3 mb-2">
+<span class="px-3 py-1 bg-surface-container-high rounded-full text-xs font-label tracking-wide text-on-surface font-semibold uppercase">对比</span>
+<span class="text-on-surface-variant text-sm font-medium">第三季度分析</span>
+</div>
+<h1 class="font-headline text-4xl lg:text-5xl font-extrabold text-on-background tracking-tight text-gradient-primary leading-tight">对比分析</h1>
+<p class="text-on-surface-variant mt-2 max-w-2xl text-base">对比表现最佳资产的总体股息支付和持续增长趋势。</p>
+</div>
+<div class="flex items-center gap-3">
+<button class="px-5 py-2.5 rounded-DEFAULT bg-surface-container-lowest text-on-surface font-label font-medium text-sm hover:bg-surface-container-low transition-colors shadow-sm flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">download</span> 导出报告
+                    </button>
+<button class="px-5 py-2.5 rounded-DEFAULT bg-primary text-on-primary font-label font-medium text-sm hover:bg-primary-dim transition-colors shadow-md shadow-primary/20 flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">add</span> 添加资产
+                    </button>
+</div>
+</div>
+<!-- The Grid Content -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<!-- Comparison Bento Section (Takes 8 cols on large screens) -->
+<div class="lg:col-span-8 space-y-8">
+<!-- Main Comparison Table Card -->
+<div class="glass-panel rounded-lg p-1">
+<div class="bg-surface-container-lowest rounded-[1.75rem] p-6 lg:p-8">
+<!-- Header Row / Legend -->
+<div class="grid grid-cols-12 gap-4 items-center mb-8 px-4">
+<div class="col-span-4 text-xs font-label uppercase tracking-widest text-on-surface-variant font-bold">
+                                    指标
+                                </div>
+<!-- Asset A Header -->
+<div class="col-span-4 flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full bg-primary shadow-sm"></div>
+<span class="font-headline font-bold text-on-background">Alpha 增长</span>
+</div>
+<span class="text-xs text-on-surface-variant font-label pl-5">代码: APGX</span>
+</div>
+<!-- Asset B Header -->
+<div class="col-span-4 flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full bg-tertiary shadow-sm"></div>
+<span class="font-headline font-bold text-on-background">Nexus 股息</span>
+</div>
+<span class="text-xs text-on-surface-variant font-label pl-5">代码: NXDV</span>
+</div>
+</div>
+<!-- Data Rows Container -->
+<div class="space-y-2">
+<!-- Row 1 -->
+<div class="grid grid-cols-12 gap-4 items-center p-4 rounded-DEFAULT hover:bg-surface-container-low/40 transition-colors group">
+<div class="col-span-4 flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[16px]">percent</span>
+</div>
+<span class="font-medium text-sm">年化收益率</span>
+</div>
+<div class="col-span-4 font-headline text-lg font-bold text-on-background">
+                                        4.2%
+                                    </div>
+<div class="col-span-4 flex items-center gap-3">
+<span class="font-headline text-lg font-bold text-tertiary">5.8%</span>
+<div class="inline-flex items-center gap-1 bg-tertiary/10 border border-tertiary/20 text-tertiary px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm">
+<span class="material-symbols-outlined text-[12px]">star</span> 最佳
+                                        </div>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="grid grid-cols-12 gap-4 items-center p-4 rounded-DEFAULT hover:bg-surface-container-low/40 transition-colors group bg-surface-container-low/20">
+<div class="col-span-4 flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[16px]">trending_up</span>
+</div>
+<span class="font-medium text-sm">年初至今增长</span>
+</div>
+<div class="col-span-4 flex items-center gap-3">
+<span class="font-headline text-lg font-bold text-primary">+12.4%</span>
+<div class="inline-flex items-center gap-1 bg-primary/10 border border-primary/20 text-primary px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm">
+<span class="material-symbols-outlined text-[12px]">star</span> 最佳
+                                        </div>
+</div>
+<div class="col-span-4 font-headline text-lg font-bold text-on-background">
+                                        +4.1%
+                                    </div>
+</div>
+<!-- Row 3 -->
+<div class="grid grid-cols-12 gap-4 items-center p-4 rounded-DEFAULT hover:bg-surface-container-low/40 transition-colors group">
+<div class="col-span-4 flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[16px]">account_balance_wallet</span>
+</div>
+<span class="font-medium text-sm">费用率</span>
+</div>
+<div class="col-span-4 flex items-center gap-3">
+<span class="font-headline text-lg font-bold text-primary">0.03%</span>
+<div class="inline-flex items-center gap-1 bg-primary/10 border border-primary/20 text-primary px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm">
+                                            更好
+                                        </div>
+</div>
+<div class="col-span-4 font-headline text-lg font-bold text-on-background">
+                                        0.15%
+                                    </div>
+</div>
+<!-- Row 4 -->
+<div class="grid grid-cols-12 gap-4 items-center p-4 rounded-DEFAULT hover:bg-surface-container-low/40 transition-colors group bg-surface-container-low/20">
+<div class="col-span-4 flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[16px]">shield</span>
+</div>
+<span class="font-medium text-sm">风险评分</span>
+</div>
+<div class="col-span-4 font-headline text-lg font-bold text-on-background">
+                                        中等 (6)
+                                    </div>
+<div class="col-span-4 flex items-center gap-3">
+<span class="font-headline text-lg font-bold text-tertiary">低 (3)</span>
+<div class="inline-flex items-center gap-1 bg-tertiary/10 border border-tertiary/20 text-tertiary px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm">
+                                            更安全
+                                        </div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Contextual Insight Card -->
+<div class="bg-secondary-container/40 rounded-lg p-6 flex items-start gap-4 border border-secondary-container">
+<div class="bg-secondary rounded-full p-2 text-on-secondary shrink-0 mt-1">
+<span class="material-symbols-outlined text-[20px]">lightbulb</span>
+</div>
+<div>
+<h4 class="font-headline font-bold text-secondary-dim text-lg mb-1">分析师洞察</h4>
+<p class="text-sm text-on-surface-variant leading-relaxed">
+                                虽然 <strong class="text-primary font-semibold">Alpha 增长</strong> 在年初至今的资本增值方面大幅领先，但 <strong class="text-tertiary font-semibold">Nexus 股息</strong> 凭借其卓越的股息收益率和较低的风险状况，提供了更强的抵御市场波动的能力。理想的资产配置取决于您具体的时间范围。
+                            </p>
+</div>
+</div>
+</div>
+<!-- Chart & Side Panel (Takes 4 cols on large screens) -->
+<div class="lg:col-span-4 space-y-8">
+<!-- Chart Card -->
+<div class="glass-panel rounded-lg p-1 h-full">
+<div class="bg-surface-container-lowest rounded-[1.75rem] p-6 h-full flex flex-col">
+<div class="flex items-center justify-between mb-6">
+<h3 class="font-headline font-bold text-lg text-on-background">历史收益趋势</h3>
+<button class="p-2 hover:bg-surface-container rounded-full text-on-surface-variant transition-colors">
+<span class="material-symbols-outlined text-[20px]">more_vert</span>
+</button>
+</div>
+<!-- Abstract Modern Chart Representation -->
+<div class="flex-1 relative min-h-[250px] w-full rounded-DEFAULT overflow-hidden bg-surface flex flex-col justify-end">
+<!-- Grid Lines (Decorative) -->
+<div class="absolute inset-0 flex flex-col justify-between py-4 pointer-events-none opacity-40">
+<div class="w-full h-px bg-outline-variant"></div>
+<div class="w-full h-px bg-outline-variant"></div>
+<div class="w-full h-px bg-outline-variant"></div>
+<div class="w-full h-px bg-outline-variant"></div>
+</div>
+<!-- SVG Chart Graphics -->
+<svg class="absolute inset-0 w-full h-full" preserveaspectratio="none" viewbox="0 0 400 200">
+<!-- Area Gradient Alpha -->
+<defs>
+<lineargradient id="areaAlpha" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="var(--tw-color-primary)" stop-opacity="0.2"></stop>
+<stop offset="100%" stop-color="var(--tw-color-primary)" stop-opacity="0"></stop>
+</lineargradient>
+<lineargradient id="areaNexus" x1="0" x2="0" y1="0" y2="1">
+<stop offset="0%" stop-color="var(--tw-color-tertiary)" stop-opacity="0.15"></stop>
+<stop offset="100%" stop-color="var(--tw-color-tertiary)" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+<!-- Nexus Line (Tertiary) -->
+<path d="M 0,150 C 100,140 200,160 300,120 C 350,100 400,110 400,110 L 400,200 L 0,200 Z" fill="url(#areaNexus)"></path>
+<path d="M 0,150 C 100,140 200,160 300,120 C 350,100 400,110 400,110" fill="none" stroke="var(--tw-color-tertiary)" stroke-linecap="round" stroke-width="3"></path>
+<!-- Alpha Line (Primary) -->
+<path d="M 0,180 C 80,170 150,100 250,90 C 320,80 380,40 400,20 L 400,200 L 0,200 Z" fill="url(#areaAlpha)"></path>
+<path d="M 0,180 C 80,170 150,100 250,90 C 320,80 380,40 400,20" fill="none" stroke="var(--tw-color-primary)" stroke-linecap="round" stroke-width="4"></path>
+<!-- Data Points Overlay -->
+<circle cx="250" cy="90" fill="var(--tw-color-surface-container-lowest)" r="5" stroke="var(--tw-color-primary)" stroke-width="3"></circle>
+<circle cx="300" cy="120" fill="var(--tw-color-surface-container-lowest)" r="4" stroke="var(--tw-color-tertiary)" stroke-width="2"></circle>
+</svg>
+</div>
+<!-- Chart Legend -->
+<div class="mt-6 flex items-center justify-center gap-6 text-sm">
+<div class="flex items-center gap-2">
+<div class="w-3 h-1 rounded-full bg-primary"></div>
+<span class="text-on-surface-variant font-medium">Alpha 增长</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-3 h-1 rounded-full bg-tertiary"></div>
+<span class="text-on-surface-variant font-medium">Nexus 股息</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

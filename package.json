@@ -1,9 +1,9 @@
-﻿{
-  "name": "dividend-monitor",
+{
+  "name": "shou-xi-lao",
   "version": "0.1.0",
   "private": true,
   "description": "DividendMonitor desktop app scaffold",
-  "main": "dist/main/index.js",
+  "main": "out/main/index.js",
   "type": "module",
   "scripts": {
     "dev": "electron-vite dev",
@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "antd": "^5.27.0",
+    "axios": "^1.15.1",
     "echarts": "^5.6.0",
     "electron-log": "^5.4.0",
     "react": "^18.3.1",

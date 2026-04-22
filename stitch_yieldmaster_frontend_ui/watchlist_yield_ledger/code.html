@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>自选 - Lucid Analyst</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-secondary": "#f3f1ff",
+                      "surface-container-highest": "#d9dde0",
+                      "surface": "#f5f7f9",
+                      "surface-container-lowest": "#ffffff",
+                      "surface-tint": "#0052d0",
+                      "on-error": "#ffefee",
+                      "surface-container": "#e5e9eb",
+                      "primary-fixed-dim": "#638eff",
+                      "inverse-primary": "#5e8bff",
+                      "tertiary-fixed": "#f797f0",
+                      "tertiary-fixed-dim": "#e88ae1",
+                      "background": "#f5f7f9",
+                      "secondary": "#4551b7",
+                      "inverse-surface": "#0b0f10",
+                      "outline-variant": "#abadaf",
+                      "on-surface-variant": "#595c5e",
+                      "on-tertiary-fixed": "#400042",
+                      "on-primary-fixed-variant": "#00276c",
+                      "secondary-fixed": "#cbceff",
+                      "primary-dim": "#0047b7",
+                      "surface-container-high": "#dfe3e6",
+                      "secondary-fixed-dim": "#babfff",
+                      "on-primary-container": "#001e58",
+                      "primary-container": "#799dff",
+                      "outline": "#747779",
+                      "inverse-on-surface": "#9a9d9f",
+                      "on-secondary-container": "#303ba2",
+                      "secondary-container": "#cbceff",
+                      "on-tertiary-fixed-variant": "#6c1a6c",
+                      "tertiary-dim": "#7f2d7e",
+                      "primary": "#0052d0",
+                      "surface-dim": "#d0d5d8",
+                      "on-tertiary-container": "#610e63",
+                      "on-error-container": "#570008",
+                      "on-tertiary": "#ffeef8",
+                      "tertiary-container": "#f797f0",
+                      "surface-bright": "#f5f7f9",
+                      "tertiary": "#8d3a8b",
+                      "error": "#b31b25",
+                      "error-dim": "#9f0519",
+                      "on-primary-fixed": "#000000",
+                      "on-secondary-fixed-variant": "#3a45ac",
+                      "secondary-dim": "#3944ab",
+                      "on-background": "#2c2f31",
+                      "primary-fixed": "#799dff",
+                      "on-secondary-fixed": "#19248e",
+                      "surface-variant": "#d9dde0",
+                      "on-primary": "#f1f2ff",
+                      "surface-container-low": "#eef1f3",
+                      "error-container": "#fb5151",
+                      "on-surface": "#2c2f31"
+              },
+              "borderRadius": {
+                      "DEFAULT": "1rem",
+                      "lg": "2rem",
+                      "xl": "3rem",
+                      "full": "9999px"
+              },
+              "spacing": {},
+              "fontFamily": {
+                      "headline": [
+                              "Plus Jakarta Sans"
+                      ],
+                      "body": [
+                              "Inter"
+                      ],
+                      "label": [
+                              "Inter"
+                      ]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; }
+        h1, h2, h3, h4, h5, h6, .font-headline { font-family: 'Plus Jakarta Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface antialiased min-h-screen">
+<nav class="h-screen w-64 fixed left-0 top-0 rounded-r-[32px] bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col h-full py-8 px-4 z-50">
+<div class="mb-10 px-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full overflow-hidden bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container" style="font-variation-settings: 'FILL' 1;">account_circle</span>
+</div>
+<div>
+<h2 class="text-xl font-black text-blue-600 tracking-tighter">Lucid Analyst</h2>
+<p class="font-['Plus_Jakarta_Sans'] tracking-tight text-slate-500 text-xs font-medium">财富智能</p>
+</div>
+</div>
+</div>
+<div class="flex-1 flex flex-col gap-2">
+<a class="flex items-center gap-3 px-4 py-3 rounded-full text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all duration-300 font-['Plus_Jakarta_Sans'] tracking-tight" href="#">
+<span class="material-symbols-outlined">pie_chart</span>
+<span class="font-medium text-sm">投资组合</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-full text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all duration-300 font-['Plus_Jakarta_Sans'] tracking-tight" href="#">
+<span class="material-symbols-outlined">payments</span>
+<span class="font-medium text-sm">股息分红</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-full text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all duration-300 font-['Plus_Jakarta_Sans'] tracking-tight" href="#">
+<span class="material-symbols-outlined">monitoring</span>
+<span class="font-medium text-sm">数据分析</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 bg-blue-600 text-white rounded-full shadow-lg shadow-blue-500/30 font-semibold transition-all duration-300 hover:bg-blue-700 active:scale-95 ease-in-out font-['Plus_Jakarta_Sans'] tracking-tight" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">show_chart</span>
+<span class="font-medium text-sm">收益追踪</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-full text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all duration-300 font-['Plus_Jakarta_Sans'] tracking-tight" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-medium text-sm">设置</span>
+</a>
+</div>
+<div class="mt-auto flex flex-col gap-4">
+<button class="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-full font-semibold text-sm shadow-md shadow-blue-500/20 hover:shadow-lg transition-all active:scale-95">
+                升级专业版
+            </button>
+<a class="flex items-center gap-3 px-4 py-3 rounded-full text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-all duration-300 font-['Plus_Jakarta_Sans'] tracking-tight" href="#">
+<span class="material-symbols-outlined">help_outline</span>
+<span class="font-medium text-sm">帮助中心</span>
+</a>
+</div>
+</nav>
+<header class="fixed top-0 right-0 left-64 h-16 bg-white/60 dark:bg-slate-950/60 backdrop-blur-md z-40 flex items-center justify-between px-8">
+<div class="flex-1 flex items-center">
+<div class="relative w-64 group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors pointer-events-none">search</span>
+<input class="w-full bg-slate-50/50 dark:bg-slate-900 border-none rounded-full py-2 pl-10 pr-4 text-sm font-['Plus_Jakarta_Sans'] text-slate-900 dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-600/30 focus:bg-white transition-all outline-none" placeholder="搜索账本..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<button class="text-slate-400 hover:text-blue-600 transition-colors relative group">
+<span class="material-symbols-outlined group-active:scale-95 transition-transform">notifications_active</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-error rounded-full border-2 border-white"></span>
+</button>
+<button class="text-slate-400 hover:text-blue-600 transition-colors group">
+<span class="material-symbols-outlined group-active:scale-95 transition-transform">tune</span>
+</button>
+<button class="text-slate-400 hover:text-blue-600 transition-colors group">
+<span class="material-symbols-outlined group-active:scale-95 transition-transform" style="font-variation-settings: 'FILL' 1;">account_circle</span>
+</button>
+</div>
+</header>
+<main class="ml-64 pt-24 px-10 pb-16">
+<div class="mb-10">
+<h1 class="font-headline text-3xl font-extrabold text-on-surface tracking-tight mb-2">自选</h1>
+<p class="text-on-surface-variant text-sm tracking-wide">监控高收益机会与自定义关注清单。</p>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+<div class="bg-gradient-to-br from-primary to-primary-dim rounded-DEFAULT p-6 shadow-[0_16px_40px_-12px_rgba(0,82,208,0.3)] relative overflow-hidden text-on-primary">
+<div class="relative z-10 flex flex-col h-full justify-between">
+<div class="flex items-center justify-between mb-4">
+<span class="text-xs font-semibold tracking-wider uppercase opacity-80">平均目标收益率</span>
+<span class="material-symbols-outlined opacity-80">trending_up</span>
+</div>
+<div>
+<span class="font-headline text-4xl font-bold tracking-tighter">8.42%</span>
+<div class="flex items-center gap-1 mt-2 text-xs font-medium bg-white/20 w-max px-2 py-1 rounded-full">
+<span class="material-symbols-outlined text-[14px]">arrow_upward</span>
+<span>0.15% (7日)</span>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-DEFAULT p-6 shadow-[0_8px_32px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+<div class="flex items-center justify-between mb-4">
+<span class="text-xs font-semibold tracking-wider text-on-surface-variant uppercase">追踪资产数量</span>
+<span class="material-symbols-outlined text-outline">list_alt</span>
+</div>
+<div>
+<span class="font-headline text-3xl font-bold text-on-surface tracking-tighter">24</span>
+<p class="text-xs text-on-surface-variant mt-2 font-medium">涵盖5个不同行业</p>
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-DEFAULT p-6 shadow-[0_8px_32px_rgba(0,0,0,0.03)] flex flex-col justify-between">
+<div class="flex items-center justify-between mb-4">
+<span class="text-xs font-semibold tracking-wider text-on-surface-variant uppercase">市场动能</span>
+<span class="material-symbols-outlined text-tertiary">bolt</span>
+</div>
+<div>
+<span class="font-headline text-3xl font-bold text-on-surface tracking-tighter">强劲</span>
+<p class="text-xs text-on-surface-variant mt-2 font-medium">资金流入表明市场情绪积极</p>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3 bg-surface-container-low/60 backdrop-blur-xl p-2 rounded-full mb-8 w-max shadow-[0_4px_16px_rgba(0,0,0,0.02)]">
+<button class="bg-primary text-on-primary px-5 py-2 rounded-full text-xs font-bold tracking-wide transition-all shadow-sm">全部行业</button>
+<button class="text-on-surface-variant hover:bg-surface-container hover:text-on-surface px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all">科技</button>
+<button class="text-on-surface-variant hover:bg-surface-container hover:text-on-surface px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all">房地产</button>
+<button class="text-on-surface-variant hover:bg-surface-container hover:text-on-surface px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all">能源</button>
+<button class="text-on-surface-variant hover:bg-surface-container hover:text-on-surface px-5 py-2 rounded-full text-xs font-semibold tracking-wide transition-all">金融</button>
+<div class="w-px h-6 bg-outline-variant/30 mx-1"></div>
+<button class="text-on-surface-variant hover:bg-surface-container hover:text-on-surface px-3 py-2 rounded-full flex items-center justify-center transition-all group">
+<span class="material-symbols-outlined text-lg group-active:scale-95 transition-transform">filter_list</span>
+</button>
+</div>
+<div class="bg-surface-container-lowest rounded-lg shadow-[0_8px_40px_rgba(0,0,0,0.02)] py-2">
+<div class="grid grid-cols-12 gap-4 px-8 py-4 text-xs font-bold text-on-surface-variant uppercase tracking-wider bg-surface-container-lowest rounded-t-lg sticky top-0">
+<div class="col-span-3">资产名称</div>
+<div class="col-span-2 text-right">预期收益</div>
+<div class="col-span-2 text-center">频率</div>
+<div class="col-span-3">状态标签</div>
+<div class="col-span-1 text-right">走势</div>
+<div class="col-span-1 text-center"></div>
+</div>
+<div class="flex flex-col gap-1 px-2 pb-2">
+<div class="grid grid-cols-12 gap-4 px-6 py-4 items-center bg-surface-container-lowest hover:bg-surface-container-low transition-colors rounded-DEFAULT cursor-pointer group">
+<div class="col-span-3 flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-sm">AT</div>
+<div>
+<div class="font-headline font-bold text-on-surface text-sm">AeroTech Holdings</div>
+<div class="text-xs text-on-surface-variant mt-0.5">科技 • 美国</div>
+</div>
+</div>
+<div class="col-span-2 text-right font-headline font-bold text-primary text-base">
+                        9.2%
+                    </div>
+<div class="col-span-2 text-center text-sm font-medium text-on-surface-variant">
+                        每月
+                    </div>
+<div class="col-span-3 flex items-center">
+<span class="bg-tertiary-container text-on-tertiary-container text-xs px-3 py-1.5 rounded-full font-bold tracking-wide inline-flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary shadow-[0_0_8px_rgba(141,58,139,0.6)]"></span>
+                            高收益目标
+                        </span>
+</div>
+<div class="col-span-1 text-right flex items-center justify-end text-primary">
+<span class="material-symbols-outlined text-xl">trending_up</span>
+</div>
+<div class="col-span-1 text-center">
+<button class="text-outline-variant hover:text-primary transition-colors opacity-0 group-hover:opacity-100">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</div>
+</div>
+<div class="grid grid-cols-12 gap-4 px-6 py-4 items-center bg-surface-container-lowest hover:bg-surface-container-low transition-colors rounded-DEFAULT cursor-pointer group">
+<div class="col-span-3 flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest text-on-surface flex items-center justify-center font-bold text-sm">UR</div>
+<div>
+<div class="font-headline font-bold text-on-surface text-sm">Urban Core REIT</div>
+<div class="text-xs text-on-surface-variant mt-0.5">房地产 • 全球</div>
+</div>
+</div>
+<div class="col-span-2 text-right font-headline font-bold text-on-surface text-base">
+                        5.8%
+                    </div>
+<div class="col-span-2 text-center text-sm font-medium text-on-surface-variant">
+                        季度
+                    </div>
+<div class="col-span-3 flex items-center">
+<span class="bg-surface-container-high text-on-surface-variant text-xs px-3 py-1.5 rounded-full font-bold tracking-wide inline-flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+                            稳定派发
+                        </span>
+</div>
+<div class="col-span-1 text-right flex items-center justify-end text-outline">
+<span class="material-symbols-outlined text-xl">trending_flat</span>
+</div>
+<div class="col-span-1 text-center">
+<button class="text-outline-variant hover:text-primary transition-colors opacity-0 group-hover:opacity-100">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</div>
+</div>
+<div class="grid grid-cols-12 gap-4 px-6 py-4 items-center bg-surface-container-lowest hover:bg-surface-container-low transition-colors rounded-DEFAULT cursor-pointer group">
+<div class="col-span-3 flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center font-bold text-sm">NX</div>
+<div>
+<div class="font-headline font-bold text-on-surface text-sm">Nexus Energy</div>
+<div class="text-xs text-on-surface-variant mt-0.5">能源 • 欧洲</div>
+</div>
+</div>
+<div class="col-span-2 text-right font-headline font-bold text-primary text-base">
+                        11.4%
+                    </div>
+<div class="col-span-2 text-center text-sm font-medium text-on-surface-variant">
+                        半年
+                    </div>
+<div class="col-span-3 flex items-center">
+<span class="bg-error-container/30 text-error text-xs px-3 py-1.5 rounded-full font-bold tracking-wide inline-flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-error animate-pulse"></span>
+                            波动潜力
+                        </span>
+</div>
+<div class="col-span-1 text-right flex items-center justify-end text-error">
+<span class="material-symbols-outlined text-xl">trending_down</span>
+</div>
+<div class="col-span-1 text-center">
+<button class="text-outline-variant hover:text-primary transition-colors opacity-0 group-hover:opacity-100">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</div>
+</div>
+<div class="grid grid-cols-12 gap-4 px-6 py-4 items-center bg-surface-container-lowest hover:bg-surface-container-low transition-colors rounded-DEFAULT cursor-pointer group">
+<div class="col-span-3 flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container text-on-surface-variant flex items-center justify-center font-bold text-sm">
+<span class="material-symbols-outlined text-lg">add</span>
+</div>
+<div>
+<div class="font-headline font-semibold text-on-surface-variant text-sm">发现新资产</div>
+<div class="text-xs text-outline mt-0.5">探索账本</div>
+</div>
+</div>
+<div class="col-span-9"></div>
+</div>
+</div>
+</div>
+</main>
+</body></html>
