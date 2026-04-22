@@ -1,4 +1,4 @@
-import { Button, Form, Input, InputNumber, message, Modal, Space, Table, Typography } from 'antd'
+import { Button, Form, Input, InputNumber, message, Modal, Select, Space, Table, Tag, Typography } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import type { StockDetailDto, StockSearchItemDto } from '@shared/contracts/api'
 import { AppCard } from '@renderer/components/app/AppCard'
@@ -16,6 +16,7 @@ import {
 import {
   readPortfolioPositions,
   removePortfolioPosition,
+  removePortfolioPositionsBySymbol,
   type PortfolioPosition,
   upsertPortfolioPosition
 } from '@renderer/services/portfolioStore'
@@ -37,6 +38,9 @@ type PortfolioRow = PortfolioPosition & {
   marketValue?: number
   estimatedFutureYield?: number
   positionReturn?: number
+  netShares: number
+  transactionCount: number
+  netCostAmount: number
 }
 
 type PortfolioOpportunity = PortfolioRow & {
@@ -55,7 +59,13 @@ export function DashboardPage() {
   const [searchResults, setSearchResults] = useState<StockSearchItemDto[]>([])
   const [editorOpen, setEditorOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [form] = Form.useForm<{ symbol: string; name: string; shares: number; avgCost: number }>()
+  const [form] = Form.useForm<{
+    symbol: string
+    name: string
+    shares: number
+    avgCost: number
+    direction: 'BUY' | 'SELL'
+  }>()
 
   function pickBestSearchResult(keyword: string, results: StockSearchItemDto[]) {
     const normalized = keyword.trim()
@@ -80,21 +90,59 @@ export function DashboardPage() {
   const recentSymbols = useMemo(() => getRecentSymbols(), [])
 
   const rows = useMemo<PortfolioRow[]>(() => {
-    return positions.map((position) => {
-      const symbol = position.symbol ?? ''
+    const byKey = new Map<string, PortfolioRow>()
+
+    for (const position of positions) {
+      const direction = position.direction === 'SELL' ? 'SELL' : 'BUY'
+      const signedShares = direction === 'SELL' ? -Math.abs(position.shares) : Math.abs(position.shares)
+      const key = position.symbol ? `symbol:${position.symbol}` : `asset:${position.id}`
+      const current = byKey.get(key)
+
+      if (!current) {
+        byKey.set(key, {
+          ...position,
+          direction: 'BUY',
+          shares: Math.abs(position.shares),
+          netShares: signedShares,
+          transactionCount: 1,
+          netCostAmount: signedShares * position.avgCost,
+          latestPrice: undefined,
+          marketValue: undefined,
+          estimatedFutureYield: undefined,
+          positionReturn: undefined
+        })
+        continue
+      }
+
+      current.netShares += signedShares
+      current.netCostAmount += signedShares * position.avgCost
+      current.transactionCount += 1
+      current.updatedAt = position.updatedAt > current.updatedAt ? position.updatedAt : current.updatedAt
+    }
+
+    const merged = [...byKey.values()].map((row) => {
+      const symbol = row.symbol ?? ''
       const detail = symbol ? details[symbol] : undefined
       const latestPrice = detail?.latestPrice
-      const marketValue = latestPrice == null ? undefined : latestPrice * position.shares
-      const costValue = position.avgCost * position.shares
+      const normalizedNetShares = Math.max(0, row.netShares)
+      const marketValue = latestPrice == null ? undefined : latestPrice * normalizedNetShares
+      const avgCost = normalizedNetShares > 0 ? row.netCostAmount / normalizedNetShares : row.avgCost
+      const costValue = avgCost > 0 ? avgCost * normalizedNetShares : 0
       const positionReturn = marketValue == null || costValue <= 0 ? undefined : marketValue / costValue - 1
+
       return {
-        ...position,
+        ...row,
+        shares: normalizedNetShares,
+        netShares: normalizedNetShares,
+        avgCost: avgCost > 0 ? avgCost : row.avgCost,
         latestPrice,
-        marketValue,
-        estimatedFutureYield: detail?.futureYieldEstimate.estimatedFutureYield,
+        marketValue: normalizedNetShares > 0 ? marketValue : 0,
+        estimatedFutureYield: normalizedNetShares > 0 ? detail?.futureYieldEstimate.estimatedFutureYield : undefined,
         positionReturn
       }
     })
+
+    return merged.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
   }, [details, positions])
 
   const totalCost = useMemo(() => rows.reduce((sum, item) => sum + item.avgCost * item.shares, 0), [rows])
@@ -178,6 +226,7 @@ export function DashboardPage() {
     form.setFieldsValue({
       symbol: '',
       name: '',
+      direction: 'BUY',
       shares: 100,
       avgCost: 10
     })
@@ -186,7 +235,10 @@ export function DashboardPage() {
 
   function openEdit(record: PortfolioPosition) {
     setEditingId(record.id)
-    form.setFieldsValue(record)
+    form.setFieldsValue({
+      ...record,
+      direction: record.direction === 'SELL' ? 'SELL' : 'BUY'
+    })
     setEditorOpen(true)
   }
 
@@ -274,33 +326,50 @@ export function DashboardPage() {
       }
 
       if (resolvedSymbol && !resolvedName) {
-        const results = await stockApi.search(resolvedSymbol)
-        const best = pickBestSearchResult(resolvedSymbol, results)
-        if (!best) {
-          apiMessage.error('未能根据代码匹配股票名称，请补充名称或更换代码')
-          return
+        try {
+          const detail = await stockApi.getDetail(resolvedSymbol)
+          resolvedSymbol = detail.symbol
+          resolvedName = detail.name
+          form.setFieldsValue({
+            symbol: detail.symbol,
+            name: detail.name
+          })
+        } catch {
+          const results = await stockApi.search(resolvedSymbol)
+          const best = pickBestSearchResult(resolvedSymbol, results)
+          if (best) {
+            resolvedSymbol = best.symbol
+            resolvedName = best.name
+            form.setFieldsValue({
+              symbol: best.symbol,
+              name: best.name
+            })
+          } else {
+            resolvedName = resolvedSymbol
+            apiMessage.warning('未匹配到标准股票名称，已按代码保存，可后续编辑修正。')
+          }
         }
-        resolvedName = best.name
-        resolvedSymbol = best.symbol
-        form.setFieldsValue({
-          symbol: best.symbol,
-          name: best.name
-        })
       }
 
       if (!resolvedSymbol && resolvedName) {
-        const results = await stockApi.search(resolvedName)
-        const best = pickBestSearchResult(resolvedName, results)
-        if (!best) {
-          apiMessage.error('未能根据名称匹配股票代码，请补充代码或更换名称')
+        try {
+          const results = await stockApi.search(resolvedName)
+          const best = pickBestSearchResult(resolvedName, results)
+          if (best) {
+            resolvedSymbol = best.symbol
+            resolvedName = best.name
+            form.setFieldsValue({
+              symbol: best.symbol,
+              name: best.name
+            })
+          } else {
+            apiMessage.error('未能根据名称匹配股票代码，请补充代码或更换名称')
+            return
+          }
+        } catch {
+          apiMessage.error('名称反查代码失败，请稍后重试或直接填写代码')
           return
         }
-        resolvedSymbol = best.symbol
-        resolvedName = best.name
-        form.setFieldsValue({
-          symbol: best.symbol,
-          name: best.name
-        })
       }
 
       const symbol = resolvedSymbol || undefined
@@ -309,6 +378,7 @@ export function DashboardPage() {
         id: editingId ?? '',
         symbol,
         name,
+        direction: values.direction,
         shares: values.shares,
         avgCost: values.avgCost
       })
@@ -327,6 +397,7 @@ export function DashboardPage() {
     form.setFieldsValue({
       symbol: item.symbol,
       name: item.name,
+      direction: 'BUY',
       shares: 100,
       avgCost: 10
     })
@@ -343,13 +414,18 @@ export function DashboardPage() {
       return
     }
     try {
-      const results = await stockApi.search(symbol)
-      const best = pickBestSearchResult(symbol, results)
-      if (best) {
-        form.setFieldsValue({ symbol: best.symbol, name: best.name })
-      }
+      const detail = await stockApi.getDetail(symbol)
+      form.setFieldsValue({ symbol: detail.symbol, name: detail.name })
     } catch {
-      // ignore blur-time lookup failures
+      try {
+        const results = await stockApi.search(symbol)
+        const best = pickBestSearchResult(symbol, results)
+        if (best) {
+          form.setFieldsValue({ symbol: best.symbol, name: best.name })
+        }
+      } catch {
+        // ignore blur-time lookup failures
+      }
     }
   }
 
@@ -374,6 +450,54 @@ export function DashboardPage() {
     removePortfolioPosition(id)
     setPositions(readPortfolioPositions())
     apiMessage.success('已移除持仓')
+  }
+
+  function openSecondConfirm(options: {
+    content: string
+    onConfirm: () => void
+  }) {
+    Modal.confirm({
+      title: '最终确认',
+      content: `${options.content}（此操作不可恢复）`,
+      okText: '确认删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: options.onConfirm
+    })
+  }
+
+  function onRemoveRow(record: PortfolioRow) {
+    if (record.symbol) {
+      Modal.confirm({
+        title: '确认删除该标的？',
+        content: `将删除 ${record.symbol}（${record.name}）的全部交易记录。`,
+        okText: '下一步',
+        okButtonProps: { danger: true },
+        cancelText: '取消',
+        onOk: () =>
+          openSecondConfirm({
+            content: `确认删除 ${record.symbol}（${record.name}）的全部交易记录`,
+            onConfirm: () => {
+              removePortfolioPositionsBySymbol(record.symbol!)
+              setPositions(readPortfolioPositions())
+              apiMessage.success(`已删除 ${record.symbol} 的全部交易记录`)
+            }
+          })
+      })
+      return
+    }
+    Modal.confirm({
+      title: '确认删除该资产？',
+      content: `将删除 ${record.name} 的当前资产记录。`,
+      okText: '下一步',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: () =>
+        openSecondConfirm({
+          content: `确认删除 ${record.name} 的当前资产记录`,
+          onConfirm: () => onRemove(record.id)
+        })
+    })
   }
 
   return (
@@ -451,6 +575,7 @@ export function DashboardPage() {
       </AppCard>
 
       <AppCard title="持仓明细" extra={<Typography.Text type="secondary">{rows.length} 条</Typography.Text>}>
+        <p className="ledger-transaction-hint">同一标的可录入多笔买入/卖出交易，系统按净股数与净成本汇总展示。</p>
         {rows.length === 0 ? (
           <PageStateBlock
             kind="empty"
@@ -468,15 +593,17 @@ export function DashboardPage() {
                 title: '股票',
                 render: (_, record) => (
                   <div>
-                    <Typography.Text strong>{record.name}</Typography.Text>
+                    <Space size={8}>
+                      <Typography.Text strong>{record.name}</Typography.Text>
+                      {record.transactionCount > 1 ? <Tag color="orange">多笔交易</Tag> : null}
+                    </Space>
                     <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }}>{record.symbol ?? '无代码资产'}</div>
                   </div>
                 )
               },
               {
                 title: '股数',
-                dataIndex: 'shares',
-                render: (value: number) => value.toFixed(2)
+                render: (_, record) => `${record.netShares.toFixed(2)} (${record.transactionCount} 笔)`
               },
               {
                 title: '成本价',
@@ -513,7 +640,7 @@ export function DashboardPage() {
                     <button type="button" className="ledger-inline-action-btn" onClick={() => openEdit(record)}>
                       编辑
                     </button>
-                    <button type="button" className="ledger-inline-action-btn is-danger" onClick={() => onRemove(record.id)}>
+                    <button type="button" className="ledger-inline-action-btn is-danger" onClick={() => onRemoveRow(record)}>
                       删除
                     </button>
                   </Space>
@@ -601,6 +728,14 @@ export function DashboardPage() {
         okText={editingId ? '保存修改' : '添加'}
       >
         <Form form={form} layout="vertical">
+          <Form.Item label="交易方向" name="direction" rules={[{ required: true, message: '请选择交易方向' }]}>
+            <Select
+              options={[
+                { label: '买入（增加持仓）', value: 'BUY' },
+                { label: '卖出（减少持仓）', value: 'SELL' }
+              ]}
+            />
+          </Form.Item>
           <Form.Item
             label="股票代码"
             name="symbol"
@@ -620,7 +755,6 @@ export function DashboardPage() {
           >
             <Input
               placeholder="可选，例如 600519；不填则可通过名称自动反查"
-              disabled={Boolean(editingId)}
               onBlur={onSymbolBlur}
             />
           </Form.Item>
@@ -628,7 +762,7 @@ export function DashboardPage() {
             <Input placeholder="可选，例如 贵州茅台；可自动反查代码" onBlur={onNameBlur} />
           </Form.Item>
           <Form.Item label="持仓股数" name="shares" rules={[{ required: true, message: '请输入持仓股数' }]}>
-            <InputNumber min={1} precision={2} style={{ width: '100%' }} />
+            <InputNumber min={0.01} precision={2} style={{ width: '100%' }} />
           </Form.Item>
           <Form.Item label="持仓成本价" name="avgCost" rules={[{ required: true, message: '请输入成本价' }]}>
             <InputNumber min={0.01} precision={4} style={{ width: '100%' }} />

@@ -4,12 +4,19 @@ import { extractYear, toIsoDate, toNumber } from '@main/adapters/eastmoney/eastm
 import type { HistoricalPricePoint } from '@main/domain/entities/Stock'
 
 type EastmoneySuggestResponse = {
-  Quotations?: Array<{
-    Code?: string
-    Name?: string
-    SecurityTypeName?: string
-    MktNum?: string
-  }>
+  Quotations?: EastmoneySuggestItem[]
+  QuotationCodeTable?: {
+    Data?: EastmoneySuggestItem[]
+  }
+}
+
+type EastmoneySuggestItem = {
+  Code?: string
+  Name?: string
+  SecurityTypeName?: string
+  SecurityType?: string
+  Classify?: string
+  MktNum?: string
 }
 
 type EastmoneyDividendResponse = {
@@ -150,11 +157,20 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
       `https://searchapi.eastmoney.com/api/suggest/get?input=${encodeURIComponent(normalized)}` +
       `&type=14&token=${SEARCH_TOKEN}&count=10`
     const payload = await getJson<EastmoneySuggestResponse>(url)
-    const quotations = payload.Quotations ?? []
+    const quotations = payload.Quotations ?? payload.QuotationCodeTable?.Data ?? []
 
     return quotations
       .filter((item) => item.Code && item.Name)
-      .filter((item) => (item.SecurityTypeName ?? '').includes('A'))
+      .filter((item) => {
+        const classify = (item.Classify ?? '').toLowerCase()
+        const securityTypeName = item.SecurityTypeName ?? ''
+        const code = item.Code ?? ''
+        return (
+          classify === 'astock' ||
+          securityTypeName.includes('A') ||
+          /^(6|0|3)\d{5}$/.test(code)
+        )
+      })
       .map((item) => ({
         symbol: item.Code!,
         name: item.Name!,

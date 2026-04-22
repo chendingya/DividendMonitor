@@ -159,7 +159,7 @@ function parseTencentMarketSnapshot(symbol, payload) {
   const key = toTencentSymbol(symbol);
   const data = payload.data?.[key];
   const quoteFields = data?.qt?.[key];
-  const priceHistory = parseTencentPriceHistory(data?.qfqday ?? data?.day);
+  const priceHistory = parseTencentPriceHistory(data?.day ?? data?.qfqday);
   if (!quoteFields || quoteFields.length < 58) {
     throw new Error(`Tencent market data is incomplete for ${symbol}`);
   }
@@ -204,8 +204,13 @@ class EastmoneyAShareDataSource {
     }
     const url = `https://searchapi.eastmoney.com/api/suggest/get?input=${encodeURIComponent(normalized)}&type=14&token=${SEARCH_TOKEN}&count=10`;
     const payload = await getJson(url);
-    const quotations = payload.Quotations ?? [];
-    return quotations.filter((item) => item.Code && item.Name).filter((item) => (item.SecurityTypeName ?? "").includes("A")).map((item) => ({
+    const quotations = payload.Quotations ?? payload.QuotationCodeTable?.Data ?? [];
+    return quotations.filter((item) => item.Code && item.Name).filter((item) => {
+      const classify = (item.Classify ?? "").toLowerCase();
+      const securityTypeName = item.SecurityTypeName ?? "";
+      const code = item.Code ?? "";
+      return classify === "astock" || securityTypeName.includes("A") || /^(6|0|3)\d{5}$/.test(code);
+    }).map((item) => ({
       symbol: item.Code,
       name: item.Name,
       market: "A_SHARE"
@@ -342,7 +347,21 @@ async function estimateFutureYield(symbol) {
 const NATURAL_YEAR_YIELD_BASIS = "Event-level yield accumulation by ex-dividend year, using dividend per share divided by the close before the record date or a source-provided equivalent reference price";
 function buildHistoricalYields(events) {
   const grouped = /* @__PURE__ */ new Map();
+  const seenEventKeys = /* @__PURE__ */ new Set();
   for (const event of events) {
+    const eventKey = [
+      event.year,
+      event.exDate ?? "",
+      event.payDate ?? "",
+      event.recordDate ?? "",
+      event.dividendPerShare.toFixed(8),
+      (event.bonusSharePer10 ?? 0).toFixed(8),
+      (event.transferSharePer10 ?? 0).toFixed(8)
+    ].join("|");
+    if (seenEventKeys.has(eventKey)) {
+      continue;
+    }
+    seenEventKeys.add(eventKey);
     const current = grouped.get(event.year) ?? { year: event.year, yield: 0, events: 0 };
     const eventYield = event.referenceClosePrice > 0 ? event.dividendPerShare / event.referenceClosePrice : 0;
     current.yield += eventYield;
@@ -472,6 +491,7 @@ function runDividendReinvestmentBacktest$1(input) {
     annualizedReturn,
     assumptions: [
       "Use the first available trading close on or after the requested buy date",
+      "Use raw daily close prices (non-adjusted when available) to avoid double-counting dividend effects during explicit reinvestment",
       "Cash dividends are received on pay date and fully reinvested at the next available close",
       "Bonus shares and transfer shares increase holdings separately from cash dividends"
     ],
