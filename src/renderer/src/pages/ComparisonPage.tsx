@@ -1,5 +1,5 @@
 import { Alert, Col, Row, Skeleton } from 'antd'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { PageStateBlock } from '@renderer/components/app/PageStateBlock'
 import { ComparisonTable } from '@renderer/components/comparison/ComparisonTable'
@@ -16,6 +16,7 @@ import { readPortfolioPositions } from '@renderer/services/portfolioStore'
 
 export function ComparisonPage() {
   const navigate = useNavigate()
+  const [valuationWindow, setValuationWindow] = useState<'10Y' | '20Y'>('10Y')
   const { symbols: routeSymbols } = useParams<{ symbols?: string }>()
   const [searchParams] = useSearchParams()
   const symbols = useMemo(() => {
@@ -94,24 +95,47 @@ export function ComparisonPage() {
 
   return (
     <div className="page-section">
-      <section className="page-hero">
+      <section className="page-hero comparison-hero">
         <div className="hero-eyebrow">对比分析</div>
-        <h1 className="hero-title">全量比较</h1>
-        <p className="hero-subtitle">关键收益指标最值高亮</p>
-        <div className="hero-actions">
-          <button type="button" className="ledger-secondary-button" onClick={() => navigate('/')}>
-            返回投资组合
-          </button>
+        <h1 className="hero-title">{contextSymbols.length} 只标的同屏比较</h1>
+        <p className="hero-subtitle">把 PE、PB 与十年 / 二十年估值分位一起横向查看，便于判断高股息背后的估值位置。</p>
+        <div className="comparison-hero-summary">
+          <span className="pill primary">当前对比 {contextSymbols.length} 只</span>
+          <span className="pill">默认按估算未来股息率降序</span>
+          <span className="pill">支持点击表头重新排序</span>
+        </div>
+        <div className="comparison-hero-symbols">
           {contextSymbols.map((symbol) => (
-            <button key={symbol} type="button" className="ledger-secondary-button" onClick={() => goToDetail(symbol)}>
-              查看 {symbol} 详情
-            </button>
+            <span key={symbol} className="comparison-hero-symbol-chip">
+              {symbol}
+            </span>
           ))}
+        </div>
+        <div className="hero-actions">
+          <div className="ledger-segmented-control">
+            <button
+              type="button"
+              className={`ledger-filter-chip ${valuationWindow === '10Y' ? 'is-active' : ''}`}
+              onClick={() => setValuationWindow('10Y')}
+            >
+              10年分位
+            </button>
+            <button
+              type="button"
+              className={`ledger-filter-chip ${valuationWindow === '20Y' ? 'is-active' : ''}`}
+              onClick={() => setValuationWindow('20Y')}
+            >
+              20年分位
+            </button>
+          </div>
+          <button type="button" className="ledger-secondary-button" onClick={() => navigate('/watchlist')}>
+            返回自选页
+          </button>
         </div>
       </section>
       <Row gutter={[20, 20]}>
         <Col span={24}>
-          <ComparisonTable items={data} />
+          <ComparisonTable items={data} valuationWindow={valuationWindow} onOpenDetail={goToDetail} />
         </Col>
       </Row>
     </div>

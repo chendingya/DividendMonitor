@@ -16,6 +16,10 @@ import {
   rememberRecentSymbol
 } from '@renderer/services/routeContext'
 
+function formatRatioValue(value?: number) {
+  return value == null ? '--' : value.toFixed(2)
+}
+
 export function StockDetailPage() {
   const navigate = useNavigate()
   const [apiMessage, messageHolder] = message.useMessage()
@@ -34,6 +38,7 @@ export function StockDetailPage() {
   const { data, loading, error } = useStockDetail(symbol)
   const { data: watchlistItems, add, remove, mutatingSymbol } = useWatchlist()
   const [showAllYearlyYields, setShowAllYearlyYields] = useState(false)
+  const [valuationWindow, setValuationWindow] = useState<'10Y' | '20Y'>('10Y')
   const isInWatchlist = useMemo(() => watchlistItems.some((item) => item.symbol === symbol), [symbol, watchlistItems])
 
   useEffect(() => {
@@ -112,6 +117,8 @@ export function StockDetailPage() {
   })
   const sortedYearlyYields = [...data.yearlyYields].sort((a, b) => b.year - a.year)
   const visibleYearlyYields = showAllYearlyYields ? sortedYearlyYields : sortedYearlyYields.slice(0, 12)
+  const peWindow = data.valuation?.pe?.windows.find((item) => item.window === valuationWindow)
+  const pbWindow = data.valuation?.pb?.windows.find((item) => item.window === valuationWindow)
 
   return (
     <div className="ledger-page">
@@ -189,6 +196,64 @@ export function StockDetailPage() {
           </AppCard>
         </Col>
       </Row>
+
+      <AppCard
+        title="估值水平"
+        extra={
+          <div className="ledger-segmented-control">
+            <button
+              type="button"
+              className={`ledger-filter-chip ${valuationWindow === '10Y' ? 'is-active' : ''}`}
+              onClick={() => setValuationWindow('10Y')}
+            >
+              10年分位
+            </button>
+            <button
+              type="button"
+              className={`ledger-filter-chip ${valuationWindow === '20Y' ? 'is-active' : ''}`}
+              onClick={() => setValuationWindow('20Y')}
+            >
+              20年分位
+            </button>
+          </div>
+        }
+      >
+        <div className="ledger-valuation-grid">
+          <div className="ledger-valuation-card">
+            <div className="ledger-valuation-head">
+              <div>
+                <div className="ledger-stat-label">市盈率 PE(TTM)</div>
+                <div className="ledger-valuation-primary">{formatRatioValue(data.peRatio)}</div>
+              </div>
+              <span className="pill primary">{peWindow?.percentile == null ? '--' : `${peWindow.percentile.toFixed(2)}%`}</span>
+            </div>
+            <div className="ledger-valuation-status">{data.valuation?.pe?.status ?? '暂无分位状态'}</div>
+            <div className="ledger-valuation-band">
+              <span>30分位 {formatRatioValue(peWindow?.p30)}</span>
+              <span>50分位 {formatRatioValue(peWindow?.p50)}</span>
+              <span>70分位 {formatRatioValue(peWindow?.p70)}</span>
+            </div>
+          </div>
+          <div className="ledger-valuation-card">
+            <div className="ledger-valuation-head">
+              <div>
+                <div className="ledger-stat-label">市净率 PB(MRQ)</div>
+                <div className="ledger-valuation-primary">{formatRatioValue(data.pbRatio)}</div>
+              </div>
+              <span className="pill primary">{pbWindow?.percentile == null ? '--' : `${pbWindow.percentile.toFixed(2)}%`}</span>
+            </div>
+            <div className="ledger-valuation-status">{data.valuation?.pb?.status ?? '暂无分位状态'}</div>
+            <div className="ledger-valuation-band">
+              <span>30分位 {formatRatioValue(pbWindow?.p30)}</span>
+              <span>50分位 {formatRatioValue(pbWindow?.p50)}</span>
+              <span>70分位 {formatRatioValue(pbWindow?.p70)}</span>
+            </div>
+          </div>
+        </div>
+        <Typography.Paragraph style={{ margin: '14px 0 0', color: '#66707a' }}>
+          分位按所选时间窗内的历史估值序列计算，数值越低通常代表当前估值在历史区间中越靠下。
+        </Typography.Paragraph>
+      </AppCard>
 
       <Row gutter={[20, 20]}>
         <Col xs={24} xl={16}>

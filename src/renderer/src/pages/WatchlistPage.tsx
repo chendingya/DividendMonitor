@@ -1,13 +1,15 @@
 import { Alert, Col, Input, Row, Select, Skeleton, Space, message } from 'antd'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { WatchlistTable } from '@renderer/components/watchlist/WatchlistTable'
 import { useWatchlist } from '@renderer/hooks/useWatchlist'
 import {
   buildComparisonPath,
   buildStockDetailPath,
+  getRememberedWatchlistSelections,
   rememberComparisonSymbols,
-  rememberLastSymbol
+  rememberLastSymbol,
+  rememberWatchlistSelections
 } from '@renderer/services/routeContext'
 
 export function WatchlistPage() {
@@ -15,7 +17,7 @@ export function WatchlistPage() {
   const [apiMessage, messageHolder] = message.useMessage()
   const [keyword, setKeyword] = useState('')
   const [sortBy, setSortBy] = useState<'yield-desc' | 'yield-asc' | 'symbol-asc' | 'price-desc'>('yield-desc')
-  const [selectedSymbols, setSelectedSymbols] = useState<string[]>([])
+  const [selectedSymbols, setSelectedSymbols] = useState<string[]>(() => getRememberedWatchlistSelections())
   const { data, loading, error, reload, remove, mutatingSymbol } = useWatchlist()
   const filteredData = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase()
@@ -61,13 +63,20 @@ export function WatchlistPage() {
       .sort((a, b) => (b.estimatedFutureYield ?? 0) - (a.estimatedFutureYield ?? 0))[0]
   }, [filteredData])
 
-  function goToFirstDetail() {
-    const first = filteredData[0]
-    if (!first) {
+  useEffect(() => {
+    setSelectedSymbols((current) => current.filter((symbol) => data.some((item) => item.symbol === symbol)))
+  }, [data])
+
+  useEffect(() => {
+    rememberWatchlistSelections(selectedSymbols)
+  }, [selectedSymbols])
+
+  function goToBestYieldDetail() {
+    if (!maxYieldItem) {
       return
     }
-    rememberLastSymbol(first.symbol)
-    navigate(buildStockDetailPath(first.symbol))
+    rememberLastSymbol(maxYieldItem.symbol)
+    navigate(buildStockDetailPath(maxYieldItem.symbol))
   }
 
   function goToDetail(symbol: string) {
@@ -138,18 +147,28 @@ export function WatchlistPage() {
     <div className="ledger-page">
       {messageHolder}
       <section className="ledger-watchlist-header">
-        <div>
+        <div className="ledger-watchlist-copy">
           <h1 className="ledger-hero-title" style={{ fontSize: 34 }}>
             自选
           </h1>
           <p className="ledger-hero-subtitle">监控高收益机会与自定义关注清单。</p>
+          <div className="ledger-watchlist-summary">
+            <span className="pill primary">已追踪 {data.length} 只</span>
+            <span className="pill">当前筛选 {filteredData.length} 只</span>
+            <span className="pill">已选对比 {selectedAvailableSymbols.length} 只</span>
+          </div>
         </div>
         <div className="ledger-hero-actions">
-          <button type="button" className="ledger-secondary-button" onClick={goToFirstDetail} disabled={filteredData.length === 0}>
-            查看首个详情
+          <button type="button" className="ledger-secondary-button" onClick={goToBestYieldDetail} disabled={!maxYieldItem}>
+            查看最高收益详情
           </button>
-          <button type="button" className="ledger-primary-button" onClick={goToComparison} disabled={topSymbols.length < 2}>
-            对比前 3 只
+          <button
+            type="button"
+            className="ledger-primary-button"
+            onClick={selectedAvailableSymbols.length >= 2 ? goToSelectedComparison : goToComparison}
+            disabled={selectedAvailableSymbols.length < 2 && topSymbols.length < 2}
+          >
+            {selectedAvailableSymbols.length >= 2 ? `对比已选 ${selectedAvailableSymbols.length} 只` : '对比前 3 只'}
           </button>
         </div>
       </section>
@@ -174,7 +193,14 @@ export function WatchlistPage() {
         </div>
       </section>
 
-      <section className="ledger-filter-bar" style={{ alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+      <section className="ledger-toolbar-card">
+        <div className="ledger-toolbar-head">
+          <div>
+            <div className="ledger-toolbar-title">筛选与排序</div>
+            <div className="ledger-toolbar-hint">先缩小范围，再决定要重点对比的标的。</div>
+          </div>
+        </div>
+        <div className="ledger-filter-bar" style={{ alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <Space wrap size={12}>
           <Input
             allowClear
@@ -203,28 +229,34 @@ export function WatchlistPage() {
             刷新自选
           </button>
         </Space>
-      </section>
-
-      <section className="ledger-filter-bar" style={{ alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <Space wrap size={12}>
-          <span className="pill primary">已选 {selectedAvailableSymbols.length} 只</span>
-          <button type="button" className="ledger-filter-chip" onClick={selectTopThree} disabled={filteredData.length === 0}>
+        </div>
+        <div className="ledger-toolbar-divider" />
+        <div className="ledger-filter-bar" style={{ alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <Space wrap size={12}>
+            <span className="pill primary">已选 {selectedAvailableSymbols.length} 只</span>
+            <span className="ledger-selection-note">
+              {selectedAvailableSymbols.length >= 2
+                ? '已满足对比条件，可直接进入对比页。'
+                : '至少选择 2 只股票后，才能进入对比页。'}
+            </span>
+            <button type="button" className="ledger-filter-chip" onClick={selectTopThree} disabled={filteredData.length === 0}>
             选中前 3 只
           </button>
-          <button type="button" className="ledger-filter-chip" onClick={clearSelection} disabled={selectedSymbols.length === 0}>
+            <button type="button" className="ledger-filter-chip" onClick={clearSelection} disabled={selectedSymbols.length === 0}>
             清空选择
           </button>
-        </Space>
-        <Space wrap size={12}>
-          <button
-            type="button"
-            className="ledger-primary-button"
-            onClick={goToSelectedComparison}
-            disabled={selectedAvailableSymbols.length < 2}
-          >
-            批量进入对比
-          </button>
-        </Space>
+          </Space>
+          <Space wrap size={12}>
+            <button
+              type="button"
+              className="ledger-primary-button"
+              onClick={goToSelectedComparison}
+              disabled={selectedAvailableSymbols.length < 2}
+            >
+              批量进入对比
+            </button>
+          </Space>
+        </div>
       </section>
 
       <Row gutter={[20, 20]}>

@@ -1,6 +1,7 @@
 import type { StockDetailDto } from '@shared/contracts/api'
 import { buildHistoricalYields, NATURAL_YEAR_YIELD_BASIS } from '@main/domain/services/dividendYieldService'
 import { estimateFutureYield } from '@main/domain/services/futureYieldEstimator'
+import { buildValuationWindows } from '@main/domain/services/valuationService'
 import { StockRepository } from '@main/repositories/stockRepository'
 
 export async function getStockDetail(symbol: string): Promise<StockDetailDto> {
@@ -23,12 +24,17 @@ export async function getStockDetail(symbol: string): Promise<StockDetailDto> {
     latestPrice: source.stock.latestPrice,
     marketCap: source.stock.marketCap,
     peRatio: source.stock.peRatio,
+    pbRatio: source.stock.pbRatio,
     totalShares: source.stock.totalShares,
     dataSource: source.dataSource,
     yieldBasis: NATURAL_YEAR_YIELD_BASIS,
     yearlyYields,
     dividendEvents: source.dividendEvents,
     futureYieldEstimate: estimates.baseline,
-    futureYieldEstimates: [estimates.baseline, estimates.conservative]
+    futureYieldEstimates: [estimates.baseline, estimates.conservative],
+    valuation: {
+      pe: source.valuation?.pe ? buildValuationWindows(source.valuation.pe) : undefined,
+      pb: source.valuation?.pb ? buildValuationWindows(source.valuation.pb) : undefined
+    }
   }
 }

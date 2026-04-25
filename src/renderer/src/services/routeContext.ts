@@ -1,5 +1,6 @@
 const LAST_SYMBOL_KEY = 'dm:last-symbol'
 const LAST_COMPARISON_SYMBOLS_KEY = 'dm:last-comparison-symbols'
+const LAST_WATCHLIST_SELECTIONS_KEY = 'dm:last-watchlist-selections'
 const RECENT_SYMBOLS_KEY = 'dm:recent-symbols'
 
 function canUseSessionStorage() {
@@ -104,6 +105,33 @@ export function getRememberedComparisonSymbols() {
     return []
   }
   return normalizeSymbols(value.split(','))
+}
+
+export function rememberWatchlistSelections(symbols: string[]) {
+  if (!canUseSessionStorage()) {
+    return
+  }
+
+  const normalized = normalizeSymbols(symbols)
+  if (normalized.length === 0) {
+    window.sessionStorage.removeItem(LAST_WATCHLIST_SELECTIONS_KEY)
+    return
+  }
+
+  window.sessionStorage.setItem(LAST_WATCHLIST_SELECTIONS_KEY, normalized.join(','))
+}
+
+export function getRememberedWatchlistSelections() {
+  if (!canUseSessionStorage()) {
+    return []
+  }
+
+  const value = window.sessionStorage.getItem(LAST_WATCHLIST_SELECTIONS_KEY)
+  if (!value) {
+    return []
+  }
+
+  return normalizeSymbols(value.split(',')).slice(0, 10)
 }
 
 export function rememberRecentSymbol(symbol: string) {

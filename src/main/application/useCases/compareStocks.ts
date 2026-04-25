@@ -1,6 +1,7 @@
 import type { ComparisonRowDto } from '@shared/contracts/api'
 import { buildHistoricalYields } from '@main/domain/services/dividendYieldService'
 import { estimateFutureYield } from '@main/domain/services/futureYieldEstimator'
+import { buildValuationWindows } from '@main/domain/services/valuationService'
 import { StockRepository } from '@main/repositories/stockRepository'
 
 export async function compareStocks(symbols: string[]): Promise<ComparisonRowDto[]> {
@@ -25,8 +26,13 @@ export async function compareStocks(symbols: string[]): Promise<ComparisonRowDto
       latestPrice: source.stock.latestPrice,
       marketCap: source.stock.marketCap,
       peRatio: source.stock.peRatio,
+      pbRatio: source.stock.pbRatio,
       averageYield,
-      estimatedFutureYield: estimates.baseline.estimatedFutureYield
+      estimatedFutureYield: estimates.baseline.estimatedFutureYield,
+      valuation: {
+        pe: source.valuation?.pe ? buildValuationWindows(source.valuation.pe) : undefined,
+        pb: source.valuation?.pb ? buildValuationWindows(source.valuation.pb) : undefined
+      }
     }
   })
 }
