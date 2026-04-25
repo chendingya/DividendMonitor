@@ -11,7 +11,7 @@
 
 本文档是 `SDD.md` 的补充设计，默认技术栈为 `Electron + React + Ant Design + TypeScript + SQLite`。
 
-当前工程目录的“简化方案与迁移步骤”单独记录在 `DIRECTORY-SIMPLIFICATION-PLAN.md`。本文档继续描述稳定的职责边界，不要求为了分层而保留过深目录。
+当前工程目录已经完成一轮“保留边界、减少跳转”的简化。本文档继续描述稳定的职责边界，不要求为了分层而保留过深目录。
 
 ## 2. 架构目标
 
@@ -36,10 +36,10 @@
 ```text
 +----------------------------------------------------------------+
 |                        Renderer 展示层                         |
-| pages -> containers -> feature components -> shared ui         |
+| pages -> feature components -> shared ui                       |
 +----------------------------------------------------------------+
 |                      Renderer 交互编排层                       |
-| hooks -> runtime services -> state store -> view model         |
+| hooks -> runtime services -> route context / local storage     |
 +----------------------------------------------------------------+
 |                    Preload / IPC 协议边界层                    |
 | typed api -> request dto -> response dto -> validation         |
@@ -70,7 +70,7 @@
 简单说：
 
 ```text
-UI -> ViewModel / Store -> IPC API -> UseCase -> Repository -> Adapter -> Infra
+UI -> Hook / Service -> IPC API -> UseCase -> Repository -> Adapter -> Infra
 ```
 
 当前代码补充：
@@ -165,23 +165,24 @@ src/main/infrastructure/
 - 把第三方字段转换为系统内部统一结构
 - 隐藏外部接口的差异和脏数据
 
-建议目录：
+当前更推荐的目录：
 
 ```text
 src/main/adapters/
+  contracts.ts
+  index.ts
   eastmoney/
-    eastmoneyQuoteAdapter.ts
-    eastmoneyDividendAdapter.ts
-    eastmoneyFinanceAdapter.ts
-  sina/
-    sinaQuoteAdapter.ts
-  cninfo/
-    cninfoDividendAdapter.ts
-  mappers/
-    stockMapper.ts
-    dividendMapper.ts
-    financeMapper.ts
+    eastmoneyAShareDataSource.ts
+    eastmoneyValuationAdapter.ts
+    eastmoneyUtils.ts
 ```
+
+说明：
+
+1. 当前体量下，`contracts.ts` 统一承载 adapter 契约，减少碎文件
+2. `eastmoneyAShareDataSource.ts` 负责搜索、行情、分红等基础接入
+3. `eastmoneyValuationAdapter.ts` 负责估值快照和趋势接入
+4. 当后续出现第二个以上外部源或 adapter 数量明显增长时，再细分为 `quote/dividend/finance` 子适配器
 
 规则：
 
@@ -221,8 +222,9 @@ src/main/repositories/
 当前实现补充：
 
 1. `watchlistRepository.ts` 已落地，并已改为走 SQLite
-2. `stockRepository.ts` 当前仍主要聚焦远端查询与聚合 DTO 组织
-3. “缓存优先再回源”的完整仓库模式仍未全面落地
+2. `stockRepository.ts` 当前负责聚合基础股票数据与估值数据
+3. `valuationRepository.ts` 已落地，负责估值链路的 source priority、15 分钟内存缓存与本地 percentile fallback
+4. “缓存优先再回源”的完整仓库模式仍未全面落地，目前仅估值链路具备最小缓存策略
 
 ### 6.4 Domain 层
 
@@ -530,7 +532,7 @@ src/renderer/src/services/
 src/
   main/
     adapters/
-      AShareDataSource.ts
+      contracts.ts
       eastmoney/
     application/
       useCases/
@@ -572,32 +574,38 @@ shared/
 
 这样做的目的不是否定分层，而是把“分层”保留在职责上，而不是堆到路径深度上。
 
-## 11. Feature 模块建议
+## 11. 前端模块组织建议
 
-建议前端按业务模块组织，而不是按组件类型平铺所有文件。
+当前前端以“页面 + 业务组件 + hook + runtime service”的轻量组织为主，不再强制引入 `features/` 目录。
 
-例如：
+推荐结构：
 
 ```text
-src/renderer/src/features/stock-detail/
+src/renderer/src/
+  pages/
+    StockDetailPage.tsx
   components/
-    StockSummaryPanel.tsx
-    DividendYieldChart.tsx
-    DividendEventTable.tsx
-    FutureYieldEstimateCard.tsx
+    stock-detail/
+      FutureYieldEstimateCard.tsx
+      YearlyDividendTrendChart.tsx
   hooks/
-    useStockDetailData.ts
-  mappers/
-    stockDetailMapper.ts
-  types/
-    stockDetailView.ts
+    useStockDetail.ts
+  services/
+    stockApi.ts
+    routeContext.ts
 ```
 
 这样做的好处：
 
-1. 同一业务的代码更集中
-2. 修改一个功能时更容易定位
-3. 后期拆包或抽共用模块更容易
+1. 当前体量下更容易定位入口
+2. 页面、组件、数据访问职责仍然清晰
+3. 避免为了抽象而引入低价值目录层级
+
+补充约束：
+
+1. 只有当某个业务同时出现组件、局部 hook、mapper、types 且文件数明显增长时，才重新升格为 `features/<module>/`
+2. 共享布局、通用卡片和状态组件继续留在 `components/app/`
+3. 路由上下文、runtime selector、API 访问保持在 `services/`，不要回流到页面组件
 
 ## 12. DTO 与 ViewModel 规范
 
@@ -648,19 +656,20 @@ type HistoricalYieldChartViewModel = {
 
 ```text
 StockDetailPage
-  -> StockDetailContainer
-    -> useStockDetail()
-      -> stockApi.getDetail(symbol)
-        -> preload.stock.getDetail(symbol)
-          -> ipc: stock:get-detail
-            -> getStockDetail use case
-              -> stockRepository / dividendRepository / financeRepository
-                -> sqlite cache or remote adapter
-              -> dividendYieldService
-              -> futureYieldEstimator
-            -> response DTO
-      -> stockDetailViewMapper
-  -> render StockSummaryPanel / DividendYieldChart / FutureYieldEstimateCard
+  -> useStockDetail()
+    -> stockApi.getDetail(symbol)
+      -> preload.stock.getDetail(symbol)
+        -> ipc: stock:get-detail
+          -> getStockDetail use case
+            -> stockRepository
+              -> eastmoneyAShareDataSource
+              -> valuationRepository
+                -> eastmoneyValuationAdapter
+            -> dividendYieldService
+            -> futureYieldEstimator
+            -> buildValuationWindows
+          -> response DTO
+  -> render page / stock-detail components
 ```
 
 这个链路里：
