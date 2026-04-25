@@ -1,40 +1,41 @@
 import type { DividendMonitorApi } from '@shared/contracts/api'
+import { browserRuntimeApi } from '@renderer/services/browserRuntimeApi'
 
-function ensureDesktopApi(): DividendMonitorApi {
+function getRuntimeApi(): DividendMonitorApi {
   const api = window.dividendMonitor
 
   if (!api) {
-    throw new Error('Desktop bridge is unavailable. Please launch the app inside Electron instead of opening the renderer directly in a browser.')
+    return browserRuntimeApi
   }
 
   return api
 }
 
 export function getStockDesktopApi() {
-  const api = ensureDesktopApi()
+  const api = getRuntimeApi()
 
   if (!api.stock) {
-    throw new Error('Desktop bridge is missing the stock API namespace.')
+    throw new Error('Runtime API is missing the stock namespace.')
   }
 
   return api.stock
 }
 
 export function getWatchlistDesktopApi() {
-  const api = ensureDesktopApi()
+  const api = getRuntimeApi()
 
   if (!api.watchlist) {
-    throw new Error('Desktop bridge is missing the watchlist API namespace.')
+    throw new Error('Runtime API is missing the watchlist namespace.')
   }
 
   return api.watchlist
 }
 
 export function getCalculationDesktopApi() {
-  const api = ensureDesktopApi()
+  const api = getRuntimeApi()
 
   if (!api.calculation) {
-    throw new Error('Desktop bridge is missing the calculation API namespace.')
+    throw new Error('Runtime API is missing the calculation namespace.')
   }
 
   return api.calculation

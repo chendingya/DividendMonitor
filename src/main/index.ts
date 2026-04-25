@@ -5,6 +5,13 @@ import { registerIpcHandlers } from '@main/ipc/channels'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
+const isDevelopment = Boolean(process.env['ELECTRON_RENDERER_URL'])
+
+if (isDevelopment) {
+  // Keep Electron runtime data inside the workspace during development to avoid
+  // permission issues from sandboxed roaming-profile writes.
+  app.setPath('userData', join(process.cwd(), '.runtime-data'))
+}
 
 function createWindow() {
   const mainWindow = new BrowserWindow({

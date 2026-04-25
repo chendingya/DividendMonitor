@@ -118,6 +118,8 @@ export interface DividendMonitorApi {
   }
   watchlist: {
     list(): Promise<WatchlistItemDto[]>
+    add(symbol: string): Promise<void>
+    remove(symbol: string): Promise<void>
   }
   calculation: {
     getHistoricalYield(symbol: string): Promise<HistoricalYieldResponseDto>

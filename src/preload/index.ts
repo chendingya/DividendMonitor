@@ -8,7 +8,9 @@ const api: DividendMonitorApi = {
     compare: (symbols) => ipcRenderer.invoke('stock:compare', symbols)
   },
   watchlist: {
-    list: () => ipcRenderer.invoke('watchlist:list')
+    list: () => ipcRenderer.invoke('watchlist:list'),
+    add: (symbol) => ipcRenderer.invoke('watchlist:add', symbol),
+    remove: (symbol) => ipcRenderer.invoke('watchlist:remove', symbol)
   },
   calculation: {
     getHistoricalYield: (symbol) => ipcRenderer.invoke('calculation:historical-yield', symbol),

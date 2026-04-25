@@ -96,9 +96,9 @@ export function ComparisonPage() {
     <div className="page-section">
       <section className="page-hero">
         <div className="hero-eyebrow">对比分析</div>
-        <h1 className="hero-title">把股息率、估值和收益稳定性放到同一张表里比较</h1>
-        <p className="hero-subtitle">先聚焦最重要的差异项，后续再往这页扩展更多财务字段和高亮规则。</p>
-        <div className="ledger-hero-actions">
+        <h1 className="hero-title">全量比较</h1>
+        <p className="hero-subtitle">关键收益指标最值高亮</p>
+        <div className="hero-actions">
           <button type="button" className="ledger-secondary-button" onClick={() => navigate('/')}>
             返回投资组合
           </button>

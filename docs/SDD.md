@@ -27,8 +27,8 @@
 - 路由：React Router
 - 状态管理：Zustand 或 Redux Toolkit，首期建议 Zustand
 - 图表：ECharts
-- 本地数据库：SQLite
-- ORM/数据访问层：Drizzle ORM 或 Prisma，首期建议更轻量的 Drizzle ORM
+- 本地数据库：SQLite（当前实现使用 Node 内建 `node:sqlite`，尚未引入第三方 SQLite npm 包）
+- ORM/数据访问层：首期暂不引入 ORM，先用最小数据库封装；后续可在 Drizzle ORM 与 Prisma 中择一
 - 主进程与渲染进程通信：Electron IPC + 预加载脚本
 - 表单与校验：Ant Design Form + Zod
 - 日志：electron-log
@@ -99,6 +99,14 @@
                                       - A股股本变更数据
 ```
 
+补充说明：
+
+1. 生产形态仍以 Electron 三层结构为主。
+2. 为了让浏览器预览可联调，当前渲染层已增加运行时适配入口：
+   - Electron 桌面端：`renderer service -> preload bridge -> IPC -> main`
+   - 浏览器预览端：`renderer service -> browser fallback adapter`
+3. 浏览器预览端的 fallback 目前只用于前端联调，不代表正式生产数据链路。
+
 ## 6. 目录建议
 
 首期目录在保证边界的前提下，应优先选择“够用的分层”，避免过深目录。当前目录简化计划见 `DIRECTORY-SIMPLIFICATION-PLAN.md`。
@@ -143,7 +151,7 @@ DividendMonitor/
 
 - `windowManager`：创建主窗口、处理应用生命周期
 - `ipcHandlers`：接收渲染层请求并调用服务
-- `dbService`：管理 SQLite 初始化、迁移和查询
+- `dbService`：管理 SQLite 初始化、最小 schema 和查询
 - `settingsService`：管理本地配置
 - `stockDataService`：统一股票、财务、分红数据查询入口
 - `calculationService`：统一股息率、估算值等核心计算逻辑
@@ -158,6 +166,7 @@ DividendMonitor/
 - `comparison`：多股票对比
 - `yield-map`：股息率地图
 - `settings`：本地配置、数据源和指标口径说明
+- `runtime-adapter`：统一选择 Electron bridge 或浏览器 fallback
 
 ### 7.3 数据适配模块
 
@@ -321,6 +330,15 @@ type CalculationResult = {
 7. `app_settings` 保存年份筛选、默认市场、排序和回测参数等设置
 8. `calculation_cache` 可选，用于缓存复杂计算结果
 9. `backtest_results` 可选，用于缓存回测结果和过程摘要
+
+### 9.3 当前实现状态
+
+截至当前代码：
+
+1. 已正式落地的表只有 `watchlist_items` 与 `app_settings`
+2. `watchlist_items` 已用于替代旧的 JSON 自选文件
+3. 其他缓存表仍处于设计态，尚未开始落地
+4. 当前数据库封装位于 `src/main/infrastructure/db/sqlite.ts`
 
 ## 10. 关键计算设计
 
@@ -517,6 +535,13 @@ window.dividendMonitor = {
 - `settings:get`
 - `settings:set`
 
+### 12.3 当前运行时补充说明
+
+1. Electron 桌面端仍以 preload + IPC 为正式调用链
+2. 浏览器预览端当前不具备 preload bridge，因此通过渲染层 runtime adapter 回退到 browser fallback
+3. browser fallback 当前覆盖 `stock`、`watchlist`、`calculation` 三组接口的最小联调能力
+4. Web 预览中的自选数据当前使用浏览器本地存储，而不是 SQLite
+
 ## 13. 状态管理设计
 
 首期建议使用按领域拆分的轻量状态管理。
@@ -644,6 +669,14 @@ window.dividendMonitor = {
 - 本地数据库读写
 - 数据适配器转换
 - 回测流水重放
+
+## 23. 当前实现对齐状态（2026-04-25）
+
+1. Electron + React + preload + IPC 主链路已可运行
+2. 自选持久化已从 JSON 文件切换到 SQLite，当前使用 `node:sqlite`
+3. 开发态 Electron 的 `userData` 已切换到项目内 `.runtime-data`，避免开发环境写系统 `Roaming` 目录
+4. 渲染层已增加 runtime adapter，浏览器预览可通过 fallback 跑通搜索、自选、对比、详情和回测的最小链路
+5. 浏览器预览当前依赖 mock/fallback 数据，不等同于桌面端真实数据链路
 
 ### 20.3 E2E 测试
 

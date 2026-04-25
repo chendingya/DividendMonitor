@@ -15,5 +15,4 @@ export interface AShareDataSource {
   search(keyword: string): Promise<Array<{ symbol: string; name: string; market: 'A_SHARE' }>>
   getDetail(symbol: string): Promise<StockDetailSource>
   compare(symbols: string[]): Promise<StockDetailSource[]>
-  listWatchlist(): Promise<StockDetailSource[]>
 }

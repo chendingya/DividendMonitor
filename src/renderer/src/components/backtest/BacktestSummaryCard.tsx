@@ -14,6 +14,38 @@ const percent = new Intl.NumberFormat('zh-CN', {
   maximumFractionDigits: 2
 })
 
+function getTransactionMeta(type: BacktestResultDto['transactions'][number]['type']) {
+  if (type === 'BUY') {
+    return {
+      label: '建仓',
+      color: 'blue',
+      direction: '增加持仓'
+    }
+  }
+
+  if (type === 'DIVIDEND') {
+    return {
+      label: '分红到账',
+      color: 'gold',
+      direction: '现金流入'
+    }
+  }
+
+  if (type === 'REINVEST') {
+    return {
+      label: '分红复投',
+      color: 'green',
+      direction: '增加持仓'
+    }
+  }
+
+  return {
+    label: '送转调整',
+    color: 'purple',
+    direction: '股数调整'
+  }
+}
+
 function CardGlyph({ kind }: { kind: 'return' | 'annual' | 'cash' }) {
   if (kind === 'annual') {
     return (
@@ -103,11 +135,26 @@ export function BacktestSummaryCard({ result }: { result: BacktestResultDto }) {
       <AppCard title="分红与复投流水" extra={<Tag color="blue">{result.transactions.length} 条</Tag>}>
         <List
           dataSource={result.transactions}
-          renderItem={(item) => (
+          renderItem={(item) => {
+            const meta = getTransactionMeta(item.type)
+
+            return (
             <List.Item>
               <List.Item.Meta
-                title={`${item.date} · ${item.type}`}
-                description={item.note}
+                title={
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span>{item.date}</span>
+                    <Tag color={meta.color}>{meta.label}</Tag>
+                  </div>
+                }
+                description={
+                  <div>
+                    <div>{item.note}</div>
+                    <Typography.Text style={{ color: '#8b949e' }}>
+                      {meta.direction}，当前持仓 {item.sharesAfter.toFixed(4)} 股
+                    </Typography.Text>
+                  </div>
+                }
               />
               <div style={{ textAlign: 'right', minWidth: 180 }}>
                 <div>{item.cashAmount == null ? '--' : currency.format(item.cashAmount)}</div>
@@ -116,7 +163,8 @@ export function BacktestSummaryCard({ result }: { result: BacktestResultDto }) {
                 </Typography.Text>
               </div>
             </List.Item>
-          )}
+            )
+          }}
         />
       </AppCard>
     </div>
