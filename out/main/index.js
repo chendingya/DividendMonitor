@@ -2,6 +2,8 @@ import { ipcMain, app, BrowserWindow } from "electron";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import axios, { AxiosError } from "axios";
+import { DatabaseSync } from "node:sqlite";
+import { mkdirSync } from "node:fs";
 import __cjs_mod__ from "node:module";
 const __filename = import.meta.filename;
 const __dirname = import.meta.dirname;
@@ -136,7 +138,8 @@ function extractYear(value) {
 }
 const SEARCH_TOKEN = "D43BF722C8E33BDC906FB84D85E326E8";
 const TENCENT_KLINE_LIMIT = 2e3;
-function isAShareSymbol(symbol) {
+const EASTMONEY_DATA_CENTER_BASE_URL = "https://datacenter.eastmoney.com/securities/api/data/get";
+function isAShareSymbol$1(symbol) {
   return /^(6|0|3)\d{5}$/.test(symbol.trim());
 }
 function toTencentSymbol(symbol) {
@@ -169,7 +172,7 @@ function parseTencentMarketSnapshot(symbol, payload) {
   }
   const marketCapInYi = toNumber(quoteFields[44]);
   const peRatio = toNumber(quoteFields[39]);
-  const totalSharesRaw = toNumber(quoteFields[72]) ?? toNumber(quoteFields[73]) ?? toNumber(quoteFields[76]);
+  const totalSharesRaw = toNumber(quoteFields[73]) ?? toNumber(quoteFields[72]) ?? toNumber(quoteFields[76]);
   return {
     name: quoteFields[1] || symbol,
     symbol: quoteFields[2] || symbol,
@@ -195,6 +198,52 @@ function findReferenceClosePrice(priceHistory, anchorDate) {
 }
 function pickLatestAnnualDividendRecord(records) {
   return [...records].filter((record) => toIsoDate(record.REPORT_DATE)?.endsWith("-12-31")).sort((a, b) => (toIsoDate(b.REPORT_DATE) ?? "").localeCompare(toIsoDate(a.REPORT_DATE) ?? ""))[0];
+}
+function calculateDividendAmount(record) {
+  const dividendPerShare = (toNumber(record.PRETAX_BONUS_RMB) ?? 0) / 10;
+  const totalShares = toNumber(record.TOTAL_SHARES);
+  return dividendPerShare > 0 && totalShares != null ? dividendPerShare * totalShares : void 0;
+}
+function buildLatestFiscalYearSummary(records) {
+  const latestAnnualRecord = pickLatestAnnualDividendRecord(records);
+  const fiscalYear = extractYear(latestAnnualRecord?.REPORT_DATE);
+  if (!latestAnnualRecord || fiscalYear == null) {
+    return {
+      latestAnnualRecord: void 0,
+      latestAnnualTotalShares: void 0,
+      latestAnnualNetProfit: 0,
+      lastYearTotalDividendAmount: 0,
+      lastAnnualPayoutRatio: 0
+    };
+  }
+  const sameFiscalYearRecords = records.filter((record) => extractYear(record.REPORT_DATE) === fiscalYear);
+  const latestAnnualTotalShares = toNumber(latestAnnualRecord.TOTAL_SHARES);
+  const latestAnnualBasicEps = toNumber(latestAnnualRecord.BASIC_EPS);
+  const latestAnnualNetProfit = latestAnnualTotalShares != null && latestAnnualBasicEps != null ? latestAnnualTotalShares * latestAnnualBasicEps : 0;
+  const lastYearTotalDividendAmount = sameFiscalYearRecords.reduce((sum, record) => {
+    return sum + (calculateDividendAmount(record) ?? 0);
+  }, 0);
+  const lastAnnualPayoutRatio = latestAnnualNetProfit > 0 ? lastYearTotalDividendAmount / latestAnnualNetProfit : 0;
+  return {
+    latestAnnualRecord,
+    latestAnnualTotalShares,
+    latestAnnualNetProfit,
+    lastYearTotalDividendAmount,
+    lastAnnualPayoutRatio
+  };
+}
+function toValuationStatus(metric, history = []) {
+  const currentValue = toNumber(metric?.INDEX_VALUE) ?? history[0]?.value;
+  const currentPercentile = toNumber(metric?.INDEX_PERCENTILE);
+  if (currentValue == null && history.length === 0) {
+    return void 0;
+  }
+  return {
+    currentValue: currentValue != null && currentValue > 0 ? currentValue : void 0,
+    currentPercentile: currentPercentile != null && currentPercentile >= 0 ? currentPercentile : void 0,
+    status: metric?.VALATION_STATUS,
+    history
+  };
 }
 class EastmoneyAShareDataSource {
   async search(keyword) {
@@ -232,13 +281,48 @@ class EastmoneyAShareDataSource {
     const payload = await getJson(url);
     return payload.result?.data ?? [];
   }
+  async getValuationStatus(symbol, indicatorType) {
+    const url = `${EASTMONEY_DATA_CENTER_BASE_URL}?type=RPT_VALUATIONSTATUS&sty=SECUCODE,TRADE_DATE,INDICATOR_TYPE,INDEX_VALUE,INDEX_PERCENTILE,VALATION_STATUS&callback=&extraCols=&p=1&ps=1&sr=&st=&token=&var=source=DataCenter&client=WAP&filter=${encodeURIComponent(`(SECURITY_CODE="${symbol}")(INDICATOR_TYPE="${indicatorType}")`)}`;
+    const payload = await getJson(url, {
+      headers: {
+        Referer: "https://emdata.eastmoney.com/",
+        Origin: "https://emdata.eastmoney.com"
+      }
+    });
+    return payload.result?.data?.[0];
+  }
+  async getValuationTrend(symbol, indicatorType) {
+    const pageSize = 2e3;
+    const url = `${EASTMONEY_DATA_CENTER_BASE_URL}?type=RPT_CUSTOM_DMSK_TREND&sr=-1&st=TRADE_DATE&p=1&ps=${pageSize}&var=source=DataCenter&client=WAP&filter=${encodeURIComponent(`(SECURITY_CODE="${symbol}")(INDICATORTYPE=${indicatorType})(DATETYPE=2)`)}`;
+    const payload = await getJson(url, {
+      headers: {
+        Referer: "https://emdata.eastmoney.com/",
+        Origin: "https://emdata.eastmoney.com"
+      }
+    });
+    return (payload.result?.data ?? []).map((record) => {
+      const date = toIsoDate(record.TRADE_DATE);
+      const value = toNumber(record.INDICATOR_VALUE);
+      if (!date || value == null || value <= 0) {
+        return null;
+      }
+      return {
+        date,
+        value
+      };
+    }).filter((item) => item != null).sort((left, right) => right.date.localeCompare(left.date));
+  }
   async getDetail(symbol) {
-    if (!isAShareSymbol(symbol)) {
+    if (!isAShareSymbol$1(symbol)) {
       throw new Error(`Only A-share 6-digit symbols are supported: ${symbol}`);
     }
-    const [marketResult, dividendResult] = await Promise.allSettled([
+    const [marketResult, dividendResult, peStatusResult, pbStatusResult, peTrendResult, pbTrendResult] = await Promise.allSettled([
       this.getTencentMarketSnapshot(symbol),
-      this.getDividendRecords(symbol)
+      this.getDividendRecords(symbol),
+      this.getValuationStatus(symbol, 1),
+      this.getValuationStatus(symbol, 2),
+      this.getValuationTrend(symbol, 1),
+      this.getValuationTrend(symbol, 2)
     ]);
     if (marketResult.status !== "fulfilled") {
       throw marketResult.reason instanceof Error ? marketResult.reason : new Error(`Failed to load market data for ${symbol}`);
@@ -246,10 +330,16 @@ class EastmoneyAShareDataSource {
     const market = marketResult.value;
     const priceHistory = market.priceHistory;
     const dividendRecords = dividendResult.status === "fulfilled" ? dividendResult.value : [];
+    const peHistory = peTrendResult.status === "fulfilled" ? peTrendResult.value : [];
+    const pbHistory = pbTrendResult.status === "fulfilled" ? pbTrendResult.value : [];
+    const peMetric = toValuationStatus(peStatusResult.status === "fulfilled" ? peStatusResult.value : void 0, peHistory);
+    const pbMetric = toValuationStatus(pbStatusResult.status === "fulfilled" ? pbStatusResult.value : void 0, pbHistory);
+    const fallbackPeRatio = peMetric?.currentValue ?? peHistory[0]?.value;
+    const fallbackPbRatio = pbMetric?.currentValue ?? pbHistory[0]?.value;
     const dividendEvents = dividendRecords.filter((record) => (record.ASSIGN_PROGRESS ?? "").includes("实施")).map((record) => {
       const dividendPerShare = (toNumber(record.PRETAX_BONUS_RMB) ?? 0) / 10;
       const totalShares = toNumber(record.TOTAL_SHARES);
-      const totalDividendAmount = dividendPerShare > 0 && totalShares != null ? dividendPerShare * totalShares : void 0;
+      const totalDividendAmount = calculateDividendAmount(record);
       const netProfit = totalShares != null && (toNumber(record.BASIC_EPS) ?? 0) > 0 ? totalShares * (toNumber(record.BASIC_EPS) ?? 0) : void 0;
       const payoutRatio = totalDividendAmount != null && netProfit != null && netProfit > 0 ? totalDividendAmount / netProfit : void 0;
       const recordDate = toIsoDate(record.EQUITY_RECORD_DATE);
@@ -271,12 +361,7 @@ class EastmoneyAShareDataSource {
         source: "eastmoney"
       };
     }).filter((event) => event.year > 0 && event.dividendPerShare > 0 && event.referenceClosePrice > 0).sort((a, b) => (a.exDate ?? "").localeCompare(b.exDate ?? ""));
-    const latestAnnualRecord = pickLatestAnnualDividendRecord(dividendRecords);
-    const latestAnnualTotalShares = toNumber(latestAnnualRecord?.TOTAL_SHARES);
-    const latestAnnualBasicEps = toNumber(latestAnnualRecord?.BASIC_EPS);
-    const latestAnnualNetProfit = latestAnnualTotalShares != null && latestAnnualBasicEps != null ? latestAnnualTotalShares * latestAnnualBasicEps : 0;
-    const lastYearTotalDividendAmount = (toNumber(latestAnnualRecord?.PRETAX_BONUS_RMB) ?? 0) / 10 * (latestAnnualTotalShares ?? 0);
-    const lastAnnualPayoutRatio = latestAnnualNetProfit > 0 ? lastYearTotalDividendAmount / latestAnnualNetProfit : 0;
+    const fiscalYearSummary = buildLatestFiscalYearSummary(dividendRecords);
     return {
       stock: {
         symbol: market.symbol,
@@ -284,23 +369,25 @@ class EastmoneyAShareDataSource {
         market: "A_SHARE",
         latestPrice: market.latestPrice,
         marketCap: market.marketCap,
-        peRatio: market.peRatio,
-        totalShares: market.totalShares ?? latestAnnualTotalShares
+        peRatio: market.peRatio ?? fallbackPeRatio,
+        pbRatio: fallbackPbRatio,
+        totalShares: market.totalShares ?? fiscalYearSummary.latestAnnualTotalShares
       },
       dividendEvents,
       priceHistory,
-      latestAnnualNetProfit,
-      latestTotalShares: market.totalShares ?? latestAnnualTotalShares ?? 0,
-      lastAnnualPayoutRatio,
-      lastYearTotalDividendAmount,
-      dataSource: "eastmoney"
+      latestAnnualNetProfit: fiscalYearSummary.latestAnnualNetProfit,
+      latestTotalShares: market.totalShares ?? fiscalYearSummary.latestAnnualTotalShares ?? 0,
+      lastAnnualPayoutRatio: fiscalYearSummary.lastAnnualPayoutRatio,
+      lastYearTotalDividendAmount: fiscalYearSummary.lastYearTotalDividendAmount,
+      dataSource: "eastmoney",
+      valuation: {
+        pe: peMetric,
+        pb: pbMetric
+      }
     };
   }
   async compare(symbols) {
     return Promise.all(symbols.map((symbol) => this.getDetail(symbol)));
-  }
-  async listWatchlist() {
-    return [];
   }
 }
 function getAppConfig() {
@@ -324,9 +411,6 @@ class StockRepository {
   }
   async compare(symbols) {
     return this.dataSource.compare(symbols);
-  }
-  async listWatchlist() {
-    return this.dataSource.listWatchlist();
   }
 }
 async function estimateFutureYield(symbol) {
@@ -523,6 +607,74 @@ function registerCalculationChannels() {
     return runDividendReinvestmentBacktest(symbol, buyDate);
   });
 }
+function resolveValuationStatus(percentile) {
+  if (percentile == null) {
+    return void 0;
+  }
+  if (percentile <= 30) {
+    return "估值较低";
+  }
+  if (percentile >= 70) {
+    return "估值较高";
+  }
+  return "估值中等";
+}
+function quantile(sortedValues, percentile) {
+  if (sortedValues.length === 0) {
+    return void 0;
+  }
+  if (sortedValues.length === 1) {
+    return sortedValues[0];
+  }
+  const index = (sortedValues.length - 1) * percentile;
+  const lowerIndex = Math.floor(index);
+  const upperIndex = Math.ceil(index);
+  if (lowerIndex === upperIndex) {
+    return sortedValues[lowerIndex];
+  }
+  const lower = sortedValues[lowerIndex];
+  const upper = sortedValues[upperIndex];
+  const weight = index - lowerIndex;
+  return lower + (upper - lower) * weight;
+}
+function subtractYears(date, years) {
+  const anchor = /* @__PURE__ */ new Date(`${date.slice(0, 10)}T00:00:00Z`);
+  anchor.setUTCFullYear(anchor.getUTCFullYear() - years);
+  return anchor.toISOString().slice(0, 10);
+}
+function buildWindowSnapshot(history, years, window, currentValue) {
+  const latestDate = history[0]?.date;
+  const lowerBound = latestDate ? subtractYears(latestDate, years) : null;
+  const values = history.filter((point) => lowerBound ? point.date >= lowerBound : true).map((point) => point.value).filter((value) => Number.isFinite(value) && value > 0).sort((left, right) => left - right);
+  if (values.length === 0 || currentValue == null || currentValue <= 0) {
+    return {
+      window,
+      sampleSize: values.length
+    };
+  }
+  const belowOrEqualCount = values.filter((value) => value <= currentValue).length;
+  return {
+    window,
+    percentile: Number((belowOrEqualCount / values.length * 100).toFixed(2)),
+    p30: quantile(values, 0.3),
+    p50: quantile(values, 0.5),
+    p70: quantile(values, 0.7),
+    sampleSize: values.length
+  };
+}
+function buildValuationWindows(metric) {
+  const history = (metric?.history ?? []).filter((point) => point.date && Number.isFinite(point.value) && point.value > 0).sort((left, right) => right.date.localeCompare(left.date));
+  const currentValue = metric?.currentValue ?? history[0]?.value;
+  const tenYearWindow = buildWindowSnapshot(history, 10, "10Y", currentValue);
+  const twentyYearWindow = buildWindowSnapshot(history, 20, "20Y", currentValue);
+  const status = metric?.status ?? resolveValuationStatus(metric?.currentPercentile ?? tenYearWindow.percentile);
+  return {
+    currentValue,
+    currentPercentile: metric?.currentPercentile,
+    status,
+    windows: [tenYearWindow, twentyYearWindow]
+  };
+}
 async function compareStocks(symbols) {
   const repository = new StockRepository();
   const sources = await repository.compare(symbols);
@@ -542,8 +694,13 @@ async function compareStocks(symbols) {
       latestPrice: source.stock.latestPrice,
       marketCap: source.stock.marketCap,
       peRatio: source.stock.peRatio,
+      pbRatio: source.stock.pbRatio,
       averageYield,
-      estimatedFutureYield: estimates.baseline.estimatedFutureYield
+      estimatedFutureYield: estimates.baseline.estimatedFutureYield,
+      valuation: {
+        pe: source.valuation?.pe ? buildValuationWindows(source.valuation.pe) : void 0,
+        pb: source.valuation?.pb ? buildValuationWindows(source.valuation.pb) : void 0
+      }
     };
   });
 }
@@ -566,13 +723,18 @@ async function getStockDetail(symbol) {
     latestPrice: source.stock.latestPrice,
     marketCap: source.stock.marketCap,
     peRatio: source.stock.peRatio,
+    pbRatio: source.stock.pbRatio,
     totalShares: source.stock.totalShares,
     dataSource: source.dataSource,
     yieldBasis: NATURAL_YEAR_YIELD_BASIS,
     yearlyYields,
     dividendEvents: source.dividendEvents,
     futureYieldEstimate: estimates.baseline,
-    futureYieldEstimates: [estimates.baseline, estimates.conservative]
+    futureYieldEstimates: [estimates.baseline, estimates.conservative],
+    valuation: {
+      pe: source.valuation?.pe ? buildValuationWindows(source.valuation.pe) : void 0,
+      pb: source.valuation?.pb ? buildValuationWindows(source.valuation.pb) : void 0
+    }
   };
 }
 async function searchStocks(keyword) {
@@ -590,10 +752,108 @@ function registerStockChannels() {
     return compareStocks(symbols);
   });
 }
-async function listWatchlist() {
+let database = null;
+function getDatabaseFilePath() {
+  return join(app.getPath("userData"), "db", "dividend-monitor.sqlite");
+}
+function initializeSchema(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS watchlist_items (
+      symbol TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_watchlist_items_updated_at
+      ON watchlist_items(updated_at DESC);
+  `);
+}
+function getDatabase() {
+  if (database) {
+    return database;
+  }
+  const filePath = getDatabaseFilePath();
+  mkdirSync(dirname(filePath), { recursive: true });
+  database = new DatabaseSync(filePath);
+  initializeSchema(database);
+  return database;
+}
+function normalizeSymbol(symbol) {
+  return symbol.trim();
+}
+function isAShareSymbol(symbol) {
+  return /^(6|0|3)\d{5}$/.test(symbol);
+}
+function sanitizeSymbols(symbols) {
+  const seen = /* @__PURE__ */ new Set();
+  return symbols.map(normalizeSymbol).filter((symbol) => isAShareSymbol(symbol)).filter((symbol) => {
+    if (seen.has(symbol)) {
+      return false;
+    }
+    seen.add(symbol);
+    return true;
+  });
+}
+class WatchlistRepository {
+  async listSymbols() {
+    const db = getDatabase();
+    const rows = db.prepare(
+      `
+          SELECT symbol
+          FROM watchlist_items
+          ORDER BY updated_at DESC, created_at DESC, symbol ASC
+        `
+    ).all();
+    return sanitizeSymbols(rows.map((row) => row.symbol));
+  }
+  async addSymbol(symbol) {
+    const normalized = normalizeSymbol(symbol);
+    if (!isAShareSymbol(normalized)) {
+      throw new Error(`Only A-share 6-digit symbols are supported: ${symbol}`);
+    }
+    const db = getDatabase();
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    db.prepare(
+      `
+        INSERT INTO watchlist_items (symbol, created_at, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(symbol) DO UPDATE SET
+          updated_at = excluded.updated_at
+      `
+    ).run(normalized, now, now);
+  }
+  async removeSymbol(symbol) {
+    const normalized = normalizeSymbol(symbol);
+    const db = getDatabase();
+    db.prepare("DELETE FROM watchlist_items WHERE symbol = ?").run(normalized);
+  }
+}
+async function addWatchlistItem(symbol) {
   const repository = new StockRepository();
-  const sources = await repository.listWatchlist();
-  return sources.map((source) => {
+  const watchlistRepository = new WatchlistRepository();
+  await repository.getDetail(symbol);
+  await watchlistRepository.addSymbol(symbol);
+}
+async function listWatchlist() {
+  const stockRepository = new StockRepository();
+  const watchlistRepository = new WatchlistRepository();
+  const symbols = await watchlistRepository.listSymbols();
+  if (symbols.length === 0) {
+    return [];
+  }
+  const sources = await Promise.allSettled(symbols.map((symbol) => stockRepository.getDetail(symbol)));
+  return sources.flatMap((source) => {
+    if (source.status !== "fulfilled") {
+      return [];
+    }
+    return [source.value];
+  }).map((source) => {
     const estimates = estimateFutureYield$1({
       latestPrice: source.stock.latestPrice,
       latestTotalShares: source.latestTotalShares,
@@ -611,9 +871,19 @@ async function listWatchlist() {
     };
   });
 }
+async function removeWatchlistItem(symbol) {
+  const watchlistRepository = new WatchlistRepository();
+  await watchlistRepository.removeSymbol(symbol);
+}
 function registerWatchlistChannels() {
   ipcMain.handle("watchlist:list", async () => {
     return listWatchlist();
+  });
+  ipcMain.handle("watchlist:add", async (_event, symbol) => {
+    return addWatchlistItem(symbol);
+  });
+  ipcMain.handle("watchlist:remove", async (_event, symbol) => {
+    return removeWatchlistItem(symbol);
   });
 }
 function registerIpcHandlers() {
@@ -623,6 +893,10 @@ function registerIpcHandlers() {
 }
 const __filename$1 = fileURLToPath(import.meta.url);
 const __dirname$1 = dirname(__filename$1);
+const isDevelopment = Boolean(process.env["ELECTRON_RENDERER_URL"]);
+if (isDevelopment) {
+  app.setPath("userData", join(process.cwd(), ".runtime-data"));
+}
 function createWindow() {
   const mainWindow = new BrowserWindow({
     title: "收息佬",

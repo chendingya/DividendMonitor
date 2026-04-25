@@ -70,7 +70,7 @@ export function WatchlistTable({
                 {selectedSymbols.includes(record.symbol) ? '已选中' : '选择'}
               </button>
             </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <div className="ledger-data-actions">
               <button
                 type="button"
                 className="ledger-inline-action-btn"

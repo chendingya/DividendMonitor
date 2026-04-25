@@ -14,6 +14,29 @@ export type FutureYieldEstimateDto = {
   steps: string[]
 }
 
+export type ValuationWindowKeyDto = '10Y' | '20Y'
+
+export type ValuationWindowDto = {
+  window: ValuationWindowKeyDto
+  percentile?: number
+  p30?: number
+  p50?: number
+  p70?: number
+  sampleSize: number
+}
+
+export type ValuationMetricDto = {
+  currentValue?: number
+  currentPercentile?: number
+  status?: string
+  windows: ValuationWindowDto[]
+}
+
+export type ValuationSnapshotDto = {
+  pe?: ValuationMetricDto
+  pb?: ValuationMetricDto
+}
+
 export type DividendEventDto = {
   year: number
   fiscalYear?: number
@@ -55,8 +78,10 @@ export type ComparisonRowDto = {
   latestPrice: number
   marketCap?: number
   peRatio?: number
+  pbRatio?: number
   averageYield?: number
   estimatedFutureYield?: number
+  valuation?: ValuationSnapshotDto
 }
 
 export type BacktestResultDto = {
@@ -89,6 +114,7 @@ export type StockDetailDto = {
   latestPrice: number
   marketCap?: number
   peRatio?: number
+  pbRatio?: number
   totalShares?: number
   dataSource: 'mock' | 'eastmoney'
   yieldBasis: string
@@ -96,6 +122,7 @@ export type StockDetailDto = {
   dividendEvents: DividendEventDto[]
   futureYieldEstimate: FutureYieldEstimateDto
   futureYieldEstimates: FutureYieldEstimateDto[]
+  valuation?: ValuationSnapshotDto
 }
 
 export type HistoricalYieldResponseDto = {

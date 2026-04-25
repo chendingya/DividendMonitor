@@ -1,4 +1,10 @@
 import type { HistoricalPricePoint, Stock, DividendEvent } from '@main/domain/entities/Stock'
+import type { ValuationMetric } from '@main/domain/services/valuationService'
+
+export type StockValuationSource = {
+  pe?: ValuationMetric
+  pb?: ValuationMetric
+}
 
 export type StockDetailSource = {
   stock: Stock
@@ -9,6 +15,7 @@ export type StockDetailSource = {
   lastAnnualPayoutRatio: number
   lastYearTotalDividendAmount: number
   dataSource: 'eastmoney'
+  valuation?: StockValuationSource
 }
 
 export interface AShareDataSource {

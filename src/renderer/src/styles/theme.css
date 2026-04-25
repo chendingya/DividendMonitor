@@ -1215,6 +1215,62 @@ button.ledger-breadcrumb-item:hover {
   font-size: 12px;
 }
 
+.ledger-valuation-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.ledger-valuation-card {
+  padding: 18px 20px;
+  border-radius: 22px;
+  background: rgba(245, 247, 250, 0.92);
+  border: 1px solid rgba(221, 227, 234, 0.92);
+}
+
+.ledger-valuation-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.ledger-valuation-primary {
+  margin-top: 8px;
+  font-family:
+    "Plus Jakarta Sans", Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.ledger-valuation-status {
+  margin-top: 10px;
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ledger-valuation-band {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ledger-valuation-band span {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  background: rgba(232, 237, 242, 0.92);
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .ledger-yield-chart {
   min-height: 320px;
   display: flex;
@@ -1262,6 +1318,63 @@ button.ledger-breadcrumb-item:hover {
   gap: 20px;
 }
 
+.ledger-watchlist-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 720px;
+}
+
+.ledger-watchlist-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ledger-toolbar-card {
+  padding: 22px 24px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: 0 10px 24px rgba(44, 47, 49, 0.028);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.ledger-toolbar-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ledger-toolbar-title {
+  color: var(--text-main);
+  font-family:
+    "Plus Jakarta Sans", Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.ledger-toolbar-hint {
+  margin-top: 6px;
+  color: var(--text-soft);
+  font-size: 13px;
+}
+
+.ledger-toolbar-divider {
+  height: 1px;
+  background: linear-gradient(90deg, rgba(171, 173, 175, 0.12), rgba(171, 173, 175, 0.3), rgba(171, 173, 175, 0.12));
+}
+
+.ledger-selection-note {
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .ledger-filter-bar {
   display: flex;
   gap: 10px;
@@ -1292,6 +1405,13 @@ button.ledger-breadcrumb-item:hover {
   color: #fff;
   border-color: rgba(40, 102, 235, 0.16);
   box-shadow: 0 12px 20px rgba(0, 82, 208, 0.14);
+}
+
+.ledger-segmented-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .ledger-filter-chip:hover:not(:disabled),
@@ -1403,6 +1523,12 @@ button.ledger-breadcrumb-item:hover {
   border-radius: 18px;
 }
 
+.ledger-data-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .ledger-asset-cell {
   display: flex;
   align-items: center;
@@ -1479,4 +1605,94 @@ button.ledger-breadcrumb-item:hover {
   color: var(--text-main);
   font-size: 13px;
   line-height: 1.6;
+}
+
+.comparison-hero-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  position: relative;
+  z-index: 1;
+}
+
+.comparison-hero-symbols {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.comparison-hero-symbol-chip {
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(175, 190, 214, 0.9);
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  background: rgba(245, 248, 252, 0.96);
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+@media (max-width: 1200px) {
+  .ledger-watchlist-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 900px) {
+  .ledger-data-head,
+  .ledger-data-row {
+    grid-template-columns: 1.8fr 1fr 0.9fr 0.9fr 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .page-hero,
+  .ledger-hero-card,
+  .ledger-toolbar-card,
+  .ledger-data-card {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .hero-title,
+  .ledger-detail-title,
+  .ledger-detail-price strong {
+    font-size: 36px;
+  }
+
+  .ledger-watchlist-summary,
+  .comparison-hero-summary,
+  .comparison-hero-symbols,
+  .hero-actions,
+  .ledger-hero-actions {
+    gap: 8px;
+  }
+
+  .ledger-data-head {
+    display: none;
+  }
+
+  .ledger-data-row {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 18px 0;
+  }
+
+  .ledger-data-actions {
+    justify-content: flex-start;
+  }
+
+  .ledger-valuation-grid {
+    grid-template-columns: 1fr;
+  }
 }

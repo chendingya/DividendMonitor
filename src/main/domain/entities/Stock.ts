@@ -1,11 +1,14 @@
-﻿export type Stock = {
+export type Stock = {
   symbol: string
   name: string
   market: 'A_SHARE'
   industry?: string
   latestPrice: number
   marketCap?: number
+  // 市盈率（Price-to-Earnings Ratio, TTM），单位：倍
   peRatio?: number
+  // 市净率（Price-to-Book Ratio），单位：倍
+  pbRatio?: number
   totalShares?: number
 }
 

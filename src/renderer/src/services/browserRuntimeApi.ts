@@ -5,10 +5,49 @@ import type {
   HistoricalYieldResponseDto,
   StockDetailDto,
   StockSearchItemDto,
+  ValuationSnapshotDto,
   WatchlistItemDto
 } from '@shared/contracts/api'
 
 const WATCHLIST_STORAGE_KEY = 'dm:web-watchlist'
+
+function buildMockValuation(
+  peRatio: number | undefined,
+  pbRatio: number | undefined,
+  options: {
+    pe10y: { percentile: number; p30: number; p50: number; p70: number }
+    pe20y: { percentile: number; p30: number; p50: number; p70: number }
+    pb10y: { percentile: number; p30: number; p50: number; p70: number }
+    pb20y: { percentile: number; p30: number; p50: number; p70: number }
+  }
+): ValuationSnapshotDto {
+  return {
+    pe:
+      peRatio == null
+        ? undefined
+        : {
+            currentValue: peRatio,
+            currentPercentile: options.pe10y.percentile,
+            status: options.pe10y.percentile <= 30 ? '估值较低' : options.pe10y.percentile >= 70 ? '估值较高' : '估值中等',
+            windows: [
+              { window: '10Y', sampleSize: 520, ...options.pe10y },
+              { window: '20Y', sampleSize: 1040, ...options.pe20y }
+            ]
+          },
+    pb:
+      pbRatio == null
+        ? undefined
+        : {
+            currentValue: pbRatio,
+            currentPercentile: options.pb10y.percentile,
+            status: options.pb10y.percentile <= 30 ? '估值较低' : options.pb10y.percentile >= 70 ? '估值较高' : '估值中等',
+            windows: [
+              { window: '10Y', sampleSize: 520, ...options.pb10y },
+              { window: '20Y', sampleSize: 1040, ...options.pb20y }
+            ]
+          }
+  }
+}
 
 const mockStockDetails: Record<string, StockDetailDto> = {
   '600519': {
@@ -19,6 +58,7 @@ const mockStockDetails: Record<string, StockDetailDto> = {
     latestPrice: 1688,
     marketCap: 2120000000000,
     peRatio: 24.6,
+    pbRatio: 8.3,
     totalShares: 1256197800,
     dataSource: 'mock',
     yieldBasis: '浏览器预览模式下使用内置 mock 数据，口径仍按事件级股息率累加展示。',
@@ -134,7 +174,13 @@ const mockStockDetails: Record<string, StockDetailDto> = {
         },
         steps: ['下调分红比例后得到更保守估算。']
       }
-    ]
+    ],
+    valuation: buildMockValuation(24.6, 8.3, {
+      pe10y: { percentile: 58.4, p30: 21.2, p50: 24.1, p70: 28.6 },
+      pe20y: { percentile: 44.8, p30: 18.4, p50: 22.5, p70: 27.3 },
+      pb10y: { percentile: 67.2, p30: 5.6, p50: 6.8, p70: 8.1 },
+      pb20y: { percentile: 53.9, p30: 4.8, p50: 6.1, p70: 7.7 }
+    })
   },
   '000651': {
     symbol: '000651',
@@ -144,6 +190,7 @@ const mockStockDetails: Record<string, StockDetailDto> = {
     latestPrice: 42.6,
     marketCap: 238000000000,
     peRatio: 8.9,
+    pbRatio: 2.1,
     totalShares: 5560140000,
     dataSource: 'mock',
     yieldBasis: '浏览器预览模式下使用内置 mock 数据，口径仍按事件级股息率累加展示。',
@@ -245,7 +292,13 @@ const mockStockDetails: Record<string, StockDetailDto> = {
         },
         steps: ['基于最近年度派息水平做平稳延续估算。']
       }
-    ]
+    ],
+    valuation: buildMockValuation(8.9, 2.1, {
+      pe10y: { percentile: 18.6, p30: 10.1, p50: 12.3, p70: 15.8 },
+      pe20y: { percentile: 24.7, p30: 9.6, p50: 11.8, p70: 15.4 },
+      pb10y: { percentile: 21.4, p30: 2.3, p50: 2.8, p70: 3.4 },
+      pb20y: { percentile: 28.8, p30: 2.1, p50: 2.6, p70: 3.3 }
+    })
   },
   '601318': {
     symbol: '601318',
@@ -255,6 +308,7 @@ const mockStockDetails: Record<string, StockDetailDto> = {
     latestPrice: 46.2,
     marketCap: 845000000000,
     peRatio: 7.3,
+    pbRatio: 1.1,
     totalShares: 18280300000,
     dataSource: 'mock',
     yieldBasis: '浏览器预览模式下使用内置 mock 数据，口径仍按事件级股息率累加展示。',
@@ -344,7 +398,13 @@ const mockStockDetails: Record<string, StockDetailDto> = {
         },
         steps: ['延续最近年度分红强度，估算未来一年股息率。']
       }
-    ]
+    ],
+    valuation: buildMockValuation(7.3, 1.1, {
+      pe10y: { percentile: 16.2, p30: 8.1, p50: 9.3, p70: 11.4 },
+      pe20y: { percentile: 22.1, p30: 7.8, p50: 9.1, p70: 11.1 },
+      pb10y: { percentile: 12.8, p30: 1.2, p50: 1.4, p70: 1.7 },
+      pb20y: { percentile: 19.5, p30: 1.1, p50: 1.3, p70: 1.6 }
+    })
   }
 }
 
@@ -458,8 +518,10 @@ function toComparisonRow(detail: StockDetailDto): ComparisonRowDto {
     latestPrice: detail.latestPrice,
     marketCap: detail.marketCap,
     peRatio: detail.peRatio,
+    pbRatio: detail.pbRatio,
     averageYield,
-    estimatedFutureYield: detail.futureYieldEstimate.estimatedFutureYield
+    estimatedFutureYield: detail.futureYieldEstimate.estimatedFutureYield,
+    valuation: detail.valuation
   }
 }
 
