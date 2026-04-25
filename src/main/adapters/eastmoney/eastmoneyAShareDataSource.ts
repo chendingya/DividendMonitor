@@ -109,7 +109,8 @@ function parseTencentMarketSnapshot(symbol: string, payload: TencentKlineRespons
 
   const marketCapInYi = toNumber(quoteFields[44])
   const peRatio = toNumber(quoteFields[39])
-  const totalSharesRaw = toNumber(quoteFields[72]) ?? toNumber(quoteFields[73]) ?? toNumber(quoteFields[76])
+  // qt[73] is total shares, while qt[72]/qt[76] are float-share variants for many A-shares.
+  const totalSharesRaw = toNumber(quoteFields[73]) ?? toNumber(quoteFields[72]) ?? toNumber(quoteFields[76])
 
   return {
     name: quoteFields[1] || symbol,
@@ -143,6 +144,46 @@ function pickLatestAnnualDividendRecord(records: EastmoneyDividendRecord[]) {
   return [...records]
     .filter((record) => toIsoDate(record.REPORT_DATE)?.endsWith('-12-31'))
     .sort((a, b) => (toIsoDate(b.REPORT_DATE) ?? '').localeCompare(toIsoDate(a.REPORT_DATE) ?? ''))[0]
+}
+
+function calculateDividendAmount(record: EastmoneyDividendRecord) {
+  const dividendPerShare = (toNumber(record.PRETAX_BONUS_RMB) ?? 0) / 10
+  const totalShares = toNumber(record.TOTAL_SHARES)
+  return dividendPerShare > 0 && totalShares != null ? dividendPerShare * totalShares : undefined
+}
+
+function buildLatestFiscalYearSummary(records: EastmoneyDividendRecord[]) {
+  const latestAnnualRecord = pickLatestAnnualDividendRecord(records)
+  const fiscalYear = extractYear(latestAnnualRecord?.REPORT_DATE)
+
+  if (!latestAnnualRecord || fiscalYear == null) {
+    return {
+      latestAnnualRecord: undefined,
+      latestAnnualTotalShares: undefined,
+      latestAnnualNetProfit: 0,
+      lastYearTotalDividendAmount: 0,
+      lastAnnualPayoutRatio: 0
+    }
+  }
+
+  const sameFiscalYearRecords = records.filter((record) => extractYear(record.REPORT_DATE) === fiscalYear)
+  const latestAnnualTotalShares = toNumber(latestAnnualRecord.TOTAL_SHARES)
+  const latestAnnualBasicEps = toNumber(latestAnnualRecord.BASIC_EPS)
+  const latestAnnualNetProfit =
+    latestAnnualTotalShares != null && latestAnnualBasicEps != null ? latestAnnualTotalShares * latestAnnualBasicEps : 0
+  const lastYearTotalDividendAmount = sameFiscalYearRecords.reduce((sum, record) => {
+    return sum + (calculateDividendAmount(record) ?? 0)
+  }, 0)
+  const lastAnnualPayoutRatio =
+    latestAnnualNetProfit > 0 ? lastYearTotalDividendAmount / latestAnnualNetProfit : 0
+
+  return {
+    latestAnnualRecord,
+    latestAnnualTotalShares,
+    latestAnnualNetProfit,
+    lastYearTotalDividendAmount,
+    lastAnnualPayoutRatio
+  }
 }
 
 export class EastmoneyAShareDataSource implements AShareDataSource {
@@ -227,7 +268,7 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
       .map((record) => {
         const dividendPerShare = (toNumber(record.PRETAX_BONUS_RMB) ?? 0) / 10
         const totalShares = toNumber(record.TOTAL_SHARES)
-        const totalDividendAmount = dividendPerShare > 0 && totalShares != null ? dividendPerShare * totalShares : undefined
+        const totalDividendAmount = calculateDividendAmount(record)
         const netProfit =
           totalShares != null && (toNumber(record.BASIC_EPS) ?? 0) > 0 ? totalShares * (toNumber(record.BASIC_EPS) ?? 0) : undefined
         const payoutRatio =
@@ -259,15 +300,7 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
       .filter((event) => event.year > 0 && event.dividendPerShare > 0 && event.referenceClosePrice > 0)
       .sort((a, b) => (a.exDate ?? '').localeCompare(b.exDate ?? ''))
 
-    const latestAnnualRecord = pickLatestAnnualDividendRecord(dividendRecords)
-    const latestAnnualTotalShares = toNumber(latestAnnualRecord?.TOTAL_SHARES)
-    const latestAnnualBasicEps = toNumber(latestAnnualRecord?.BASIC_EPS)
-    const latestAnnualNetProfit =
-      latestAnnualTotalShares != null && latestAnnualBasicEps != null ? latestAnnualTotalShares * latestAnnualBasicEps : 0
-    const lastYearTotalDividendAmount =
-      ((toNumber(latestAnnualRecord?.PRETAX_BONUS_RMB) ?? 0) / 10) * (latestAnnualTotalShares ?? 0)
-    const lastAnnualPayoutRatio =
-      latestAnnualNetProfit > 0 ? lastYearTotalDividendAmount / latestAnnualNetProfit : 0
+    const fiscalYearSummary = buildLatestFiscalYearSummary(dividendRecords)
 
     return {
       stock: {
@@ -277,23 +310,19 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
         latestPrice: market.latestPrice,
         marketCap: market.marketCap,
         peRatio: market.peRatio,
-        totalShares: market.totalShares ?? latestAnnualTotalShares
+        totalShares: market.totalShares ?? fiscalYearSummary.latestAnnualTotalShares
       },
       dividendEvents,
       priceHistory,
-      latestAnnualNetProfit,
-      latestTotalShares: market.totalShares ?? latestAnnualTotalShares ?? 0,
-      lastAnnualPayoutRatio,
-      lastYearTotalDividendAmount,
+      latestAnnualNetProfit: fiscalYearSummary.latestAnnualNetProfit,
+      latestTotalShares: market.totalShares ?? fiscalYearSummary.latestAnnualTotalShares ?? 0,
+      lastAnnualPayoutRatio: fiscalYearSummary.lastAnnualPayoutRatio,
+      lastYearTotalDividendAmount: fiscalYearSummary.lastYearTotalDividendAmount,
       dataSource: 'eastmoney'
     }
   }
 
   async compare(symbols: string[]): Promise<StockDetailSource[]> {
     return Promise.all(symbols.map((symbol) => this.getDetail(symbol)))
-  }
-
-  async listWatchlist(): Promise<StockDetailSource[]> {
-    return []
   }
 }

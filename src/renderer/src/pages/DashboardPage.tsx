@@ -1,7 +1,13 @@
-import { Button, Form, Input, InputNumber, message, Modal, Select, Space, Table, Tag, Typography } from 'antd'
+import { Button, Input, message, Modal, Space, Table, Tag, Typography } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import type { StockDetailDto, StockSearchItemDto } from '@shared/contracts/api'
 import { AppCard } from '@renderer/components/app/AppCard'
+import {
+  PortfolioPositionEditorModal,
+  type PortfolioEditorInitialValues,
+  type PortfolioEditorMode,
+  type PortfolioEditorSubmitValues
+} from '@renderer/components/dashboard/PortfolioPositionEditorModal'
 import { MetricPanel, OpportunityCard, RecentItem, ToolCard } from '@renderer/components/app/LedgerUi'
 import { PageStateBlock } from '@renderer/components/app/PageStateBlock'
 import { useNavigate } from 'react-router-dom'
@@ -17,9 +23,11 @@ import {
   readPortfolioPositions,
   removePortfolioPosition,
   removePortfolioPositionsBySymbol,
+  replacePortfolioPositionsBySymbol,
   type PortfolioPosition,
   upsertPortfolioPosition
 } from '@renderer/services/portfolioStore'
+import { watchlistApi } from '@renderer/services/watchlistApi'
 
 const currency = new Intl.NumberFormat('zh-CN', {
   style: 'currency',
@@ -56,36 +64,18 @@ export function DashboardPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
   const [searching, setSearching] = useState(false)
+  const [watchlistBusySymbol, setWatchlistBusySymbol] = useState<string | null>(null)
   const [searchResults, setSearchResults] = useState<StockSearchItemDto[]>([])
   const [editorOpen, setEditorOpen] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [form] = Form.useForm<{
-    symbol: string
-    name: string
-    shares: number
-    avgCost: number
-    direction: 'BUY' | 'SELL'
-  }>()
-
-  function pickBestSearchResult(keyword: string, results: StockSearchItemDto[]) {
-    const normalized = keyword.trim()
-    if (!normalized) {
-      return results[0]
-    }
-    const exactSymbol = results.find((item) => item.symbol === normalized)
-    if (exactSymbol) {
-      return exactSymbol
-    }
-    const exactName = results.find((item) => item.name === normalized)
-    if (exactName) {
-      return exactName
-    }
-    const startsWithName = results.find((item) => item.name.startsWith(normalized))
-    if (startsWithName) {
-      return startsWithName
-    }
-    return results[0]
-  }
+  const [editorMode, setEditorMode] = useState<PortfolioEditorMode>('create')
+  const [editingRow, setEditingRow] = useState<PortfolioRow | null>(null)
+  const [editorInitialValues, setEditorInitialValues] = useState<PortfolioEditorInitialValues>({
+    symbol: '',
+    name: '',
+    direction: 'BUY',
+    shares: 100,
+    avgCost: 10
+  })
 
   const recentSymbols = useMemo(() => getRecentSymbols(), [])
 
@@ -222,8 +212,9 @@ export function DashboardPage() {
   }
 
   function openCreate() {
-    setEditingId(null)
-    form.setFieldsValue({
+    setEditorMode('create')
+    setEditingRow(null)
+    setEditorInitialValues({
       symbol: '',
       name: '',
       direction: 'BUY',
@@ -233,11 +224,15 @@ export function DashboardPage() {
     setEditorOpen(true)
   }
 
-  function openEdit(record: PortfolioPosition) {
-    setEditingId(record.id)
-    form.setFieldsValue({
-      ...record,
-      direction: record.direction === 'SELL' ? 'SELL' : 'BUY'
+  function openEdit(record: PortfolioRow) {
+    setEditorMode('edit')
+    setEditingRow(record)
+    setEditorInitialValues({
+      symbol: record.symbol ?? '',
+      name: record.name,
+      direction: 'BUY',
+      shares: record.netShares,
+      avgCost: record.avgCost
     })
     setEditorOpen(true)
   }
@@ -312,89 +307,60 @@ export function DashboardPage() {
     URL.revokeObjectURL(url)
   }
 
-  async function onSubmitPosition() {
-    try {
-      const values = await form.validateFields()
-      const symbolRaw = values.symbol?.trim() ?? ''
-      const nameRaw = values.name?.trim() ?? ''
-      let resolvedSymbol = symbolRaw
-      let resolvedName = nameRaw
+  function closeEditor() {
+    setEditorOpen(false)
+    setEditingRow(null)
+    setEditorMode('create')
+  }
 
-      if (!resolvedSymbol && !resolvedName) {
-        apiMessage.error('股票代码和名称至少填写一个')
+  async function onSubmitEditor(values: PortfolioEditorSubmitValues) {
+    if (editorMode === 'edit') {
+      if (!editingRow) {
+        apiMessage.error('未找到待编辑持仓')
         return
       }
-
-      if (resolvedSymbol && !resolvedName) {
-        try {
-          const detail = await stockApi.getDetail(resolvedSymbol)
-          resolvedSymbol = detail.symbol
-          resolvedName = detail.name
-          form.setFieldsValue({
-            symbol: detail.symbol,
-            name: detail.name
-          })
-        } catch {
-          const results = await stockApi.search(resolvedSymbol)
-          const best = pickBestSearchResult(resolvedSymbol, results)
-          if (best) {
-            resolvedSymbol = best.symbol
-            resolvedName = best.name
-            form.setFieldsValue({
-              symbol: best.symbol,
-              name: best.name
-            })
-          } else {
-            resolvedName = resolvedSymbol
-            apiMessage.warning('未匹配到标准股票名称，已按代码保存，可后续编辑修正。')
-          }
-        }
+      if (editingRow.symbol) {
+        replacePortfolioPositionsBySymbol(editingRow.symbol, {
+          name: editingRow.name,
+          shares: values.shares,
+          avgCost: values.avgCost
+        })
+        setPositions(readPortfolioPositions())
+        closeEditor()
+        apiMessage.success('持仓已更新（按当前汇总覆盖）')
+        return
       }
-
-      if (!resolvedSymbol && resolvedName) {
-        try {
-          const results = await stockApi.search(resolvedName)
-          const best = pickBestSearchResult(resolvedName, results)
-          if (best) {
-            resolvedSymbol = best.symbol
-            resolvedName = best.name
-            form.setFieldsValue({
-              symbol: best.symbol,
-              name: best.name
-            })
-          } else {
-            apiMessage.error('未能根据名称匹配股票代码，请补充代码或更换名称')
-            return
-          }
-        } catch {
-          apiMessage.error('名称反查代码失败，请稍后重试或直接填写代码')
-          return
-        }
-      }
-
-      const symbol = resolvedSymbol || undefined
-      const name = resolvedName || `无代码资产-${new Date().toISOString().slice(0, 10)}`
       upsertPortfolioPosition({
-        id: editingId ?? '',
-        symbol,
-        name,
-        direction: values.direction,
+        id: editingRow.id,
+        symbol: undefined,
+        name: values.name?.trim() || editingRow.name || '未命名标的',
+        direction: 'BUY',
         shares: values.shares,
         avgCost: values.avgCost
       })
       setPositions(readPortfolioPositions())
-      setEditorOpen(false)
-      apiMessage.success(editingId ? '持仓已更新' : '资产已添加')
-    } catch (error) {
-      if (error instanceof Error) {
-        apiMessage.error(error.message)
-      }
+      closeEditor()
+      apiMessage.success('持仓已更新')
+      return
     }
+
+    upsertPortfolioPosition({
+      id: '',
+      symbol: values.symbol,
+      name: values.name,
+      direction: values.direction,
+      shares: values.shares,
+      avgCost: values.avgCost
+    })
+    setPositions(readPortfolioPositions())
+    closeEditor()
+    apiMessage.success('资产已添加')
   }
 
   function onPickSearchResult(item: StockSearchItemDto) {
-    setEditingId(null)
-    form.setFieldsValue({
+    setEditorMode('create')
+    setEditingRow(null)
+    setEditorInitialValues({
       symbol: item.symbol,
       name: item.name,
       direction: 'BUY',
@@ -404,46 +370,21 @@ export function DashboardPage() {
     setEditorOpen(true)
   }
 
-  async function onSymbolBlur() {
-    const symbol = form.getFieldValue('symbol')?.trim()
-    const name = form.getFieldValue('name')?.trim()
-    if (!symbol || name) {
-      return
-    }
-    if (!/^(6|0|3)\d{5}$/.test(symbol)) {
-      return
-    }
+  async function addSearchResultToWatchlist(item: StockSearchItemDto) {
     try {
-      const detail = await stockApi.getDetail(symbol)
-      form.setFieldsValue({ symbol: detail.symbol, name: detail.name })
-    } catch {
-      try {
-        const results = await stockApi.search(symbol)
-        const best = pickBestSearchResult(symbol, results)
-        if (best) {
-          form.setFieldsValue({ symbol: best.symbol, name: best.name })
-        }
-      } catch {
-        // ignore blur-time lookup failures
-      }
+      setWatchlistBusySymbol(item.symbol)
+      await watchlistApi.add(item.symbol)
+      apiMessage.success(`已将 ${item.symbol} ${item.name} 加入自选`)
+    } catch (error) {
+      apiMessage.error(error instanceof Error ? error.message : '加入自选失败')
+    } finally {
+      setWatchlistBusySymbol(null)
     }
   }
 
-  async function onNameBlur() {
-    const symbol = form.getFieldValue('symbol')?.trim()
-    const name = form.getFieldValue('name')?.trim()
-    if (!name || symbol) {
-      return
-    }
-    try {
-      const results = await stockApi.search(name)
-      const best = pickBestSearchResult(name, results)
-      if (best) {
-        form.setFieldsValue({ symbol: best.symbol, name: best.name })
-      }
-    } catch {
-      // ignore blur-time lookup failures
-    }
+  function openSearchResultDetail(item: StockSearchItemDto) {
+    rememberLastSymbol(item.symbol)
+    navigate(buildStockDetailPath(item.symbol))
   }
 
   function onRemove(id: string) {
@@ -565,9 +506,18 @@ export function DashboardPage() {
           ) : (
             <Space wrap>
               {searchResults.map((item) => (
-                <Button key={item.symbol} onClick={() => onPickSearchResult(item)}>
-                  选择 {item.symbol} {item.name}
-                </Button>
+                <Space key={item.symbol} size={8}>
+                  <Button onClick={() => onPickSearchResult(item)}>录入持仓 {item.symbol}</Button>
+                  <Button onClick={() => openSearchResultDetail(item)}>查看详情</Button>
+                  <Button
+                    type="primary"
+                    ghost
+                    loading={watchlistBusySymbol === item.symbol}
+                    onClick={() => addSearchResultToWatchlist(item)}
+                  >
+                    加入自选
+                  </Button>
+                </Space>
               ))}
             </Space>
           )}
@@ -720,55 +670,15 @@ export function DashboardPage() {
         </div>
       </section>
 
-      <Modal
+      <PortfolioPositionEditorModal
         open={editorOpen}
-        title={editingId ? '编辑持仓' : '添加资产'}
-        onCancel={() => setEditorOpen(false)}
-        onOk={onSubmitPosition}
-        okText={editingId ? '保存修改' : '添加'}
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item label="交易方向" name="direction" rules={[{ required: true, message: '请选择交易方向' }]}>
-            <Select
-              options={[
-                { label: '买入（增加持仓）', value: 'BUY' },
-                { label: '卖出（减少持仓）', value: 'SELL' }
-              ]}
-            />
-          </Form.Item>
-          <Form.Item
-            label="股票代码"
-            name="symbol"
-            rules={[
-              {
-                validator: async (_, value: string | undefined) => {
-                  const raw = value?.trim()
-                  if (!raw) {
-                    return
-                  }
-                  if (!/^(6|0|3)\d{5}$/.test(raw)) {
-                    throw new Error('若填写代码，仅支持 A 股 6 位代码')
-                  }
-                }
-              }
-            ]}
-          >
-            <Input
-              placeholder="可选，例如 600519；不填则可通过名称自动反查"
-              onBlur={onSymbolBlur}
-            />
-          </Form.Item>
-          <Form.Item label="股票名称" name="name">
-            <Input placeholder="可选，例如 贵州茅台；可自动反查代码" onBlur={onNameBlur} />
-          </Form.Item>
-          <Form.Item label="持仓股数" name="shares" rules={[{ required: true, message: '请输入持仓股数' }]}>
-            <InputNumber min={0.01} precision={2} style={{ width: '100%' }} />
-          </Form.Item>
-          <Form.Item label="持仓成本价" name="avgCost" rules={[{ required: true, message: '请输入成本价' }]}>
-            <InputNumber min={0.01} precision={4} style={{ width: '100%' }} />
-          </Form.Item>
-        </Form>
-      </Modal>
+        mode={editorMode}
+        initialValues={editorInitialValues}
+        lockIdentity={Boolean(editorMode === 'edit' && editingRow?.symbol)}
+        onCancel={closeEditor}
+        onSubmit={onSubmitEditor}
+        stockApi={stockApi}
+      />
     </div>
   )
 }

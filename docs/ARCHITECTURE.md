@@ -39,7 +39,7 @@
 | pages -> containers -> feature components -> shared ui         |
 +----------------------------------------------------------------+
 |                      Renderer 交互编排层                       |
-| hooks -> query services -> state store -> view model           |
+| hooks -> runtime services -> state store -> view model         |
 +----------------------------------------------------------------+
 |                    Preload / IPC 协议边界层                    |
 | typed api -> request dto -> response dto -> validation         |
@@ -61,6 +61,7 @@
 
 1. 展示层只能依赖交互编排层，不能直接依赖数据库、HTTP 或计算细节
 2. 交互编排层只能通过 preload API 调用主进程能力，不能直接触达 Node.js 能力
+2.1 浏览器预览是例外场景：允许通过 renderer runtime adapter 回退到纯浏览器实现，但该实现不能泄漏 Node.js 能力
 3. 主进程应用服务层可以依赖领域服务层和数据访问层
 4. 数据访问层不能反向依赖页面、组件或 store
 5. 共享 UI 组件不能依赖具体业务模块
@@ -70,6 +71,14 @@
 
 ```text
 UI -> ViewModel / Store -> IPC API -> UseCase -> Repository -> Adapter -> Infra
+```
+
+当前代码补充：
+
+```text
+UI -> Hook -> renderer service -> runtime selector
+   -> Electron bridge -> IPC -> UseCase -> Repository -> Infra
+   -> browser fallback adapter
 ```
 
 禁止出现：
@@ -142,6 +151,12 @@ src/main/infrastructure/
     tradingCalendar.ts
 ```
 
+当前实现说明：
+
+1. `sqlite.ts` 目前使用 Node 内建 `node:sqlite`
+2. 当前尚未引入第三方 SQLite npm 包，也尚未引入 ORM
+3. 当前 schema 仅覆盖 `watchlist_items` 与 `app_settings`
+
 ### 6.2 Adapter 层
 
 职责：
@@ -186,6 +201,7 @@ src/main/adapters/
 ```text
 src/main/repositories/
   stockRepository.ts
+  watchlistRepository.ts
   quoteRepository.ts
   dividendRepository.ts
   financeRepository.ts
@@ -201,6 +217,12 @@ src/main/repositories/
 3. 需要时回源外部接口
 4. 写回本地
 5. 返回统一领域数据
+
+当前实现补充：
+
+1. `watchlistRepository.ts` 已落地，并已改为走 SQLite
+2. `stockRepository.ts` 当前仍主要聚焦远端查询与聚合 DTO 组织
+3. “缓存优先再回源”的完整仓库模式仍未全面落地
 
 ### 6.4 Domain 层
 
@@ -415,7 +437,7 @@ src/renderer/src/hooks/
 
 职责：
 
-- 封装对 preload API 的调用
+- 封装对 preload API 或浏览器 fallback 的调用
 - 管理 request/response DTO 转换
 - 为 hooks 提供稳定调用接口
 
@@ -423,22 +445,20 @@ src/renderer/src/hooks/
 
 ```text
 src/renderer/src/services/
-  api/
-    stockApi.ts
-    watchlistApi.ts
-    calculationApi.ts
-    visualizationApi.ts
-    settingsApi.ts
-  mappers/
-    stockViewMapper.ts
-    backtestViewMapper.ts
+  desktopApi.ts
+  browserRuntimeApi.ts
+  stockApi.ts
+  watchlistApi.ts
+  calculationApi.ts
+  routeContext.ts
 ```
 
 规则：
 
-1. renderer service 是渲染层访问主进程的唯一正式入口
+1. renderer service 是渲染层访问运行时能力的唯一正式入口
 2. hook 和 store 不直接调用 `window.electron.ipcRenderer`
-3. service 负责把后端返回值整理成前端易消费结构
+3. Electron 桌面端走 preload bridge，浏览器预览走 browser fallback
+4. service 负责把后端返回值整理成前端易消费结构
 
 ### 7.7 Store 层
 
@@ -649,6 +669,18 @@ StockDetailPage
 2. 图表组件不关心数据来自哪里
 3. 计算逻辑不会散落到 React 组件中
 
+浏览器预览场景下，该链路当前退化为：
+
+```text
+StockDetailPage
+  -> useStockDetail()
+    -> stockApi.getDetail(symbol)
+      -> desktopApi runtime selector
+        -> browserRuntimeApi.getDetail(symbol)
+      -> response DTO
+  -> render page
+```
+
 ## 14. 回测模块的特别约束
 
 回测模块是首期最容易失控的部分，必须额外约束：
@@ -691,3 +723,10 @@ StockDetailPage
 2. `docs/IPC-CONTRACTS.md`
 3. `docs/DB-DDL.sql`
 4. `src` 目录脚手架初始化
+
+## 18. 当前实现状态（2026-04-25）
+
+1. Main 侧已落地最小数据库设施与 `watchlistRepository`
+2. Renderer 侧已落地 `desktopApi` 运行时选择器与 `browserRuntimeApi`
+3. 架构目标中的“统一 renderer service 接口、多运行时实现”已开始落地
+4. 架构目标中的“完整缓存层、完整 repository 回源策略、显式 SQLite 第三方依赖”尚未完成

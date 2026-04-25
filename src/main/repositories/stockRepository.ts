@@ -15,9 +15,5 @@ export class StockRepository {
   async compare(symbols: string[]): Promise<StockDetailSource[]> {
     return this.dataSource.compare(symbols)
   }
-
-  async listWatchlist(): Promise<StockDetailSource[]> {
-    return this.dataSource.listWatchlist()
-  }
 }
 

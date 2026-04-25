@@ -92,7 +92,7 @@ export function YearlyDividendTrendChart({ items }: YearlyDividendTrendChartProp
           data: yields,
           barWidth: 22,
           itemStyle: {
-            color: '#dbe7ff',
+            color: '#0052d0',
             borderRadius: [8, 8, 0, 0]
           }
         },
@@ -105,11 +105,11 @@ export function YearlyDividendTrendChart({ items }: YearlyDividendTrendChartProp
           symbol: 'circle',
           symbolSize: 8,
           lineStyle: {
-            color: '#0052d0',
+            color: '#9ec5ff',
             width: 3
           },
           itemStyle: {
-            color: '#0052d0'
+            color: '#9ec5ff'
           }
         }
       ]

@@ -1,4 +1,4 @@
-import { Table, Tag, Typography } from 'antd'
+import { Space, Table, Tag, Typography } from 'antd'
 import type { ComparisonRowDto } from '@shared/contracts/api'
 import { AppCard } from '@renderer/components/app/AppCard'
 
@@ -9,6 +9,36 @@ const percent = new Intl.NumberFormat('zh-CN', {
 })
 
 export function ComparisonTable({ items }: { items: ComparisonRowDto[] }) {
+  const peValues = items.map((item) => item.peRatio).filter((value): value is number => value != null)
+  const averageYieldValues = items.map((item) => item.averageYield).filter((value): value is number => value != null)
+  const futureYieldValues = items.map((item) => item.estimatedFutureYield).filter((value): value is number => value != null)
+  const highestFutureYield = futureYieldValues.length > 0 ? Math.max(...futureYieldValues) : undefined
+  const lowestFutureYield = futureYieldValues.length > 0 ? Math.min(...futureYieldValues) : undefined
+  const lowestPeRatio = peValues.length > 0 ? Math.min(...peValues) : undefined
+  const highestAverageYield = averageYieldValues.length > 0 ? Math.max(...averageYieldValues) : undefined
+
+  function renderMetricValue(
+    value: number | undefined,
+    formatter: (next: number) => string,
+    options?: {
+      highlightHigh?: number
+      highlightLow?: number
+    }
+  ) {
+    if (value == null) {
+      return '-'
+    }
+
+    let className = 'comparison-metric-chip'
+    if (options?.highlightHigh != null && value === options.highlightHigh) {
+      className += ' is-positive'
+    } else if (options?.highlightLow != null && value === options.highlightLow) {
+      className += ' is-cautious'
+    }
+
+    return <span className={className}>{formatter(value)}</span>
+  }
+
   return (
     <AppCard
       title={
@@ -24,6 +54,11 @@ export function ComparisonTable({ items }: { items: ComparisonRowDto[] }) {
       }
       extra={<Tag color="blue">{items.length} 个标的</Tag>}
     >
+      <Space wrap size={[8, 8]} style={{ marginBottom: 16 }}>
+        <span className="pill primary">绿色高亮：当前列更优值</span>
+        <span className="pill">红色高亮：当前列较弱值</span>
+        <span className="pill">点击表头可排序</span>
+      </Space>
       <Table
         className="soft-table"
         rowKey="symbol"
@@ -42,22 +77,38 @@ export function ComparisonTable({ items }: { items: ComparisonRowDto[] }) {
           {
             title: '最新价',
             dataIndex: 'latestPrice',
+            sorter: (a, b) => a.latestPrice - b.latestPrice,
             render: (value: number) => value.toFixed(2)
           },
           {
             title: '市盈率',
             dataIndex: 'peRatio',
-            render: (value?: number) => (value == null ? '--' : value.toFixed(2))
+            sorter: (a, b) => (a.peRatio ?? Number.POSITIVE_INFINITY) - (b.peRatio ?? Number.POSITIVE_INFINITY),
+            render: (value?: number) =>
+              renderMetricValue(value, (next) => next.toFixed(2), {
+                highlightLow: lowestPeRatio
+              })
           },
           {
             title: '区间平均股息率',
             dataIndex: 'averageYield',
-            render: (value?: number) => (value == null ? '-' : percent.format(value))
+            sorter: (a, b) => (a.averageYield ?? Number.NEGATIVE_INFINITY) - (b.averageYield ?? Number.NEGATIVE_INFINITY),
+            render: (value?: number) =>
+              renderMetricValue(value, (next) => percent.format(next), {
+                highlightHigh: highestAverageYield
+              })
           },
           {
             title: '估算未来股息率',
             dataIndex: 'estimatedFutureYield',
-            render: (value?: number) => (value == null ? '-' : percent.format(value))
+            defaultSortOrder: 'descend',
+            sorter: (a, b) =>
+              (a.estimatedFutureYield ?? Number.NEGATIVE_INFINITY) - (b.estimatedFutureYield ?? Number.NEGATIVE_INFINITY),
+            render: (value?: number) =>
+              renderMetricValue(value, (next) => percent.format(next), {
+                highlightHigh: highestFutureYield,
+                highlightLow: lowestFutureYield
+              })
           }
         ]}
       />

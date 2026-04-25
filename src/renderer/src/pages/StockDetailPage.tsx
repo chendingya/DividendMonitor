@@ -1,4 +1,4 @@
-import { Alert, Col, Divider, Progress, Row, Skeleton, Space, Table, Typography } from 'antd'
+import { Alert, Col, Divider, Progress, Row, Skeleton, Space, Table, Typography, message } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppCard } from '@renderer/components/app/AppCard'
@@ -7,6 +7,7 @@ import { FutureYieldEstimateCard } from '@renderer/components/stock-detail/Futur
 import { YearlyDividendTrendChart } from '@renderer/components/stock-detail/YearlyDividendTrendChart'
 import { DEFAULT_STOCK_SYMBOL } from '@renderer/defaults'
 import { useStockDetail } from '@renderer/hooks/useStockDetail'
+import { useWatchlist } from '@renderer/hooks/useWatchlist'
 import {
   buildBacktestPath,
   getRememberedLastSymbol,
@@ -17,6 +18,7 @@ import {
 
 export function StockDetailPage() {
   const navigate = useNavigate()
+  const [apiMessage, messageHolder] = message.useMessage()
   const { symbol: routeSymbol } = useParams<{ symbol?: string }>()
   const [searchParams] = useSearchParams()
   const symbol = useMemo(() => {
@@ -30,7 +32,9 @@ export function StockDetailPage() {
     return getRememberedLastSymbol() ?? DEFAULT_STOCK_SYMBOL
   }, [routeSymbol, searchParams])
   const { data, loading, error } = useStockDetail(symbol)
+  const { data: watchlistItems, add, remove, mutatingSymbol } = useWatchlist()
   const [showAllYearlyYields, setShowAllYearlyYields] = useState(false)
+  const isInWatchlist = useMemo(() => watchlistItems.some((item) => item.symbol === symbol), [symbol, watchlistItems])
 
   useEffect(() => {
     rememberLastSymbol(symbol)
@@ -39,6 +43,25 @@ export function StockDetailPage() {
 
   function goToBacktest() {
     navigate(buildBacktestPath(symbol))
+  }
+
+  async function toggleWatchlist() {
+    if (!symbol.trim()) {
+      return
+    }
+
+    try {
+      if (isInWatchlist) {
+        await remove(symbol)
+        apiMessage.success(`已将 ${symbol} 移出自选`)
+        return
+      }
+
+      await add(symbol)
+      apiMessage.success(`已将 ${symbol} 加入自选`)
+    } catch (actionError) {
+      apiMessage.error(actionError instanceof Error ? actionError.message : '更新自选失败')
+    }
   }
 
   if (loading) {
@@ -92,6 +115,7 @@ export function StockDetailPage() {
 
   return (
     <div className="ledger-page">
+      {messageHolder}
       <section className="ledger-detail-header">
         <div>
           <div className="ledger-detail-tags">
@@ -105,9 +129,19 @@ export function StockDetailPage() {
             <strong>{data.latestPrice.toFixed(2)}</strong>
             <span>最新价 / A股</span>
           </div>
-          <button type="button" className="ledger-primary-button" onClick={goToBacktest}>
-            进入回测
-          </button>
+          <div className="ledger-hero-actions" style={{ marginTop: 12 }}>
+            <button
+              type="button"
+              className="ledger-secondary-button"
+              onClick={toggleWatchlist}
+              disabled={mutatingSymbol === symbol}
+            >
+              {mutatingSymbol === symbol ? '处理中...' : isInWatchlist ? '移出自选' : '加入自选'}
+            </button>
+            <button type="button" className="ledger-primary-button" onClick={goToBacktest}>
+              进入回测
+            </button>
+          </div>
         </div>
       </section>
 

@@ -108,3 +108,25 @@ export function removePortfolioPositionsBySymbol(symbol: string) {
   savePortfolioPositions(positions)
   return positions
 }
+
+export function replacePortfolioPositionsBySymbol(
+  symbol: string,
+  payload: { name: string; shares: number; avgCost: number }
+) {
+  const target = symbol.trim()
+  if (!target) {
+    return readPortfolioPositions()
+  }
+  const rest = readPortfolioPositions().filter((item) => item.symbol !== target)
+  const next: PortfolioPosition = {
+    id: `asset-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    symbol: target,
+    name: normalizeName(payload.name),
+    direction: 'BUY',
+    shares: payload.shares,
+    avgCost: payload.avgCost,
+    updatedAt: new Date().toISOString()
+  }
+  savePortfolioPositions([next, ...rest])
+  return readPortfolioPositions()
+}

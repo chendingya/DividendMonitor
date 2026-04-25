@@ -7,7 +7,23 @@ const percent = new Intl.NumberFormat('zh-CN', {
   maximumFractionDigits: 2
 })
 
-export function WatchlistTable({ items }: { items: WatchlistItemDto[] }) {
+type WatchlistTableProps = {
+  items: WatchlistItemDto[]
+  removingSymbol?: string | null
+  selectedSymbols?: string[]
+  onOpenDetail?: (symbol: string) => void
+  onRemove?: (symbol: string) => void
+  onToggleSelect?: (symbol: string) => void
+}
+
+export function WatchlistTable({
+  items,
+  removingSymbol,
+  selectedSymbols = [],
+  onOpenDetail,
+  onRemove,
+  onToggleSelect
+}: WatchlistTableProps) {
   if (items.length === 0) {
     return (
       <div className="ledger-data-card">
@@ -15,7 +31,7 @@ export function WatchlistTable({ items }: { items: WatchlistItemDto[] }) {
           自选池暂时为空
         </Typography.Title>
         <Typography.Paragraph style={{ marginBottom: 0, color: '#66707a' }}>
-          目前后端已经切换到真实数据链路，下一步会补上本地持久化自选管理。这里先保留风格化空态。
+          可先从搜索结果或个股详情页把股票加入自选，再回到这里持续跟踪收益机会。
         </Typography.Paragraph>
       </div>
     )
@@ -26,13 +42,13 @@ export function WatchlistTable({ items }: { items: WatchlistItemDto[] }) {
       <div className="ledger-data-head">
         <span>资产名称</span>
         <span>预期收益</span>
-        <span>频率</span>
-        <span>状态标签</span>
-        <span>走势</span>
+        <span>最新价</span>
+        <span>选择状态</span>
+        <span>操作</span>
       </div>
       <div className="ledger-data-body">
         {items.map((record) => (
-          <div className="ledger-data-row" key={record.symbol}>
+          <div className={`ledger-data-row ${selectedSymbols.includes(record.symbol) ? 'is-selected' : ''}`} key={record.symbol}>
             <div className="ledger-asset-cell">
               <div className="ledger-asset-badge">{record.symbol.slice(-2)}</div>
               <div>
@@ -43,19 +59,35 @@ export function WatchlistTable({ items }: { items: WatchlistItemDto[] }) {
             <div className="ledger-highlight-value">
               {record.estimatedFutureYield == null ? '--' : percent.format(record.estimatedFutureYield)}
             </div>
-            <div>年度</div>
+            <div>{record.latestPrice.toFixed(2)}</div>
             <div>
-              <span className="pill primary">
-                <span className="ledger-pill-icon" aria-hidden="true">
-                  <svg className="ledger-icon-svg" viewBox="0 0 24 24" fill="none">
-                    <path d="M4 18h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                    <path d="M6 15l3-4 3 2 5-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-                跟踪中
-              </span>
+              <button
+                type="button"
+                className={`ledger-inline-action-btn ${selectedSymbols.includes(record.symbol) ? 'is-selected' : ''}`}
+                onClick={() => onToggleSelect?.(record.symbol)}
+                disabled={!onToggleSelect}
+              >
+                {selectedSymbols.includes(record.symbol) ? '已选中' : '选择'}
+              </button>
             </div>
-            <div style={{ color: '#0052d0', fontWeight: 800 }}>~</div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="ledger-inline-action-btn"
+                onClick={() => onOpenDetail?.(record.symbol)}
+                disabled={!onOpenDetail}
+              >
+                详情
+              </button>
+              <button
+                type="button"
+                className="ledger-inline-action-btn is-danger"
+                onClick={() => onRemove?.(record.symbol)}
+                disabled={!onRemove || removingSymbol === record.symbol}
+              >
+                {removingSymbol === record.symbol ? '移除中...' : '移除'}
+              </button>
+            </div>
           </div>
         ))}
       </div>
