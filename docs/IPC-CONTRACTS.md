@@ -192,6 +192,7 @@ interface DividendMonitorApi {
    - `600519`
    - `000651`
    - `601318`
+3. `getDetail` 与 `compare` 当前已覆盖 `PE/PB`、`10Y/20Y` 估值分位的最小 mock 能力
 
 ### 7.2 `watchlist`
 
@@ -253,7 +254,8 @@ interface DividendMonitorApi {
 1. 桌面端与浏览器预览端当前不是同一条物理数据链路
 2. 浏览器预览端当前是联调用 fallback，不代表正式生产数据链路
 3. `node:sqlite` 方案当前可运行，但从依赖可见性角度看仍不是最终理想方案
-4. 文档中凡写“当前实现”，均以本文件和仓库现状为准
+4. 桌面端 stock 详情链路当前已拆为“基础股票数据 adapter + valuation adapter + repository 聚合”
+5. 文档中凡写“当前实现”，均以本文件和仓库现状为准
 
 ## 11. 建议后续补充
 

@@ -1,8 +1,7 @@
-import type { AShareDataSource, StockDetailSource } from '@main/adapters/AShareDataSource'
+import type { AShareDataSource, CoreStockDetailSource } from '@main/adapters/contracts'
 import { getJson } from '@main/infrastructure/http/httpClient'
 import { extractYear, toIsoDate, toNumber } from '@main/adapters/eastmoney/eastmoneyUtils'
 import type { HistoricalPricePoint } from '@main/domain/entities/Stock'
-import type { ValuationMetric, ValuationTrendPoint } from '@main/domain/services/valuationService'
 
 type EastmoneySuggestResponse = {
   Quotations?: EastmoneySuggestItem[]
@@ -23,14 +22,6 @@ type EastmoneySuggestItem = {
 type EastmoneyDividendResponse = {
   result?: {
     data?: EastmoneyDividendRecord[]
-  }
-}
-
-type EastmoneyDataCenterResponse<T> = {
-  result?: {
-    data?: T[]
-    pages?: number
-    count?: number
   }
 }
 
@@ -72,20 +63,8 @@ type TencentMarketSnapshot = {
   priceHistory: HistoricalPricePoint[]
 }
 
-type EastmoneyValuationStatusRecord = {
-  INDEX_VALUE?: number
-  INDEX_PERCENTILE?: number
-  VALATION_STATUS?: string
-}
-
-type EastmoneyValuationTrendRecord = {
-  TRADE_DATE?: string
-  INDICATOR_VALUE?: number
-}
-
 const SEARCH_TOKEN = 'D43BF722C8E33BDC906FB84D85E326E8'
 const TENCENT_KLINE_LIMIT = 2000
-const EASTMONEY_DATA_CENTER_BASE_URL = 'https://datacenter.eastmoney.com/securities/api/data/get'
 
 function isAShareSymbol(symbol: string) {
   return /^(6|0|3)\d{5}$/.test(symbol.trim())
@@ -207,22 +186,6 @@ function buildLatestFiscalYearSummary(records: EastmoneyDividendRecord[]) {
   }
 }
 
-function toValuationStatus(metric?: EastmoneyValuationStatusRecord, history: ValuationTrendPoint[] = []): ValuationMetric | undefined {
-  const currentValue = toNumber(metric?.INDEX_VALUE) ?? history[0]?.value
-  const currentPercentile = toNumber(metric?.INDEX_PERCENTILE)
-
-  if (currentValue == null && history.length === 0) {
-    return undefined
-  }
-
-  return {
-    currentValue: currentValue != null && currentValue > 0 ? currentValue : undefined,
-    currentPercentile: currentPercentile != null && currentPercentile >= 0 ? currentPercentile : undefined,
-    status: metric?.VALATION_STATUS,
-    history
-  }
-}
-
 export class EastmoneyAShareDataSource implements AShareDataSource {
   async search(keyword: string) {
     const normalized = keyword.trim()
@@ -280,70 +243,14 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
     return payload.result?.data ?? []
   }
 
-  private async getValuationStatus(symbol: string, indicatorType: 1 | 2) {
-    const url =
-      `${EASTMONEY_DATA_CENTER_BASE_URL}?type=RPT_VALUATIONSTATUS` +
-      '&sty=SECUCODE,TRADE_DATE,INDICATOR_TYPE,INDEX_VALUE,INDEX_PERCENTILE,VALATION_STATUS' +
-      '&callback=&extraCols=&p=1&ps=1&sr=&st=&token=&var=source=DataCenter&client=WAP' +
-      `&filter=${encodeURIComponent(`(SECURITY_CODE="${symbol}")(INDICATOR_TYPE="${indicatorType}")`)}`
-
-    try {
-      const payload = await getJson<EastmoneyDataCenterResponse<EastmoneyValuationStatusRecord>>(url, {
-        headers: {
-          Referer: 'https://emdata.eastmoney.com/',
-          Origin: 'https://emdata.eastmoney.com'
-        }
-      })
-
-      return payload.result?.data?.[0]
-    } catch {
-      return undefined
-    }
-  }
-
-  private async getValuationTrend(symbol: string, indicatorType: 1 | 2): Promise<ValuationTrendPoint[]> {
-    const pageSize = 2000
-    const url =
-      `${EASTMONEY_DATA_CENTER_BASE_URL}?type=RPT_CUSTOM_DMSK_TREND` +
-      `&sr=-1&st=TRADE_DATE&p=1&ps=${pageSize}&var=source=DataCenter&client=WAP` +
-      `&filter=${encodeURIComponent(`(SECURITY_CODE="${symbol}")(INDICATORTYPE=${indicatorType})(DATETYPE=2)`)}`
-
-    const payload = await getJson<EastmoneyDataCenterResponse<EastmoneyValuationTrendRecord>>(url, {
-      headers: {
-        Referer: 'https://emdata.eastmoney.com/',
-        Origin: 'https://emdata.eastmoney.com'
-      }
-    })
-
-    return (payload.result?.data ?? [])
-      .map((record) => {
-        const date = toIsoDate(record.TRADE_DATE)
-        const value = toNumber(record.INDICATOR_VALUE)
-        if (!date || value == null || value <= 0) {
-          return null
-        }
-
-        return {
-          date,
-          value
-        }
-      })
-      .filter((item): item is ValuationTrendPoint => item != null)
-      .sort((left, right) => right.date.localeCompare(left.date))
-  }
-
-  async getDetail(symbol: string): Promise<StockDetailSource> {
+  async getDetail(symbol: string): Promise<CoreStockDetailSource> {
     if (!isAShareSymbol(symbol)) {
       throw new Error(`Only A-share 6-digit symbols are supported: ${symbol}`)
     }
 
-    const [marketResult, dividendResult, peStatusResult, pbStatusResult, peTrendResult, pbTrendResult] = await Promise.allSettled([
+    const [marketResult, dividendResult] = await Promise.allSettled([
       this.getTencentMarketSnapshot(symbol),
-      this.getDividendRecords(symbol),
-      this.getValuationStatus(symbol, 1),
-      this.getValuationStatus(symbol, 2),
-      this.getValuationTrend(symbol, 1),
-      this.getValuationTrend(symbol, 2)
+      this.getDividendRecords(symbol)
     ])
 
     if (marketResult.status !== 'fulfilled') {
@@ -355,12 +262,6 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
     const market = marketResult.value
     const priceHistory = market.priceHistory
     const dividendRecords = dividendResult.status === 'fulfilled' ? dividendResult.value : []
-    const peHistory = peTrendResult.status === 'fulfilled' ? peTrendResult.value : []
-    const pbHistory = pbTrendResult.status === 'fulfilled' ? pbTrendResult.value : []
-    const peMetric = toValuationStatus(peStatusResult.status === 'fulfilled' ? peStatusResult.value : undefined, peHistory)
-    const pbMetric = toValuationStatus(pbStatusResult.status === 'fulfilled' ? pbStatusResult.value : undefined, pbHistory)
-    const fallbackPeRatio = peMetric?.currentValue ?? peHistory[0]?.value
-    const fallbackPbRatio = pbMetric?.currentValue ?? pbHistory[0]?.value
 
     const dividendEvents = dividendRecords
       .filter((record) => (record.ASSIGN_PROGRESS ?? '').includes('实施'))
@@ -408,8 +309,7 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
         market: 'A_SHARE',
         latestPrice: market.latestPrice,
         marketCap: market.marketCap,
-        peRatio: market.peRatio ?? fallbackPeRatio,
-        pbRatio: fallbackPbRatio,
+        peRatio: market.peRatio,
         totalShares: market.totalShares ?? fiscalYearSummary.latestAnnualTotalShares
       },
       dividendEvents,
@@ -418,15 +318,11 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
       latestTotalShares: market.totalShares ?? fiscalYearSummary.latestAnnualTotalShares ?? 0,
       lastAnnualPayoutRatio: fiscalYearSummary.lastAnnualPayoutRatio,
       lastYearTotalDividendAmount: fiscalYearSummary.lastYearTotalDividendAmount,
-      dataSource: 'eastmoney',
-      valuation: {
-        pe: peMetric,
-        pb: pbMetric
-      }
+      dataSource: 'eastmoney'
     }
   }
 
-  async compare(symbols: string[]): Promise<StockDetailSource[]> {
+  async compare(symbols: string[]): Promise<CoreStockDetailSource[]> {
     return Promise.all(symbols.map((symbol) => this.getDetail(symbol)))
   }
 }

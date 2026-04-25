@@ -25,7 +25,7 @@
 - 构建工具：Vite
 - 语言建议：TypeScript
 - 路由：React Router
-- 状态管理：Zustand 或 Redux Toolkit，首期建议 Zustand
+- 状态管理：当前以 React hooks + renderer services + `routeContext`/`localStorage` 的轻量方案为主；若后续全局交互明显增复杂，再评估 Zustand
 - 图表：ECharts
 - 本地数据库：SQLite（当前实现使用 Node 内建 `node:sqlite`，尚未引入第三方 SQLite npm 包）
 - ORM/数据访问层：首期暂不引入 ORM，先用最小数据库封装；后续可在 Drizzle ORM 与 Prisma 中择一
@@ -109,13 +109,13 @@
 
 ## 6. 目录建议
 
-首期目录在保证边界的前提下，应优先选择“够用的分层”，避免过深目录。当前目录简化计划见 `DIRECTORY-SIMPLIFICATION-PLAN.md`。
+首期目录在保证边界的前提下，应优先选择“够用的分层”，避免过深目录。当前目录已经完成一轮简化，目录职责与依赖方向以 `ARCHITECTURE.md` 为准。
 
 ```text
 DividendMonitor/
   docs/
     ARCHITECTURE.md
-    DIRECTORY-SIMPLIFICATION-PLAN.md
+    README.md
     PRD.md
     SDD.md
   src/
@@ -164,9 +164,13 @@ DividendMonitor/
 - `watchlist`：自选股管理
 - `stock-detail`：单只股票详情与股息分析
 - `comparison`：多股票对比
-- `yield-map`：股息率地图
-- `settings`：本地配置、数据源和指标口径说明
 - `runtime-adapter`：统一选择 Electron bridge 或浏览器 fallback
+
+当前实现补充：
+
+1. 当前 renderer 已落地页面为：首页、个股详情页、自选页、对比页、回测页
+2. `yield-map` 与 `settings` 仍属于预留能力，当前仓库未落地对应页面
+3. 运行时适配已经落地在 `desktopApi.ts` 与 `browserRuntimeApi.ts`
 
 ### 7.3 数据适配模块
 
@@ -174,15 +178,16 @@ DividendMonitor/
 
 首期限定为 A 股免费公开接口，建议采用“主源 + 补充校验源”的方式：
 
-1. 主源：东方财富公开接口，覆盖行情、估值、部分财务和分红字段
+1. 主源：东方财富公开接口，覆盖搜索、分红、估值和部分基础字段
 2. 补充源：新浪财经、巨潮资讯或交易所披露页，用于补充分红实施、股本变更等字段
-3. 本地缓存：所有拉取结果统一落本地 SQLite，减少接口波动影响
+3. 本地缓存：当前仅自选已落 SQLite；估值链路已补 15 分钟内存缓存，完整 SQLite 缓存层仍未完成
 
 建议抽象接口：
 
 - `searchStocks(keyword)`
 - `getQuote(symbol)`
-- `getCompanyMetrics(symbol)`
+- `getValuationSnapshot(symbol)`
+- `getValuationTrend(symbol)`
 - `getDividendHistory(symbol, range)`
 - `getFinancialSummary(symbol, period)`
 - `getShareCapitalHistory(symbol, range)`
@@ -509,14 +514,7 @@ window.dividendMonitor = {
     getHistoricalYield: (symbol: string, payload: any) => Promise<CalculationResult>,
     estimateFutureYield: (symbol: string, payload: any) => Promise<CalculationResult>,
     runDividendReinvestmentBacktest: (symbol: string, payload: any) => Promise<BacktestResult>,
-  },
-  visualization: {
-    getYieldMap: (payload: any) => Promise<any>,
-  },
-  settings: {
-    get: () => Promise<any>,
-    set: (payload: any) => Promise<void>,
-  },
+  }
 };
 ```
 
@@ -531,9 +529,6 @@ window.dividendMonitor = {
 - `calculation:historical-yield`
 - `calculation:estimate-future-yield`
 - `calculation:run-dividend-reinvestment-backtest`
-- `visualization:yield-map`
-- `settings:get`
-- `settings:set`
 
 ### 12.3 当前运行时补充说明
 
@@ -544,23 +539,23 @@ window.dividendMonitor = {
 
 ## 13. 状态管理设计
 
-首期建议使用按领域拆分的轻量状态管理。
+当前实现使用“页面 hook + renderer service + 必要本地持久化”的轻量状态组织，尚未引入统一全局 store。
 
-建议 store：
+当前主要状态入口：
 
-- `useAppStore`
-- `useWatchlistStore`
-- `useSearchStore`
-- `useStockDetailStore`
-- `useComparisonStore`
-- `useBacktestStore`
-- `useSettingsStore`
+- `useWatchlist`
+- `useStockDetail`
+- `useComparison`
+- `useBacktest`
+- `portfolioStore.ts`
+- `routeContext.ts`
 
 原则：
 
 1. 服务端或数据查询状态与 UI 状态分离
 2. 持久化只保存必要配置和自选信息
 3. 复杂计算尽量放主进程服务层，不放前端页面层
+4. 若跨页面共享状态继续增长，再把成熟模块提升为独立 store，而不是过早全局化
 
 ## 14. 可视化设计
 
