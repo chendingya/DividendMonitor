@@ -264,16 +264,17 @@ npm run dev
 1. 列表被清空
 2. SQLite 文件存在但页面为空
 
-## 5. Path B：浏览器预览 fallback 链路
+## 5. Path B：浏览器预览真实链路
 
 ## 5.1 目标
 
-验证浏览器预览端不再因为缺少 Electron bridge 直接失效。
+验证浏览器预览端在缺少 Electron bridge 时，仍能通过本地 HTTP API 访问真实主进程用例。
 
 说明：
 
-1. 这条路径验证的是“前端可联调”
-2. 不是桌面端真实数据链路验证
+1. 这条路径验证的是“浏览器预览走真实主进程链路”
+2. 启动方式仍应使用 `npm run dev`，确保本地 HTTP API 已随主进程启动
+3. 若只验证浏览器预览，可改用 `npm run dev:browser-preview`，此时不会弹出 Electron 窗口，但本地 HTTP API 仍会启动
 
 ## 5.2 步骤 1：打开浏览器预览
 
@@ -291,17 +292,11 @@ npm run dev
 1. 页面直接报 bridge 缺失错误
 2. 白屏
 
-## 5.3 步骤 2：搜索示例股票
-
-建议使用以下任一代码：
-
-- `600519`
-- `000651`
-- `601318`
+## 5.3 步骤 2：搜索真实股票
 
 操作：
 
-1. 输入代码
+1. 输入真实 A 股代码，例如 `600519`
 2. 点击“搜索”
 
 预期结果：
@@ -311,7 +306,7 @@ npm run dev
 
 失败判定：
 
-1. 搜索无结果
+1. 搜索无结果且终端无对应 HTTP 请求
 2. 页面报错
 
 ## 5.4 步骤 3：加入自选并进入收益追踪
@@ -325,6 +320,7 @@ npm run dev
 
 1. 自选页展示刚加入的股票
 2. 无需 Electron bridge 也能显示
+3. 桌面端与浏览器预览看到的是同一份自选数据
 
 失败判定：
 
@@ -349,22 +345,24 @@ npm run dev
 1. 按钮不可用
 2. 对比页无内容
 
-## 5.6 步骤 5：验证浏览器端本地存储
+## 5.6 步骤 5：验证工作台持仓统一存储
 
 操作：
 
-1. 打开浏览器 DevTools
-2. 查看 `localStorage`
-3. 查找 key：`dm:web-watchlist`
+1. 在工作台录入一笔股票持仓
+2. 刷新浏览器预览
+3. 再打开 Electron 窗口查看工作台
 
 预期结果：
 
-1. 能看到该 key
-2. 值是当前浏览器预览端自选代码列表
+1. 浏览器预览刷新后持仓仍在
+2. Electron 窗口中能看到同一笔持仓
+3. `.runtime-data\db\dividend-monitor.sqlite` 中存在 `portfolio_positions` 数据
 
 失败判定：
 
-1. 页面已加入自选但 `localStorage` 无记录
+1. 刷新后持仓丢失
+2. 浏览器与 Electron 持仓不一致
 
 ## 6. 通过标准
 
@@ -386,9 +384,10 @@ npm run dev
 满足以下条件即可判定浏览器预览本轮通过：
 
 1. 不再因为缺少 `window.dividendMonitor` 直接挂掉
-2. 可以搜索示例股票
-3. 可以加入自选
-4. 可以进入收益追踪与对比页
+2. 可以搜索真实股票
+3. 可以加入自选并与桌面端共享结果
+4. 可以进入收益追踪、对比页与回测页
+5. 工作台持仓与桌面端共享结果
 
 ## 7. 当前已知现象
 
@@ -396,7 +395,7 @@ npm run dev
 
 1. 控制台里存在 `antd Card bordered` 废弃警告
 2. 控制台里存在 React Router future flag 警告
-3. 浏览器预览使用的是 fallback/mock 数据，不等同于桌面端真实数据
+3. 若 URL 显式带 `runtime=mock`，则结果可以与桌面端不同
 
 ## 8. 建议记录方式
 
@@ -408,7 +407,7 @@ npm run dev
 4. 详情页截图
 5. 回测页截图
 6. `.runtime-data\db\dividend-monitor.sqlite` 文件截图
-7. 浏览器预览 `localStorage` 中 `dm:web-watchlist` 的截图
+7. `portfolio_positions` 或工作台共享持仓的验证截图
 
 ## 9. 如果出现失败
 
@@ -424,5 +423,5 @@ npm run dev
 
 1. SQLite 持久化问题
 2. IPC 问题
-3. runtime fallback 问题
+3. 本地 HTTP API 或 runtime 切换问题
 4. 页面状态处理问题

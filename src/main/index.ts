@@ -1,11 +1,13 @@
 import { app, BrowserWindow } from 'electron'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { startLocalHttpServer, stopLocalHttpServer } from '@main/http/server'
 import { registerIpcHandlers } from '@main/ipc/channels'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const isDevelopment = Boolean(process.env['ELECTRON_RENDERER_URL'])
+const isHeadlessRuntime = process.env['DIVIDEND_MONITOR_HEADLESS'] === '1'
 
 if (isDevelopment) {
   // Keep Electron runtime data inside the workspace during development to avoid
@@ -37,10 +39,13 @@ function createWindow() {
 
 app.whenReady().then(() => {
   registerIpcHandlers()
-  createWindow()
+  void startLocalHttpServer()
+  if (!isHeadlessRuntime) {
+    createWindow()
+  }
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
+    if (!isHeadlessRuntime && BrowserWindow.getAllWindows().length === 0) {
       createWindow()
     }
   })
@@ -48,6 +53,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
+    void stopLocalHttpServer()
     app.quit()
   }
 })

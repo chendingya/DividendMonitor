@@ -7,9 +7,10 @@
 1. `PRD.md`：产品目标、范围和 MVP 能力
 2. `SDD.md`：系统设计总览、技术选型和运行时结构
 3. `ARCHITECTURE.md`：代码分层、目录职责、依赖方向和当前实现边界
-4. `IPC-CONTRACTS.md`：preload、IPC 和 renderer runtime 接口
-5. `MANUAL-VERIFICATION-GUIDE.md`：手动验证路径
-6. `UI-UX-DESIGN-PRINCIPLES.md`：页面视觉与交互风格
+4. `MULTI-ASSET-ARCHITECTURE.md`：股票扩展到 ETF/基金的多资产架构设计与实施计划
+5. `IPC-CONTRACTS.md`：preload、IPC 和 renderer runtime 接口
+6. `MANUAL-VERIFICATION-GUIDE.md`：手动验证路径
+7. `UI-UX-DESIGN-PRINCIPLES.md`：页面视觉与交互风格
 
 ## 2. 当前有效文档
 
@@ -22,6 +23,7 @@
 
 - `SDD.md`
 - `ARCHITECTURE.md`
+- `MULTI-ASSET-ARCHITECTURE.md`
 - `IPC-CONTRACTS.md`
 
 ### 交互与验收

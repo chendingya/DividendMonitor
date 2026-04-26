@@ -1,5 +1,5 @@
 import { Typography } from 'antd'
-import type { WatchlistItemDto } from '@shared/contracts/api'
+import type { WatchlistEntryDto } from '@shared/contracts/api'
 
 const percent = new Intl.NumberFormat('zh-CN', {
   style: 'percent',
@@ -8,18 +8,18 @@ const percent = new Intl.NumberFormat('zh-CN', {
 })
 
 type WatchlistTableProps = {
-  items: WatchlistItemDto[]
-  removingSymbol?: string | null
-  selectedSymbols?: string[]
-  onOpenDetail?: (symbol: string) => void
-  onRemove?: (symbol: string) => void
-  onToggleSelect?: (symbol: string) => void
+  items: WatchlistEntryDto[]
+  removingAssetKey?: string | null
+  selectedAssetKeys?: string[]
+  onOpenDetail?: (assetKey: string) => void
+  onRemove?: (assetKey: string) => void
+  onToggleSelect?: (assetKey: string) => void
 }
 
 export function WatchlistTable({
   items,
-  removingSymbol,
-  selectedSymbols = [],
+  removingAssetKey,
+  selectedAssetKeys = [],
   onOpenDetail,
   onRemove,
   onToggleSelect
@@ -31,7 +31,7 @@ export function WatchlistTable({
           自选池暂时为空
         </Typography.Title>
         <Typography.Paragraph style={{ marginBottom: 0, color: '#66707a' }}>
-          可先从搜索结果或个股详情页把股票加入自选，再回到这里持续跟踪收益机会。
+          可先从搜索结果或详情页把资产加入自选，再回到这里持续跟踪收益机会。
         </Typography.Paragraph>
       </div>
     )
@@ -41,40 +41,47 @@ export function WatchlistTable({
     <div className="ledger-data-card">
       <div className="ledger-data-head">
         <span>资产名称</span>
-        <span>预期收益</span>
+        <span>收益指标</span>
         <span>最新价</span>
         <span>选择状态</span>
         <span>操作</span>
       </div>
       <div className="ledger-data-body">
         {items.map((record) => (
-          <div className={`ledger-data-row ${selectedSymbols.includes(record.symbol) ? 'is-selected' : ''}`} key={record.symbol}>
+          <div className={`ledger-data-row ${selectedAssetKeys.includes(record.assetKey) ? 'is-selected' : ''}`} key={record.assetKey}>
             <div className="ledger-asset-cell">
-              <div className="ledger-asset-badge">{record.symbol.slice(-2)}</div>
+              <div className="ledger-asset-badge">{(record.symbol ?? record.code).slice(-2)}</div>
               <div>
                 <Typography.Text strong>{record.name}</Typography.Text>
-                <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }}>{record.symbol} · A股</div>
+                <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }}>
+                  {record.symbol ?? record.code} · {record.assetType}
+                </div>
               </div>
             </div>
             <div className="ledger-highlight-value">
-              {record.estimatedFutureYield == null ? '--' : percent.format(record.estimatedFutureYield)}
+              {record.estimatedFutureYield != null
+                ? percent.format(record.estimatedFutureYield)
+                : record.averageYield != null
+                  ? percent.format(record.averageYield)
+                  : '--'}
+              <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }}>{record.yieldLabel ?? '收益率'}</div>
             </div>
             <div>{record.latestPrice.toFixed(2)}</div>
             <div>
               <button
                 type="button"
-                className={`ledger-inline-action-btn ${selectedSymbols.includes(record.symbol) ? 'is-selected' : ''}`}
-                onClick={() => onToggleSelect?.(record.symbol)}
+                className={`ledger-inline-action-btn ${selectedAssetKeys.includes(record.assetKey) ? 'is-selected' : ''}`}
+                onClick={() => onToggleSelect?.(record.assetKey)}
                 disabled={!onToggleSelect}
               >
-                {selectedSymbols.includes(record.symbol) ? '已选中' : '选择'}
+                {selectedAssetKeys.includes(record.assetKey) ? '已选中' : '选择'}
               </button>
             </div>
             <div className="ledger-data-actions">
               <button
                 type="button"
                 className="ledger-inline-action-btn"
-                onClick={() => onOpenDetail?.(record.symbol)}
+                onClick={() => onOpenDetail?.(record.assetKey)}
                 disabled={!onOpenDetail}
               >
                 详情
@@ -82,10 +89,10 @@ export function WatchlistTable({
               <button
                 type="button"
                 className="ledger-inline-action-btn is-danger"
-                onClick={() => onRemove?.(record.symbol)}
-                disabled={!onRemove || removingSymbol === record.symbol}
+                onClick={() => onRemove?.(record.assetKey)}
+                disabled={!onRemove || removingAssetKey === record.assetKey}
               >
-                {removingSymbol === record.symbol ? '移除中...' : '移除'}
+                {removingAssetKey === record.assetKey ? '移除中...' : '移除'}
               </button>
             </div>
           </div>

@@ -1,40 +1,11 @@
 import type { StockDetailDto } from '@shared/contracts/api'
-import { buildHistoricalYields, NATURAL_YEAR_YIELD_BASIS } from '@main/domain/services/dividendYieldService'
-import { estimateFutureYield } from '@main/domain/services/futureYieldEstimator'
-import { buildValuationWindows } from '@main/domain/services/valuationService'
-import { StockRepository } from '@main/repositories/stockRepository'
+import { createStockAssetQuery } from '@shared/contracts/api'
+import { assertStockDetailSource, toStockDetailDto } from '@main/application/mappers/stockDtoMappers'
+import { AssetRepository } from '@main/repositories/assetRepository'
 
 export async function getStockDetail(symbol: string): Promise<StockDetailDto> {
-  const repository = new StockRepository()
-  const source = await repository.getDetail(symbol)
-  const yearlyYields = buildHistoricalYields(source.dividendEvents)
-  const estimates = estimateFutureYield({
-    latestPrice: source.stock.latestPrice,
-    latestTotalShares: source.latestTotalShares,
-    latestAnnualNetProfit: source.latestAnnualNetProfit,
-    lastAnnualPayoutRatio: source.lastAnnualPayoutRatio,
-    lastYearTotalDividendAmount: source.lastYearTotalDividendAmount
-  })
-
-  return {
-    symbol: source.stock.symbol,
-    name: source.stock.name,
-    market: source.stock.market,
-    industry: source.stock.industry,
-    latestPrice: source.stock.latestPrice,
-    marketCap: source.stock.marketCap,
-    peRatio: source.stock.peRatio,
-    pbRatio: source.stock.pbRatio,
-    totalShares: source.stock.totalShares,
-    dataSource: source.dataSource,
-    yieldBasis: NATURAL_YEAR_YIELD_BASIS,
-    yearlyYields,
-    dividendEvents: source.dividendEvents,
-    futureYieldEstimate: estimates.baseline,
-    futureYieldEstimates: [estimates.baseline, estimates.conservative],
-    valuation: {
-      pe: source.valuation?.pe ? buildValuationWindows(source.valuation.pe) : undefined,
-      pb: source.valuation?.pb ? buildValuationWindows(source.valuation.pb) : undefined
-    }
-  }
+  const repository = new AssetRepository()
+  const source = await repository.getDetail(createStockAssetQuery(symbol))
+  assertStockDetailSource(source)
+  return toStockDetailDto(source)
 }

@@ -55,6 +55,56 @@
 +----------------------------------------------------------------+
 ```
 
+### 3.1 分层结构图
+
+```mermaid
+flowchart TB
+    subgraph RendererUI["Renderer 展示层"]
+        Pages[pages]
+        Features[feature components]
+        SharedUI[shared ui]
+        Pages --> Features --> SharedUI
+    end
+
+    subgraph RendererOrchestration["Renderer 交互编排层"]
+        Hooks[hooks]
+        RuntimeServices[runtime services]
+        RouteState[route context / local storage]
+        Hooks --> RuntimeServices
+        Hooks --> RouteState
+    end
+
+    subgraph Boundary["Preload / IPC 协议边界层"]
+        TypedApi[typed api]
+        DTO[request / response dto]
+        Validation[validation]
+        TypedApi --> DTO --> Validation
+    end
+
+    subgraph MainApp["Main 应用服务与领域处理层"]
+        UseCases[use-cases]
+        DomainServices[domain services]
+        Policies[calculators / policies]
+        UseCases --> DomainServices --> Policies
+    end
+
+    subgraph MainData["Main 数据访问与集成层"]
+        Repositories[repositories]
+        Adapters[data adapters]
+        Mappers[mappers / cache]
+        Repositories --> Adapters --> Mappers
+    end
+
+    subgraph Infra["Infrastructure 基础设施层"]
+        SQLite[sqlite]
+        Http[http client]
+        Config[logger / config / fs]
+        SQLite --> Http --> Config
+    end
+
+    RendererUI --> RendererOrchestration --> Boundary --> MainApp --> MainData --> Infra
+```
+
 ## 4. 依赖方向规则
 
 必须遵守以下单向依赖规则：
@@ -79,6 +129,23 @@ UI -> Hook / Service -> IPC API -> UseCase -> Repository -> Adapter -> Infra
 UI -> Hook -> renderer service -> runtime selector
    -> Electron bridge -> IPC -> UseCase -> Repository -> Infra
    -> browser fallback adapter
+```
+
+### 4.1 依赖方向图
+
+```mermaid
+flowchart LR
+    UI[UI / Page / Component] --> HookService[Hook / Renderer Service]
+    HookService --> IPC[IPC API / Runtime Selector]
+    IPC --> UseCase[UseCase]
+    UseCase --> Repository[Repository]
+    Repository --> Adapter[Adapter]
+    Adapter --> Infra[Infrastructure]
+
+    Bad1[UI -> Repository] -. 禁止 .-> Repository
+    Bad2[UI -> SQLite] -. 禁止 .-> Infra
+    Bad3[Component -> HTTP Fetch] -. 禁止 .-> Adapter
+    Bad4[Repository -> React Hook] -. 禁止 .-> HookService
 ```
 
 禁止出现：
@@ -672,6 +739,41 @@ StockDetailPage
   -> render page / stock-detail components
 ```
 
+### 13.1 股票详情调用链图
+
+```mermaid
+sequenceDiagram
+    participant Page as StockDetailPage
+    participant Hook as useStockDetail
+    participant Service as stockApi
+    participant Bridge as preload.stock
+    participant IPC as stock:get-detail
+    participant UC as getStockDetail
+    participant Repo as StockRepository
+    participant Data as eastmoneyAShareDataSource
+    participant ValRepo as valuationRepository
+    participant Domain as dividendYieldService / futureYieldEstimator
+
+    Page->>Hook: load(symbol)
+    Hook->>Service: getDetail(symbol)
+    Service->>Bridge: getDetail(symbol)
+    Bridge->>IPC: invoke
+    IPC->>UC: execute
+    UC->>Repo: getDetail(symbol)
+    Repo->>Data: getDetail(symbol)
+    Repo->>ValRepo: getStockValuation(symbol)
+    Data-->>Repo: stock source
+    ValRepo-->>Repo: valuation source
+    Repo-->>UC: merged source
+    UC->>Domain: build yields / estimate / valuation windows
+    Domain-->>UC: response parts
+    UC-->>IPC: StockDetailDto
+    IPC-->>Bridge: dto
+    Bridge-->>Service: dto
+    Service-->>Hook: dto
+    Hook-->>Page: render
+```
+
 这个链路里：
 
 1. 页面不直接调数据库
@@ -688,6 +790,18 @@ StockDetailPage
         -> browserRuntimeApi.getDetail(symbol)
       -> response DTO
   -> render page
+```
+
+### 13.2 浏览器预览调用链图
+
+```mermaid
+flowchart LR
+    Page[StockDetailPage] --> Hook[useStockDetail]
+    Hook --> Service[stockApi.getDetail]
+    Service --> Selector[desktopApi runtime selector]
+    Selector --> Fallback[browserRuntimeApi.getDetail]
+    Fallback --> Mock[mock data / localStorage]
+    Mock --> Page
 ```
 
 ## 14. 回测模块的特别约束

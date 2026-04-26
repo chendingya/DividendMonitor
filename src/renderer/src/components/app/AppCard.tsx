@@ -9,7 +9,7 @@ type AppCardProps = PropsWithChildren<{
 
 export function AppCard({ children, title, extra, className }: AppCardProps) {
   return (
-    <Card bordered={false} title={title} extra={extra} className={`glass-card ${className ?? ''}`.trim()}>
+    <Card variant="borderless" title={title} extra={extra} className={`glass-card ${className ?? ''}`.trim()}>
       {children}
     </Card>
   )

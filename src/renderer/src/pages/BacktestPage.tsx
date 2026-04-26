@@ -4,29 +4,41 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { PageStateBlock } from '@renderer/components/app/PageStateBlock'
 import { BacktestSummaryCard } from '@renderer/components/backtest/BacktestSummaryCard'
 import { DEFAULT_BACKTEST_BUY_DATE, DEFAULT_STOCK_SYMBOL } from '@renderer/defaults'
-import { useBacktest } from '@renderer/hooks/useBacktest'
-import { getRememberedLastSymbol, parseSymbolFromSearch, rememberLastSymbol } from '@renderer/services/routeContext'
+import { useAssetBacktest } from '@renderer/hooks/useAssetBacktest'
+import { buildStockAssetKey } from '@shared/contracts/api'
+import {
+  buildAssetDetailPath,
+  getRememberedLastAssetKey,
+  parseAssetKeyFromSearch,
+  parseSymbolFromSearch,
+  rememberLastAssetKey
+} from '@renderer/services/routeContext'
 
 export function BacktestPage() {
   const navigate = useNavigate()
   const { symbol: routeSymbol } = useParams<{ symbol?: string }>()
   const [searchParams] = useSearchParams()
-  const symbol = useMemo(() => {
+  const assetKey = useMemo(() => {
+    const byAssetKey = parseAssetKeyFromSearch(searchParams)
+    if (byAssetKey) {
+      return byAssetKey
+    }
+
     const bySearch = parseSymbolFromSearch(searchParams)
     if (bySearch) {
-      return bySearch
+      return buildStockAssetKey(bySearch)
     }
     if (routeSymbol) {
-      return routeSymbol
+      return buildStockAssetKey(routeSymbol)
     }
-    return getRememberedLastSymbol() ?? DEFAULT_STOCK_SYMBOL
+    return getRememberedLastAssetKey() ?? buildStockAssetKey(DEFAULT_STOCK_SYMBOL)
   }, [routeSymbol, searchParams])
   const [buyDate, setBuyDate] = useState(DEFAULT_BACKTEST_BUY_DATE)
-  const { data, loading, error } = useBacktest(symbol, buyDate)
+  const { data, loading, error } = useAssetBacktest(assetKey, buyDate)
 
   useEffect(() => {
-    rememberLastSymbol(symbol)
-  }, [symbol])
+    rememberLastAssetKey(assetKey)
+  }, [assetKey])
 
   return (
     <div className="ledger-page">
@@ -44,7 +56,7 @@ export function BacktestPage() {
             value={buyDate}
             onChange={(event) => setBuyDate(event.target.value)}
           />
-          <button type="button" className="ledger-secondary-button" onClick={() => navigate(`/stock-detail?symbol=${symbol}`)}>
+          <button type="button" className="ledger-secondary-button" onClick={() => navigate(buildAssetDetailPath(assetKey))}>
             返回详情
           </button>
         </div>
@@ -52,14 +64,14 @@ export function BacktestPage() {
 
       {loading ? <Skeleton active paragraph={{ rows: 8 }} /> : null}
       {!loading && error ? <Alert type="error" message={error} /> : null}
-      {!loading && !error && !symbol.trim() ? (
+      {!loading && !error && !assetKey.trim() ? (
         <PageStateBlock
           kind="empty"
           title="还没有选择回测标的"
-          description="请先进入某只股票详情页，再发起回测。"
+          description="请先进入某个资产详情页，再发起回测。"
         />
       ) : null}
-      {!loading && !error && symbol.trim() && !data ? (
+      {!loading && !error && assetKey.trim() && !data ? (
         <PageStateBlock
           kind="no-data"
           title="当前条件暂无回测结果"

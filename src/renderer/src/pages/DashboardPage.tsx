@@ -1,6 +1,6 @@
 import { Button, Input, message, Modal, Space, Table, Tag, Typography } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
-import type { StockDetailDto, StockSearchItemDto } from '@shared/contracts/api'
+import type { AssetDetailDto } from '@shared/contracts/api'
 import { AppCard } from '@renderer/components/app/AppCard'
 import {
   PortfolioPositionEditorModal,
@@ -10,24 +10,27 @@ import {
 } from '@renderer/components/dashboard/PortfolioPositionEditorModal'
 import { MetricPanel, OpportunityCard, RecentItem, ToolCard } from '@renderer/components/app/LedgerUi'
 import { PageStateBlock } from '@renderer/components/app/PageStateBlock'
+import { getYieldSnapshot } from '@renderer/pages/dashboardMetrics'
 import { useNavigate } from 'react-router-dom'
-import { stockApi } from '@renderer/services/stockApi'
+import { assetApi } from '@renderer/services/assetApi'
 import {
-  buildBacktestPath,
-  buildComparisonPath,
+  buildAssetDetailPath,
+  buildAssetSearchPath,
+  buildBacktestPathFromAssetKey,
+  buildComparisonPathFromAssetKeys,
   buildStockDetailPath,
-  getRecentSymbols,
+  getRecentAssetKeys,
+  rememberLastAssetKey,
   rememberLastSymbol
 } from '@renderer/services/routeContext'
 import {
-  readPortfolioPositions,
-  removePortfolioPosition,
-  removePortfolioPositionsBySymbol,
-  replacePortfolioPositionsBySymbol,
+  listPortfolioPositionsFromBackend,
+  removePortfolioPositionInBackend,
+  removePortfolioPositionsByAssetInBackend,
+  replacePortfolioPositionsByAssetInBackend,
   type PortfolioPosition,
-  upsertPortfolioPosition
+  upsertPortfolioPositionInBackend
 } from '@renderer/services/portfolioStore'
-import { watchlistApi } from '@renderer/services/watchlistApi'
 
 const currency = new Intl.NumberFormat('zh-CN', {
   style: 'currency',
@@ -44,7 +47,8 @@ const percent = new Intl.NumberFormat('zh-CN', {
 type PortfolioRow = PortfolioPosition & {
   latestPrice?: number
   marketValue?: number
-  estimatedFutureYield?: number
+  yieldMetric?: number
+  yieldLabel?: string
   positionReturn?: number
   netShares: number
   transactionCount: number
@@ -52,20 +56,18 @@ type PortfolioRow = PortfolioPosition & {
 }
 
 type PortfolioOpportunity = PortfolioRow & {
-  symbol: string
-  estimatedFutureYield: number
+  displayCode: string
+  yieldMetric: number
+  yieldLabel: string
 }
 
 export function DashboardPage() {
   const navigate = useNavigate()
   const [apiMessage, messageHolder] = message.useMessage()
-  const [positions, setPositions] = useState<PortfolioPosition[]>(() => readPortfolioPositions())
-  const [details, setDetails] = useState<Record<string, StockDetailDto>>({})
+  const [positions, setPositions] = useState<PortfolioPosition[]>([])
+  const [details, setDetails] = useState<Record<string, AssetDetailDto>>({})
   const [refreshing, setRefreshing] = useState(false)
   const [searchKeyword, setSearchKeyword] = useState('')
-  const [searching, setSearching] = useState(false)
-  const [watchlistBusySymbol, setWatchlistBusySymbol] = useState<string | null>(null)
-  const [searchResults, setSearchResults] = useState<StockSearchItemDto[]>([])
   const [editorOpen, setEditorOpen] = useState(false)
   const [editorMode, setEditorMode] = useState<PortfolioEditorMode>('create')
   const [editingRow, setEditingRow] = useState<PortfolioRow | null>(null)
@@ -77,7 +79,26 @@ export function DashboardPage() {
     avgCost: 10
   })
 
-  const recentSymbols = useMemo(() => getRecentSymbols(), [])
+  const recentAssetKeys = useMemo(() => getRecentAssetKeys(), [])
+
+  useEffect(() => {
+    let disposed = false
+    void listPortfolioPositionsFromBackend()
+      .then((items) => {
+        if (!disposed) {
+          setPositions(items)
+        }
+      })
+      .catch((error) => {
+        if (!disposed) {
+          apiMessage.error(error instanceof Error ? error.message : '加载持仓失败')
+        }
+      })
+
+    return () => {
+      disposed = true
+    }
+  }, [apiMessage])
 
   const rows = useMemo<PortfolioRow[]>(() => {
     const byKey = new Map<string, PortfolioRow>()
@@ -85,7 +106,7 @@ export function DashboardPage() {
     for (const position of positions) {
       const direction = position.direction === 'SELL' ? 'SELL' : 'BUY'
       const signedShares = direction === 'SELL' ? -Math.abs(position.shares) : Math.abs(position.shares)
-      const key = position.symbol ? `symbol:${position.symbol}` : `asset:${position.id}`
+      const key = position.assetKey ? `asset:${position.assetKey}` : position.symbol ? `symbol:${position.symbol}` : `item:${position.id}`
       const current = byKey.get(key)
 
       if (!current) {
@@ -98,7 +119,8 @@ export function DashboardPage() {
           netCostAmount: signedShares * position.avgCost,
           latestPrice: undefined,
           marketValue: undefined,
-          estimatedFutureYield: undefined,
+          yieldMetric: undefined,
+          yieldLabel: undefined,
           positionReturn: undefined
         })
         continue
@@ -111,14 +133,15 @@ export function DashboardPage() {
     }
 
     const merged = [...byKey.values()].map((row) => {
-      const symbol = row.symbol ?? ''
-      const detail = symbol ? details[symbol] : undefined
+      const detailKey = row.assetKey ?? row.symbol ?? row.id
+      const detail = details[detailKey]
       const latestPrice = detail?.latestPrice
       const normalizedNetShares = Math.max(0, row.netShares)
       const marketValue = latestPrice == null ? undefined : latestPrice * normalizedNetShares
       const avgCost = normalizedNetShares > 0 ? row.netCostAmount / normalizedNetShares : row.avgCost
       const costValue = avgCost > 0 ? avgCost * normalizedNetShares : 0
       const positionReturn = marketValue == null || costValue <= 0 ? undefined : marketValue / costValue - 1
+      const yieldSnapshot = getYieldSnapshot(detail)
 
       return {
         ...row,
@@ -127,7 +150,8 @@ export function DashboardPage() {
         avgCost: avgCost > 0 ? avgCost : row.avgCost,
         latestPrice,
         marketValue: normalizedNetShares > 0 ? marketValue : 0,
-        estimatedFutureYield: normalizedNetShares > 0 ? detail?.futureYieldEstimate.estimatedFutureYield : undefined,
+        yieldMetric: normalizedNetShares > 0 ? yieldSnapshot.value : undefined,
+        yieldLabel: yieldSnapshot.label,
         positionReturn
       }
     })
@@ -138,8 +162,8 @@ export function DashboardPage() {
   const totalCost = useMemo(() => rows.reduce((sum, item) => sum + item.avgCost * item.shares, 0), [rows])
   const totalValue = useMemo(() => rows.reduce((sum, item) => sum + (item.marketValue ?? 0), 0), [rows])
   const totalReturn = useMemo(() => (totalCost <= 0 ? 0 : totalValue / totalCost - 1), [totalCost, totalValue])
-  const avgFutureYield = useMemo(() => {
-    const available = rows.filter((row) => row.estimatedFutureYield != null)
+  const avgYieldMetric = useMemo(() => {
+    const available = rows.filter((row) => row.yieldMetric != null)
     if (available.length === 0) {
       return undefined
     }
@@ -148,7 +172,7 @@ export function DashboardPage() {
         const weight = item.marketValue ?? item.avgCost * item.shares
         return {
           weight,
-          yield: item.estimatedFutureYield ?? 0
+          yield: item.yieldMetric ?? 0
         }
       })
       .filter((item) => item.weight > 0)
@@ -164,21 +188,27 @@ export function DashboardPage() {
 
   const opportunities = useMemo<PortfolioOpportunity[]>(() => {
     return [...rows]
-      .filter((row): row is PortfolioOpportunity => row.estimatedFutureYield != null && Boolean(row.symbol))
-      .sort((a, b) => (b.estimatedFutureYield ?? 0) - (a.estimatedFutureYield ?? 0))
+      .map((row) => ({
+        ...row,
+        displayCode: row.symbol ?? row.code ?? row.assetKey ?? row.id
+      }))
+      .filter((row): row is PortfolioOpportunity => row.yieldMetric != null && row.yieldLabel != null)
+      .sort((a, b) => (b.yieldMetric ?? 0) - (a.yieldMetric ?? 0))
       .slice(0, 4)
   }, [rows])
 
   const recentItems = useMemo(() => {
-    return recentSymbols.slice(0, 5).map((symbol) => {
-      const detail = details[symbol]
+    return recentAssetKeys.slice(0, 5).map((assetKey) => {
+      const detail = details[assetKey]
       return {
-        symbol,
-        title: detail?.name ?? symbol,
-        subtitle: `${symbol} · 最近浏览`
+        assetKey,
+        assetType: detail?.assetType,
+        symbol: detail?.symbol ?? detail?.code ?? assetKey,
+        title: detail?.name ?? assetKey,
+        subtitle: `${detail?.symbol ?? detail?.code ?? assetKey} · ${detail?.assetType ?? '最近浏览'}`
       }
     })
-  }, [details, recentSymbols])
+  }, [details, recentAssetKeys])
 
   useEffect(() => {
     if (positions.length === 0) {
@@ -187,15 +217,17 @@ export function DashboardPage() {
     }
     let disposed = false
     setRefreshing(true)
-    const symbols = positions.map((position) => position.symbol).filter((item): item is string => Boolean(item))
-    void Promise.allSettled(symbols.map((symbol) => stockApi.getDetail(symbol))).then((results) => {
+    const assetKeys = positions
+      .map((position) => position.assetKey)
+      .filter((item): item is string => Boolean(item))
+    void Promise.allSettled(assetKeys.map((assetKey) => assetApi.getDetail({ assetKey }))).then((results) => {
       if (disposed) {
         return
       }
-      const next: Record<string, StockDetailDto> = {}
+      const next: Record<string, AssetDetailDto> = {}
       results.forEach((result) => {
         if (result.status === 'fulfilled') {
-          next[result.value.symbol] = result.value
+          next[result.value.assetKey] = result.value
         }
       })
       setDetails(next)
@@ -206,15 +238,26 @@ export function DashboardPage() {
     }
   }, [positions])
 
-  function goToDetail(symbol: string) {
-    rememberLastSymbol(symbol)
-    navigate(buildStockDetailPath(symbol))
+  function goToDetail(record: Pick<PortfolioPosition, 'assetKey' | 'symbol'>) {
+    if (record.assetKey) {
+      rememberLastAssetKey(record.assetKey)
+      navigate(buildAssetDetailPath(record.assetKey))
+      return
+    }
+    if (record.symbol) {
+      rememberLastSymbol(record.symbol)
+      navigate(buildStockDetailPath(record.symbol))
+    }
   }
 
   function openCreate() {
     setEditorMode('create')
     setEditingRow(null)
     setEditorInitialValues({
+      assetKey: '',
+      assetType: undefined,
+      market: 'A_SHARE',
+      code: '',
       symbol: '',
       name: '',
       direction: 'BUY',
@@ -228,6 +271,10 @@ export function DashboardPage() {
     setEditorMode('edit')
     setEditingRow(record)
     setEditorInitialValues({
+      assetKey: record.assetKey,
+      assetType: record.assetType,
+      market: record.market,
+      code: record.code,
       symbol: record.symbol ?? '',
       name: record.name,
       direction: 'BUY',
@@ -237,21 +284,12 @@ export function DashboardPage() {
     setEditorOpen(true)
   }
 
-  async function searchStocks() {
+  function openAssetSearch() {
     const keyword = searchKeyword.trim()
     if (!keyword) {
-      setSearchResults([])
       return
     }
-    setSearching(true)
-    try {
-      const results = await stockApi.search(keyword)
-      setSearchResults(results)
-    } catch (error) {
-      apiMessage.error(error instanceof Error ? error.message : '搜索失败')
-    } finally {
-      setSearching(false)
-    }
+    navigate(buildAssetSearchPath(keyword))
   }
 
   async function refreshQuotes() {
@@ -259,13 +297,15 @@ export function DashboardPage() {
       return
     }
     setRefreshing(true)
-    const symbols = positions.map((position) => position.symbol).filter((item): item is string => Boolean(item))
-    const results = await Promise.allSettled(symbols.map((symbol) => stockApi.getDetail(symbol)))
-    const next: Record<string, StockDetailDto> = {}
+    const assetKeys = positions
+      .map((position) => position.assetKey)
+      .filter((item): item is string => Boolean(item))
+    const results = await Promise.allSettled(assetKeys.map((assetKey) => assetApi.getDetail({ assetKey })))
+    const next: Record<string, AssetDetailDto> = {}
     let failed = 0
     results.forEach((result) => {
       if (result.status === 'fulfilled') {
-        next[result.value.symbol] = result.value
+        next[result.value.assetKey] = result.value
       } else {
         failed += 1
       }
@@ -283,18 +323,21 @@ export function DashboardPage() {
     if (rows.length === 0) {
       return
     }
-    const header = ['代码', '名称', '股数', '成本价', '最新价', '持仓成本', '持仓市值', '持仓收益率']
+    const header = ['资产类型', '代码', '名称', '股数', '成本价', '最新价', '持仓成本', '持仓市值', '持仓收益率', '收益指标', '收益口径']
     const lines = rows.map((row) => {
       const costValue = row.avgCost * row.shares
       return [
-        row.symbol,
+        row.assetType ?? '',
+        row.symbol ?? row.code ?? '',
         row.name,
         row.shares.toFixed(4),
         row.avgCost.toFixed(4),
         row.latestPrice?.toFixed(4) ?? '',
         costValue.toFixed(4),
         row.marketValue?.toFixed(4) ?? '',
-        row.positionReturn == null ? '' : row.positionReturn.toFixed(6)
+        row.positionReturn == null ? '' : row.positionReturn.toFixed(6),
+        row.yieldMetric == null ? '' : row.yieldMetric.toFixed(6),
+        row.yieldLabel ?? ''
       ].join(',')
     })
     const csv = [header.join(','), ...lines].join('\n')
@@ -320,76 +363,54 @@ export function DashboardPage() {
         return
       }
       if (editingRow.symbol) {
-        replacePortfolioPositionsBySymbol(editingRow.symbol, {
+        await replacePortfolioPositionsByAssetInBackend(editingRow.assetKey ?? editingRow.symbol, {
           name: editingRow.name,
           shares: values.shares,
           avgCost: values.avgCost
         })
-        setPositions(readPortfolioPositions())
+        setPositions(await listPortfolioPositionsFromBackend())
         closeEditor()
         apiMessage.success('持仓已更新（按当前汇总覆盖）')
         return
       }
-      upsertPortfolioPosition({
+      await upsertPortfolioPositionInBackend({
         id: editingRow.id,
-        symbol: undefined,
+        assetKey: editingRow.assetKey,
+        assetType: editingRow.assetType,
+        market: editingRow.market,
+        code: editingRow.code,
+        symbol: editingRow.symbol,
         name: values.name?.trim() || editingRow.name || '未命名标的',
         direction: 'BUY',
         shares: values.shares,
         avgCost: values.avgCost
       })
-      setPositions(readPortfolioPositions())
+      setPositions(await listPortfolioPositionsFromBackend())
       closeEditor()
       apiMessage.success('持仓已更新')
       return
     }
 
-    upsertPortfolioPosition({
+    await upsertPortfolioPositionInBackend({
       id: '',
+      assetKey: values.assetKey,
+      assetType: values.assetType,
+      market: values.market,
+      code: values.code,
       symbol: values.symbol,
       name: values.name,
       direction: values.direction,
       shares: values.shares,
       avgCost: values.avgCost
     })
-    setPositions(readPortfolioPositions())
+    setPositions(await listPortfolioPositionsFromBackend())
     closeEditor()
     apiMessage.success('资产已添加')
   }
 
-  function onPickSearchResult(item: StockSearchItemDto) {
-    setEditorMode('create')
-    setEditingRow(null)
-    setEditorInitialValues({
-      symbol: item.symbol,
-      name: item.name,
-      direction: 'BUY',
-      shares: 100,
-      avgCost: 10
-    })
-    setEditorOpen(true)
-  }
-
-  async function addSearchResultToWatchlist(item: StockSearchItemDto) {
-    try {
-      setWatchlistBusySymbol(item.symbol)
-      await watchlistApi.add(item.symbol)
-      apiMessage.success(`已将 ${item.symbol} ${item.name} 加入自选`)
-    } catch (error) {
-      apiMessage.error(error instanceof Error ? error.message : '加入自选失败')
-    } finally {
-      setWatchlistBusySymbol(null)
-    }
-  }
-
-  function openSearchResultDetail(item: StockSearchItemDto) {
-    rememberLastSymbol(item.symbol)
-    navigate(buildStockDetailPath(item.symbol))
-  }
-
-  function onRemove(id: string) {
-    removePortfolioPosition(id)
-    setPositions(readPortfolioPositions())
+  async function onRemove(id: string) {
+    await removePortfolioPositionInBackend(id)
+    setPositions(await listPortfolioPositionsFromBackend())
     apiMessage.success('已移除持仓')
   }
 
@@ -418,9 +439,9 @@ export function DashboardPage() {
         onOk: () =>
           openSecondConfirm({
             content: `确认删除 ${record.symbol}（${record.name}）的全部交易记录`,
-            onConfirm: () => {
-              removePortfolioPositionsBySymbol(record.symbol!)
-              setPositions(readPortfolioPositions())
+            onConfirm: async () => {
+              await removePortfolioPositionsByAssetInBackend(record.assetKey ?? record.symbol!)
+              setPositions(await listPortfolioPositionsFromBackend())
               apiMessage.success(`已删除 ${record.symbol} 的全部交易记录`)
             }
           })
@@ -465,8 +486,11 @@ export function DashboardPage() {
             <button type="button" className="ledger-secondary-button" disabled={rows.length === 0} onClick={refreshQuotes}>
               {refreshing ? '刷新中...' : '刷新估值'}
             </button>
+            <button type="button" className="ledger-secondary-button" onClick={() => navigate(buildAssetSearchPath(searchKeyword))}>
+              搜索资产
+            </button>
             <button type="button" className="ledger-primary-button" onClick={openCreate}>
-              添加资产
+              录入持仓
             </button>
           </div>
         </div>
@@ -482,55 +506,37 @@ export function DashboardPage() {
         />
         <MetricPanel label="总市值" value={rows.length === 0 ? '--' : currency.format(totalValue)} hint={`总成本 ${currency.format(totalCost)}`} />
         <MetricPanel
-          label="平均未来股息率"
-          value={avgFutureYield == null ? '--' : percent.format(avgFutureYield)}
-          hint="按持仓权重（市值优先）加权计算"
+          label="平均收益指标"
+          value={avgYieldMetric == null ? '--' : percent.format(avgYieldMetric)}
+          hint="股票优先用未来股息率，基金回落到历史分配收益率"
         />
       </section>
 
-      <AppCard title="持仓搜索与录入">
+      <AppCard title="资产搜索">
         <Space direction="vertical" size={12} style={{ width: '100%' }}>
           <Space.Compact style={{ width: '100%' }}>
             <Input
-              placeholder="输入股票代码或名称，例如 600519 / 贵州茅台"
+              placeholder="输入股票、ETF 或基金代码/名称，例如 510880 / 红利ETF / 贵州茅台"
               value={searchKeyword}
               onChange={(event) => setSearchKeyword(event.target.value)}
-              onPressEnter={searchStocks}
+              onPressEnter={openAssetSearch}
             />
-            <Button loading={searching} onClick={searchStocks}>
+            <Button onClick={openAssetSearch}>
               搜索
             </Button>
           </Space.Compact>
-          {searchResults.length === 0 ? (
-            <Typography.Text type="secondary">暂无搜索结果，输入关键词后点击搜索。</Typography.Text>
-          ) : (
-            <Space wrap>
-              {searchResults.map((item) => (
-                <Space key={item.symbol} size={8}>
-                  <Button onClick={() => onPickSearchResult(item)}>录入持仓 {item.symbol}</Button>
-                  <Button onClick={() => openSearchResultDetail(item)}>查看详情</Button>
-                  <Button
-                    type="primary"
-                    ghost
-                    loading={watchlistBusySymbol === item.symbol}
-                    onClick={() => addSearchResultToWatchlist(item)}
-                  >
-                    加入自选
-                  </Button>
-                </Space>
-              ))}
-            </Space>
-          )}
+          <Typography.Text type="secondary">搜索会进入结果列表页，统一展示股票、ETF 和基金，再选择进入详情或加入自选。</Typography.Text>
+          <Typography.Text type="secondary">工作台里的持仓录入现已支持股票、ETF 和基金，输入代码或名称会自动识别资产类型。</Typography.Text>
         </Space>
       </AppCard>
 
       <AppCard title="持仓明细" extra={<Typography.Text type="secondary">{rows.length} 条</Typography.Text>}>
-        <p className="ledger-transaction-hint">同一标的可录入多笔买入/卖出交易，系统按净股数与净成本汇总展示。</p>
+        <p className="ledger-transaction-hint">同一资产可录入多笔买入/卖出交易，系统按净持仓与净成本汇总展示。</p>
         {rows.length === 0 ? (
           <PageStateBlock
             kind="empty"
             title="当前没有持仓"
-            description="先通过“添加资产”录入你的真实持仓，再查看估值和收益。"
+            description="可先搜索资产加入自选，或通过“录入持仓”记录你的股票、ETF 或基金仓位。"
           />
         ) : (
           <Table
@@ -540,19 +546,20 @@ export function DashboardPage() {
             dataSource={rows}
             columns={[
               {
-                title: '股票',
+                title: '资产',
                 render: (_, record) => (
                   <div>
                     <Space size={8}>
                       <Typography.Text strong>{record.name}</Typography.Text>
                       {record.transactionCount > 1 ? <Tag color="orange">多笔交易</Tag> : null}
+                      {record.assetType ? <Tag color="blue">{record.assetType}</Tag> : null}
                     </Space>
-                    <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }}>{record.symbol ?? '无代码资产'}</div>
+                    <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }}>{record.symbol ?? record.code ?? '无代码资产'}</div>
                   </div>
                 )
               },
               {
-                title: '股数',
+                title: '份额/股数',
                 render: (_, record) => `${record.netShares.toFixed(2)} (${record.transactionCount} 笔)`
               },
               {
@@ -576,14 +583,23 @@ export function DashboardPage() {
                 render: (value?: number) => (value == null ? '--' : percent.format(value))
               },
               {
+                title: '收益指标',
+                render: (_, record) => (
+                  <div>
+                    <div>{record.yieldMetric == null ? '--' : percent.format(record.yieldMetric)}</div>
+                    <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }}>{record.yieldLabel ?? '暂无口径'}</div>
+                  </div>
+                )
+              },
+              {
                 title: '操作',
                 render: (_, record) => (
                   <Space className="ledger-inline-action-group">
                     <button
                       type="button"
                       className="ledger-inline-action-btn"
-                      onClick={() => record.symbol && goToDetail(record.symbol)}
-                      disabled={!record.symbol}
+                      onClick={() => goToDetail(record)}
+                      disabled={!record.assetKey && !record.symbol}
                     >
                       详情
                     </button>
@@ -603,19 +619,20 @@ export function DashboardPage() {
 
       <section className="ledger-section">
         <div className="ledger-section-head">
-          <h2>高股息机会（来自当前持仓）</h2>
+          <h2>高收益机会（来自当前持仓）</h2>
         </div>
         {opportunities.length === 0 ? (
-          <PageStateBlock kind="no-data" title="暂无可计算机会" description="当前持仓中暂无可用的未来股息率数据。" />
+          <PageStateBlock kind="no-data" title="暂无可计算机会" description="当前持仓中暂无可用的收益指标数据。" />
         ) : (
           <div className="ledger-opportunity-grid">
             {opportunities.map((item) => (
-              <button key={item.symbol} type="button" className="ledger-link-button" onClick={() => goToDetail(item.symbol)}>
+              <button key={item.assetKey ?? item.id} type="button" className="ledger-link-button" onClick={() => goToDetail(item)}>
                 <OpportunityCard
-                  symbol={item.symbol}
+                  symbol={item.displayCode}
                   title={item.name}
-                  subtitle="持仓候选"
-                  value={percent.format(item.estimatedFutureYield ?? 0)}
+                  subtitle={`${item.assetType ?? '资产'} · 持仓候选`}
+                  value={percent.format(item.yieldMetric)}
+                  valueLabel={item.yieldLabel}
                 />
               </button>
             ))}
@@ -630,10 +647,10 @@ export function DashboardPage() {
           </div>
           <div className="ledger-list-card">
             {recentItems.length === 0 ? (
-              <PageStateBlock kind="empty" title="暂无最近浏览" description="访问个股详情后，这里会出现最近浏览记录。" />
+              <PageStateBlock kind="empty" title="暂无最近浏览" description="访问资产详情后，这里会出现最近浏览记录。" />
             ) : (
               recentItems.map((item) => (
-                <RecentItem key={item.symbol} title={item.title} subtitle={item.subtitle} onClick={() => goToDetail(item.symbol)} />
+                <RecentItem key={item.symbol} title={item.title} subtitle={item.subtitle} onClick={() => goToDetail(item)} />
               ))
             )}
           </div>
@@ -648,23 +665,23 @@ export function DashboardPage() {
               title="收益回测工具"
               subtitle="针对最近标的快速进入回测。"
               onClick={() => {
-                const first = rows.find((item) => item.symbol)?.symbol
+                const first = rows.find((item) => item.assetKey)?.assetKey
                 if (first) {
-                  navigate(buildBacktestPath(first))
+                  navigate(buildBacktestPathFromAssetKey(first))
                 }
               }}
-              disabled={!rows.some((item) => item.symbol)}
+              disabled={!rows.some((item) => item.assetKey)}
             />
             <ToolCard
               title="多股对比"
-              subtitle="选择当前持仓前 3 只进行对比。"
+              subtitle="选择当前持仓前 3 个资产进行对比。"
               onClick={() => {
-                const symbols = rows.map((item) => item.symbol).filter((item): item is string => Boolean(item)).slice(0, 3)
-                if (symbols.length >= 2) {
-                  navigate(buildComparisonPath(symbols))
+                const assetKeys = rows.map((item) => item.assetKey).filter((item): item is string => Boolean(item)).slice(0, 3)
+                if (assetKeys.length >= 2) {
+                  navigate(buildComparisonPathFromAssetKeys(assetKeys))
                 }
               }}
-              disabled={rows.map((item) => item.symbol).filter(Boolean).length < 2}
+              disabled={rows.map((item) => item.assetKey).filter(Boolean).length < 2}
             />
           </div>
         </div>
@@ -677,7 +694,7 @@ export function DashboardPage() {
         lockIdentity={Boolean(editorMode === 'edit' && editingRow?.symbol)}
         onCancel={closeEditor}
         onSubmit={onSubmitEditor}
-        stockApi={stockApi}
+        assetApi={assetApi}
       />
     </div>
   )

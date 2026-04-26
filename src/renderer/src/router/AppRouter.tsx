@@ -1,3 +1,4 @@
+import { AssetSearchPage } from '@renderer/pages/AssetSearchPage'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { BacktestPage } from '@renderer/pages/BacktestPage'
 import { ComparisonPage } from '@renderer/pages/ComparisonPage'
@@ -9,6 +10,7 @@ export function AppRouter() {
   return (
     <Routes>
       <Route path="/" element={<DashboardPage />} />
+      <Route path="/search" element={<AssetSearchPage />} />
       <Route path="/stock-detail" element={<StockDetailPage />} />
       <Route path="/stock-detail/:symbol" element={<StockDetailPage />} />
       <Route path="/watchlist" element={<WatchlistPage />} />

@@ -35,6 +35,17 @@ function buildHeaders() {
   }
 }
 
+async function fetchTrendPage(symbol: string, indicatorType: ValuationIndicatorType, page: number, pageSize: number) {
+  const url =
+    `${EASTMONEY_DATA_CENTER_BASE_URL}?type=RPT_CUSTOM_DMSK_TREND` +
+    `&sr=-1&st=TRADE_DATE&p=${page}&ps=${pageSize}&var=source=DataCenter&client=WAP` +
+    `&filter=${encodeURIComponent(`(SECURITY_CODE="${symbol}")(INDICATORTYPE=${indicatorType})(DATETYPE=2)`)}`
+
+  return getJson<EastmoneyDataCenterResponse<EastmoneyValuationTrendRecord>>(url, {
+    headers: buildHeaders()
+  })
+}
+
 export class EastmoneyValuationAdapter implements ValuationDataSource {
   async getSnapshot(symbol: string, indicatorType: ValuationIndicatorType): Promise<ValuationSnapshotSource | undefined> {
     const url =
@@ -65,17 +76,18 @@ export class EastmoneyValuationAdapter implements ValuationDataSource {
 
   async getTrend(symbol: string, indicatorType: ValuationIndicatorType): Promise<ValuationTrendPoint[]> {
     const pageSize = 2000
-    const url =
-      `${EASTMONEY_DATA_CENTER_BASE_URL}?type=RPT_CUSTOM_DMSK_TREND` +
-      `&sr=-1&st=TRADE_DATE&p=1&ps=${pageSize}&var=source=DataCenter&client=WAP` +
-      `&filter=${encodeURIComponent(`(SECURITY_CODE="${symbol}")(INDICATORTYPE=${indicatorType})(DATETYPE=2)`)}`
 
     try {
-      const payload = await getJson<EastmoneyDataCenterResponse<EastmoneyValuationTrendRecord>>(url, {
-        headers: buildHeaders()
-      })
+      const firstPage = await fetchTrendPage(symbol, indicatorType, 1, pageSize)
+      const pages = Math.max(1, firstPage.result?.pages ?? 1)
+      const payloads = [firstPage]
 
-      return (payload.result?.data ?? [])
+      for (let page = 2; page <= pages; page += 1) {
+        payloads.push(await fetchTrendPage(symbol, indicatorType, page, pageSize))
+      }
+
+      return payloads
+        .flatMap((payload) => payload.result?.data ?? [])
         .map((record) => {
           const date = toIsoDate(record.TRADE_DATE)
           const value = toNumber(record.INDICATOR_VALUE)

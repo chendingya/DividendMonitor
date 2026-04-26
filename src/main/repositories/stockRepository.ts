@@ -1,47 +1,33 @@
-import { createAShareDataSource } from '@main/adapters'
-import type { AShareDataSource, CoreStockDetailSource, StockDetailSource, StockValuationSource } from '@main/adapters/contracts'
-import { ValuationRepository } from '@main/repositories/valuationRepository'
-
-const sharedValuationRepository = new ValuationRepository()
-
-function mergeStockDetail(source: CoreStockDetailSource, valuation?: StockValuationSource): StockDetailSource {
-  return {
-    ...source,
-    stock: {
-      ...source.stock,
-      peRatio: valuation?.pe?.currentValue ?? source.stock.peRatio,
-      pbRatio: valuation?.pb?.currentValue ?? source.stock.pbRatio
-    },
-    valuation
-  }
-}
+import { createStockAssetQuery } from '@shared/contracts/api'
+import type { StockDetailSource } from '@main/adapters/contracts'
+import { assertStockSearchItem, assertStockDetailSource } from '@main/application/mappers/stockDtoMappers'
+import { AssetRepository } from '@main/repositories/assetRepository'
 
 export class StockRepository {
-  constructor(
-    private readonly dataSource: AShareDataSource = createAShareDataSource(),
-    private readonly valuationRepository: ValuationRepository = sharedValuationRepository
-  ) {}
+  constructor(private readonly assetRepository: AssetRepository = new AssetRepository()) {}
 
   async search(keyword: string) {
-    return this.dataSource.search(keyword)
+    const items = await this.assetRepository.search({
+      keyword,
+      assetTypes: ['STOCK']
+    })
+    return items.map(assertStockSearchItem)
   }
 
   async getDetail(symbol: string): Promise<StockDetailSource> {
-    const [source, valuation] = await Promise.all([
-      this.dataSource.getDetail(symbol),
-      this.valuationRepository.getStockValuation(symbol)
-    ])
-
-    return mergeStockDetail(source, valuation)
+    const source = await this.assetRepository.getDetail(createStockAssetQuery(symbol))
+    assertStockDetailSource(source)
+    return source
   }
 
   async compare(symbols: string[]): Promise<StockDetailSource[]> {
-    const [sources, valuations] = await Promise.all([
-      this.dataSource.compare(symbols),
-      Promise.all(symbols.map((symbol) => this.valuationRepository.getStockValuation(symbol)))
-    ])
+    const sources = await this.assetRepository.compare({
+      items: symbols.map((symbol) => createStockAssetQuery(symbol))
+    })
 
-    return sources.map((source, index) => mergeStockDetail(source, valuations[index]))
+    return sources.map((source) => {
+      assertStockDetailSource(source)
+      return source
+    })
   }
 }
-

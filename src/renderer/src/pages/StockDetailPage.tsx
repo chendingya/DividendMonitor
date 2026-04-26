@@ -6,13 +6,18 @@ import { PageStateBlock } from '@renderer/components/app/PageStateBlock'
 import { FutureYieldEstimateCard } from '@renderer/components/stock-detail/FutureYieldEstimateCard'
 import { YearlyDividendTrendChart } from '@renderer/components/stock-detail/YearlyDividendTrendChart'
 import { DEFAULT_STOCK_SYMBOL } from '@renderer/defaults'
-import { useStockDetail } from '@renderer/hooks/useStockDetail'
+import { useAssetDetail } from '@renderer/hooks/useAssetDetail'
 import { useWatchlist } from '@renderer/hooks/useWatchlist'
+import { buildStockAssetKey, createStockAssetQuery } from '@shared/contracts/api'
 import {
-  buildBacktestPath,
+  buildBacktestPathFromAssetKey,
+  getRememberedLastAssetKey,
   getRememberedLastSymbol,
+  parseAssetKeyFromSearch,
   parseSymbolFromSearch,
+  rememberLastAssetKey,
   rememberLastSymbol,
+  rememberRecentAssetKey,
   rememberRecentSymbol
 } from '@renderer/services/routeContext'
 
@@ -25,45 +30,59 @@ export function StockDetailPage() {
   const [apiMessage, messageHolder] = message.useMessage()
   const { symbol: routeSymbol } = useParams<{ symbol?: string }>()
   const [searchParams] = useSearchParams()
-  const symbol = useMemo(() => {
+  const assetQuery = useMemo(() => {
+    const assetKey = parseAssetKeyFromSearch(searchParams)
+    if (assetKey) {
+      return { assetKey }
+    }
+
     const bySearch = parseSymbolFromSearch(searchParams)
     if (bySearch) {
-      return bySearch
+      return createStockAssetQuery(bySearch)
     }
     if (routeSymbol) {
-      return routeSymbol
+      return createStockAssetQuery(routeSymbol)
     }
-    return getRememberedLastSymbol() ?? DEFAULT_STOCK_SYMBOL
+    const rememberedAssetKey = getRememberedLastAssetKey()
+    if (rememberedAssetKey) {
+      return { assetKey: rememberedAssetKey }
+    }
+    return createStockAssetQuery(getRememberedLastSymbol() ?? DEFAULT_STOCK_SYMBOL)
   }, [routeSymbol, searchParams])
-  const { data, loading, error } = useStockDetail(symbol)
-  const { data: watchlistItems, add, remove, mutatingSymbol } = useWatchlist()
+  const assetKey = assetQuery.assetKey ?? buildStockAssetKey(assetQuery.code ?? assetQuery.symbol ?? DEFAULT_STOCK_SYMBOL)
+  const { data, loading, error } = useAssetDetail(assetQuery)
+  const { data: watchlistItems, addAsset, removeAsset, mutatingAssetKey } = useWatchlist()
   const [showAllYearlyYields, setShowAllYearlyYields] = useState(false)
   const [valuationWindow, setValuationWindow] = useState<'10Y' | '20Y'>('10Y')
-  const isInWatchlist = useMemo(() => watchlistItems.some((item) => item.symbol === symbol), [symbol, watchlistItems])
+  const isInWatchlist = useMemo(() => watchlistItems.some((item) => item.assetKey === assetKey), [assetKey, watchlistItems])
 
   useEffect(() => {
-    rememberLastSymbol(symbol)
-    rememberRecentSymbol(symbol)
-  }, [symbol])
+    rememberLastAssetKey(assetKey)
+    rememberRecentAssetKey(assetKey)
+    if (data?.assetType === 'STOCK' && data.symbol) {
+      rememberLastSymbol(data.symbol)
+      rememberRecentSymbol(data.symbol)
+    }
+  }, [assetKey, data])
 
   function goToBacktest() {
-    navigate(buildBacktestPath(symbol))
+    navigate(buildBacktestPathFromAssetKey(assetKey))
   }
 
   async function toggleWatchlist() {
-    if (!symbol.trim()) {
+    if (!assetKey.trim()) {
       return
     }
 
     try {
       if (isInWatchlist) {
-        await remove(symbol)
-        apiMessage.success(`已将 ${symbol} 移出自选`)
+        await removeAsset(assetKey)
+        apiMessage.success('已将该资产移出自选')
         return
       }
 
-      await add(symbol)
-      apiMessage.success(`已将 ${symbol} 加入自选`)
+      await addAsset({ assetKey })
+      apiMessage.success('已将该资产加入自选')
     } catch (actionError) {
       apiMessage.error(actionError instanceof Error ? actionError.message : '更新自选失败')
     }
@@ -77,12 +96,12 @@ export function StockDetailPage() {
     return <Alert type="error" message={error} />
   }
 
-  if (!symbol.trim()) {
+  if (!assetKey.trim()) {
     return (
       <PageStateBlock
         kind="empty"
-        title="还没有选择股票"
-        description="请先从概览页或自选页进入个股详情。"
+        title="还没有选择资产"
+        description="请先从概览页或自选页进入资产详情。"
       />
     )
   }
@@ -91,8 +110,8 @@ export function StockDetailPage() {
     return (
       <PageStateBlock
         kind="no-data"
-        title="该股票暂无详情数据"
-        description="当前未返回可展示的详情信息，可稍后重试或更换股票代码。"
+        title="该资产暂无详情数据"
+        description="当前未返回可展示的详情信息，可稍后重试或更换资产代码。"
       />
     )
   }
@@ -101,8 +120,8 @@ export function StockDetailPage() {
     return (
       <PageStateBlock
         kind="no-data"
-        title="该股票暂无历史分红数据"
-        description="已获取到股票基础信息，但没有可用于计算股息率的历史记录。"
+        title="该资产暂无历史现金分配数据"
+        description="已获取到基础信息，但没有可用于计算收益率的历史记录。"
       />
     )
   }
@@ -119,6 +138,26 @@ export function StockDetailPage() {
   const visibleYearlyYields = showAllYearlyYields ? sortedYearlyYields : sortedYearlyYields.slice(0, 12)
   const peWindow = data.valuation?.pe?.windows.find((item) => item.window === valuationWindow)
   const pbWindow = data.valuation?.pb?.windows.find((item) => item.window === valuationWindow)
+  const displayCode = data.symbol ?? data.code
+  const displayName = data.name?.trim() || displayCode
+  const isStockAsset = data.assetType === 'STOCK'
+  const hasValuation = isStockAsset && (data.peRatio != null || data.pbRatio != null || data.valuation != null)
+  const hasFundProfile =
+    !isStockAsset &&
+    Boolean(data.category || data.manager || data.trackingIndex || data.benchmark || data.latestNav != null || data.fundScale != null)
+
+  function formatFundScale(value?: number) {
+    if (value == null) {
+      return '--'
+    }
+    if (value >= 100_000_000) {
+      return `${(value / 100_000_000).toFixed(2)} 亿`
+    }
+    if (value >= 10_000) {
+      return `${(value / 10_000).toFixed(2)} 万`
+    }
+    return value.toFixed(2)
+  }
 
   return (
     <div className="ledger-page">
@@ -126,24 +165,25 @@ export function StockDetailPage() {
       <section className="ledger-detail-header">
         <div>
           <div className="ledger-detail-tags">
-            <span className="pill">{data.industry ?? '未分类'}</span>
-            <span className="pill primary">{data.symbol}</span>
+            <span className="pill">{data.industry ?? data.category ?? '未分类'}</span>
+            <span className="pill primary">{displayCode}</span>
+            <span className="pill">{data.assetType}</span>
           </div>
-          <h1 className="ledger-detail-title">{data.name}</h1>
+          <h1 className="ledger-detail-title">{displayName}</h1>
         </div>
         <div>
           <div className="ledger-detail-price">
             <strong>{data.latestPrice.toFixed(2)}</strong>
-            <span>最新价 / A股</span>
+            <span>{data.latestNav != null ? `最新价 / 净值 ${data.latestNav.toFixed(4)}` : `最新价 / ${data.assetType}`}</span>
           </div>
           <div className="ledger-hero-actions" style={{ marginTop: 12 }}>
             <button
               type="button"
               className="ledger-secondary-button"
               onClick={toggleWatchlist}
-              disabled={mutatingSymbol === symbol}
+              disabled={mutatingAssetKey === assetKey}
             >
-              {mutatingSymbol === symbol ? '处理中...' : isInWatchlist ? '移出自选' : '加入自选'}
+              {mutatingAssetKey === assetKey ? '处理中...' : isInWatchlist ? '移出自选' : '加入自选'}
             </button>
             <button type="button" className="ledger-primary-button" onClick={goToBacktest}>
               进入回测
@@ -162,7 +202,7 @@ export function StockDetailPage() {
         </Col>
         <Col xs={24} md={12} xl={6}>
           <AppCard className="ledger-detail-stat">
-            <div className="ledger-stat-label">年度派息</div>
+            <div className="ledger-stat-label">最近现金分配</div>
             <div className="ledger-stat-value">
               {data.dividendEvents.length > 0
                 ? data.dividendEvents[data.dividendEvents.length - 1].dividendPerShare.toFixed(2)
@@ -173,7 +213,7 @@ export function StockDetailPage() {
         </Col>
         <Col xs={24} md={12} xl={6}>
           <AppCard className="ledger-detail-stat">
-            <div className="ledger-stat-label">平均股息率</div>
+            <div className="ledger-stat-label">平均收益率</div>
             <div className="ledger-stat-value">{`${(averageYield * 100).toFixed(2)}%`}</div>
             <Progress
               percent={Number(Math.min(100, averageYield * 1200).toFixed(2))}
@@ -186,79 +226,103 @@ export function StockDetailPage() {
         </Col>
         <Col xs={24} md={12} xl={6}>
           <AppCard className="ledger-detail-stat">
-            <div className="ledger-stat-label">增长率</div>
+            <div className="ledger-stat-label">未来收益估算</div>
             <div className="ledger-stat-value" style={{ color: '#0052d0' }}>
               {data.futureYieldEstimate.isAvailable
                 ? `${(data.futureYieldEstimate.estimatedFutureYield * 100).toFixed(2)}%`
                 : '--'}
             </div>
-            <div className="ledger-stat-hint">基准未来股息率估算</div>
+            <div className="ledger-stat-hint">{data.futureYieldEstimate.reason ?? '基准未来股息率估算'}</div>
           </AppCard>
         </Col>
       </Row>
 
-      <AppCard
-        title="估值水平"
-        extra={
-          <div className="ledger-segmented-control">
-            <button
-              type="button"
-              className={`ledger-filter-chip ${valuationWindow === '10Y' ? 'is-active' : ''}`}
-              onClick={() => setValuationWindow('10Y')}
-            >
-              10年分位
-            </button>
-            <button
-              type="button"
-              className={`ledger-filter-chip ${valuationWindow === '20Y' ? 'is-active' : ''}`}
-              onClick={() => setValuationWindow('20Y')}
-            >
-              20年分位
-            </button>
+      {hasFundProfile ? (
+        <AppCard title="基金画像">
+          <div className="ledger-valuation-grid">
+            <div className="ledger-valuation-card">
+              <div className="ledger-stat-label">基金类型</div>
+              <div className="ledger-valuation-primary">{data.category ?? '--'}</div>
+              <div className="ledger-valuation-status">管理人：{data.manager ?? '--'}</div>
+            </div>
+            <div className="ledger-valuation-card">
+              <div className="ledger-stat-label">跟踪标的</div>
+              <div className="ledger-valuation-primary">{data.trackingIndex ?? '--'}</div>
+              <div className="ledger-valuation-status">业绩基准：{data.benchmark ?? '--'}</div>
+            </div>
+            <div className="ledger-valuation-card">
+              <div className="ledger-stat-label">基金规模</div>
+              <div className="ledger-valuation-primary">{formatFundScale(data.fundScale)}</div>
+              <div className="ledger-valuation-status">最新净值：{data.latestNav != null ? data.latestNav.toFixed(4) : '--'}</div>
+            </div>
           </div>
-        }
-      >
-        <div className="ledger-valuation-grid">
-          <div className="ledger-valuation-card">
-            <div className="ledger-valuation-head">
-              <div>
-                <div className="ledger-stat-label">市盈率 PE(TTM)</div>
-                <div className="ledger-valuation-primary">{formatRatioValue(data.peRatio)}</div>
+        </AppCard>
+      ) : null}
+
+      {hasValuation ? (
+        <AppCard
+          title="估值水平"
+          extra={
+            <div className="ledger-segmented-control">
+              <button
+                type="button"
+                className={`ledger-filter-chip ${valuationWindow === '10Y' ? 'is-active' : ''}`}
+                onClick={() => setValuationWindow('10Y')}
+              >
+                10年分位
+              </button>
+              <button
+                type="button"
+                className={`ledger-filter-chip ${valuationWindow === '20Y' ? 'is-active' : ''}`}
+                onClick={() => setValuationWindow('20Y')}
+              >
+                20年分位
+              </button>
+            </div>
+          }
+        >
+          <div className="ledger-valuation-grid">
+            <div className="ledger-valuation-card">
+              <div className="ledger-valuation-head">
+                <div>
+                  <div className="ledger-stat-label">市盈率 PE(TTM)</div>
+                  <div className="ledger-valuation-primary">{formatRatioValue(data.peRatio)}</div>
+                </div>
+                <span className="pill primary">{peWindow?.percentile == null ? '--' : `${peWindow.percentile.toFixed(2)}%`}</span>
               </div>
-              <span className="pill primary">{peWindow?.percentile == null ? '--' : `${peWindow.percentile.toFixed(2)}%`}</span>
-            </div>
-            <div className="ledger-valuation-status">{data.valuation?.pe?.status ?? '暂无分位状态'}</div>
-            <div className="ledger-valuation-band">
-              <span>30分位 {formatRatioValue(peWindow?.p30)}</span>
-              <span>50分位 {formatRatioValue(peWindow?.p50)}</span>
-              <span>70分位 {formatRatioValue(peWindow?.p70)}</span>
-            </div>
-          </div>
-          <div className="ledger-valuation-card">
-            <div className="ledger-valuation-head">
-              <div>
-                <div className="ledger-stat-label">市净率 PB(MRQ)</div>
-                <div className="ledger-valuation-primary">{formatRatioValue(data.pbRatio)}</div>
+              <div className="ledger-valuation-status">{data.valuation?.pe?.status ?? '暂无分位状态'}</div>
+              <div className="ledger-valuation-band">
+                <span>30分位 {formatRatioValue(peWindow?.p30)}</span>
+                <span>50分位 {formatRatioValue(peWindow?.p50)}</span>
+                <span>70分位 {formatRatioValue(peWindow?.p70)}</span>
               </div>
-              <span className="pill primary">{pbWindow?.percentile == null ? '--' : `${pbWindow.percentile.toFixed(2)}%`}</span>
             </div>
-            <div className="ledger-valuation-status">{data.valuation?.pb?.status ?? '暂无分位状态'}</div>
-            <div className="ledger-valuation-band">
-              <span>30分位 {formatRatioValue(pbWindow?.p30)}</span>
-              <span>50分位 {formatRatioValue(pbWindow?.p50)}</span>
-              <span>70分位 {formatRatioValue(pbWindow?.p70)}</span>
+            <div className="ledger-valuation-card">
+              <div className="ledger-valuation-head">
+                <div>
+                  <div className="ledger-stat-label">市净率 PB(MRQ)</div>
+                  <div className="ledger-valuation-primary">{formatRatioValue(data.pbRatio)}</div>
+                </div>
+                <span className="pill primary">{pbWindow?.percentile == null ? '--' : `${pbWindow.percentile.toFixed(2)}%`}</span>
+              </div>
+              <div className="ledger-valuation-status">{data.valuation?.pb?.status ?? '暂无分位状态'}</div>
+              <div className="ledger-valuation-band">
+                <span>30分位 {formatRatioValue(pbWindow?.p30)}</span>
+                <span>50分位 {formatRatioValue(pbWindow?.p50)}</span>
+                <span>70分位 {formatRatioValue(pbWindow?.p70)}</span>
+              </div>
             </div>
           </div>
-        </div>
-        <Typography.Paragraph style={{ margin: '14px 0 0', color: '#66707a' }}>
-          分位按所选时间窗内的历史估值序列计算，数值越低通常代表当前估值在历史区间中越靠下。
-        </Typography.Paragraph>
-      </AppCard>
+          <Typography.Paragraph style={{ margin: '14px 0 0', color: '#66707a' }}>
+            分位按所选时间窗内的历史估值序列计算，数值越低通常代表当前估值在历史区间中越靠下。
+          </Typography.Paragraph>
+        </AppCard>
+      ) : null}
 
       <Row gutter={[20, 20]}>
         <Col xs={24} xl={16}>
           <AppCard
-            title="历史股息率（自然年）"
+            title="历史收益率（自然年）"
             extra={
               sortedYearlyYields.length > 12 ? (
                 <button
@@ -301,7 +365,7 @@ export function StockDetailPage() {
 
       <YearlyDividendTrendChart items={data.yearlyYields} />
 
-      <AppCard title="派息历史（最近在上）">
+      <AppCard title="现金分配历史（最近在上）">
         <Table
           className="soft-table"
           rowKey={(record) => `${record.exDate ?? record.year}-${record.dividendPerShare}`}
@@ -336,7 +400,7 @@ export function StockDetailPage() {
         />
         <Divider style={{ margin: '18px 0' }} />
         <Typography.Paragraph style={{ margin: 0, color: '#66707a' }}>
-          最近年份会排在最上面，每页展示 10 条。股息率按除权除息日所属自然年归集，并以事件级股息率逐次累加，避免年末价格或股本变化造成失真。
+          最近年份会排在最上面，每页展示 10 条。收益率按除权除息日所属自然年归集，并以事件级收益率逐次累加。
         </Typography.Paragraph>
       </AppCard>
 

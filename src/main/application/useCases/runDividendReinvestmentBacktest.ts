@@ -1,13 +1,16 @@
 import type { BacktestResultDto } from '@shared/contracts/api'
+import { buildStockAssetKey, createStockAssetQuery } from '@shared/contracts/api'
+import { assertStockDetailSource } from '@main/application/mappers/stockDtoMappers'
 import { runDividendReinvestmentBacktest as runBacktest } from '@main/domain/services/dividendReinvestmentBacktestService'
-import { StockRepository } from '@main/repositories/stockRepository'
+import { AssetRepository } from '@main/repositories/assetRepository'
 
 export async function runDividendReinvestmentBacktest(
   symbol: string,
   buyDate: string
 ): Promise<BacktestResultDto> {
-  const repository = new StockRepository()
-  const source = await repository.getDetail(symbol)
+  const repository = new AssetRepository()
+  const source = await repository.getDetail(createStockAssetQuery(symbol))
+  assertStockDetailSource(source)
   const result = runBacktest({
     symbol,
     buyDate,
@@ -16,6 +19,10 @@ export async function runDividendReinvestmentBacktest(
   })
 
   return {
+    assetKey: buildStockAssetKey(symbol),
+    assetType: 'STOCK',
+    market: 'A_SHARE',
+    code: symbol,
     symbol,
     ...result
   }

@@ -2,8 +2,7 @@ import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
 import { message } from 'antd'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { stockApi } from '@renderer/services/stockApi'
-import { buildStockDetailPath, rememberLastSymbol } from '@renderer/services/routeContext'
+import { buildAssetSearchPath } from '@renderer/services/routeContext'
 
 type AppIconName =
   | 'dashboard'
@@ -114,7 +113,7 @@ function AppShellIcon({ name, className }: { name: AppIconName; className?: stri
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation()
   const navigate = useNavigate()
-  const [apiMessage, messageHolder] = message.useMessage()
+  const [, messageHolder] = message.useMessage()
   const [topbarKeyword, setTopbarKeyword] = useState('')
 
   const selectedKey = useMemo(() => {
@@ -131,6 +130,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (symbol) {
         items.push({ label: symbol })
       }
+      return items
+    }
+
+    if (location.pathname.startsWith('/search')) {
+      items.push({ label: '搜索结果' })
       return items
     }
 
@@ -168,25 +172,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (!keyword) {
       return
     }
-    if (/^(6|0|3)\d{5}$/.test(keyword)) {
-      rememberLastSymbol(keyword)
-      navigate(buildStockDetailPath(keyword))
-      setTopbarKeyword('')
-      return
-    }
-    try {
-      const results = await stockApi.search(keyword)
-      const first = results[0]
-      if (!first) {
-        apiMessage.warning('未找到匹配股票，请尝试输入更完整的名称或代码')
-        return
-      }
-      rememberLastSymbol(first.symbol)
-      navigate(buildStockDetailPath(first.symbol))
-      setTopbarKeyword('')
-    } catch (error) {
-      apiMessage.error(error instanceof Error ? error.message : '搜索失败，请稍后重试')
-    }
+    navigate(buildAssetSearchPath(keyword))
+    setTopbarKeyword('')
   }
 
   return (
@@ -243,7 +230,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </span>
               <input
                 className="ledger-topbar-search"
-                placeholder="输入A股代码或名称并回车，例如 600519 / 贵州茅台"
+                placeholder="输入股票、ETF 或基金代码/名称并回车，例如 510880 / 红利ETF / 贵州茅台"
                 value={topbarKeyword}
                 onChange={(event) => setTopbarKeyword(event.target.value)}
                 onKeyDown={(event) => {

@@ -28,21 +28,56 @@ page / hook
   -> repository / domain / infrastructure
 ```
 
+### 2.1.1 Electron 桌面端调用图
+
+```mermaid
+flowchart LR
+    Page[page / hook] --> Service[renderer service]
+    Service --> Selector[desktopApi runtime selector]
+    Selector --> WindowApi[window.dividendMonitor]
+    WindowApi --> Preload[preload ipcRenderer.invoke]
+    Preload --> IPC[ipcMain.handle]
+    IPC --> Main[main use case]
+    Main --> Repo[repository / domain / infrastructure]
+```
+
 ### 2.2 浏览器预览端
 
 ```text
 page / hook
   -> renderer service
   -> desktopApi runtime selector
-  -> browserRuntimeApi fallback
-  -> localStorage / mock data
+  -> browserHttpRuntimeApi
+  -> local HTTP API
+  -> main use case
+  -> repository / domain / infrastructure
+```
+
+### 2.2.1 浏览器预览端调用图
+
+```mermaid
+flowchart LR
+    Page[page / hook] --> Service[renderer service]
+    Service --> Selector[desktopApi runtime selector]
+    Selector --> Browser[browserHttpRuntimeApi]
+    Browser --> Http[local HTTP API]
+    Http --> Main[main use case]
 ```
 
 说明：
 
 1. 浏览器预览端不具备 `window.dividendMonitor`
-2. 浏览器预览端当前只用于前端联调
-3. 浏览器预览端不是桌面端真实数据链路的等价替代
+2. 浏览器预览端默认通过本地 HTTP API 访问真实主进程用例
+3. 若 URL 带 `runtime=mock`，才显式退回 `browserRuntimeApi`
+
+### 2.3 运行时分流图
+
+```mermaid
+flowchart TD
+    Start[renderer service request] --> Check{window.dividendMonitor 存在?}
+    Check -->|是| Desktop[走 preload + IPC + main]
+    Check -->|否| Browser[走 browserHttpRuntimeApi + local HTTP API]
+```
 
 ## 3. 类型契约入口
 
@@ -54,20 +89,37 @@ page / hook
 
 ```ts
 interface DividendMonitorApi {
+  asset: {
+    search(request: AssetSearchRequestDto): Promise<AssetSearchItemDto[]>
+    getDetail(request: AssetQueryDto): Promise<AssetDetailDto>
+    compare(request: AssetCompareRequestDto): Promise<AssetComparisonRowDto[]>
+  }
   stock: {
     search(keyword: string): Promise<StockSearchItemDto[]>
     getDetail(symbol: string): Promise<StockDetailDto>
     compare(symbols: string[]): Promise<ComparisonRowDto[]>
   }
   watchlist: {
-    list(): Promise<WatchlistItemDto[]>
+    list(): Promise<WatchlistEntryDto[]>
     add(symbol: string): Promise<void>
     remove(symbol: string): Promise<void>
+    addAsset(request: WatchlistAddRequestDto): Promise<void>
+    removeAsset(assetKey: AssetKey): Promise<void>
   }
   calculation: {
     getHistoricalYield(symbol: string): Promise<HistoricalYieldResponseDto>
     estimateFutureYield(symbol: string): Promise<FutureYieldResponseDto>
     runDividendReinvestmentBacktest(symbol: string, buyDate: string): Promise<BacktestResultDto>
+    getHistoricalYieldForAsset(request: AssetQueryDto): Promise<HistoricalYieldResponseDto>
+    estimateFutureYieldForAsset(request: AssetQueryDto): Promise<FutureYieldResponseDto>
+    runDividendReinvestmentBacktestForAsset(request: AssetBacktestRequestDto): Promise<BacktestResultDto>
+  }
+  portfolio: {
+    list(): Promise<PortfolioPositionDto[]>
+    upsert(request: PortfolioPositionUpsertDto): Promise<void>
+    remove(id: string): Promise<void>
+    removeByAsset(request: AssetQueryDto): Promise<void>
+    replaceByAsset(request: PortfolioPositionReplaceByAssetDto): Promise<void>
   }
 }
 ```
@@ -79,6 +131,45 @@ interface DividendMonitorApi {
 - `src/preload/index.ts`
 
 当前通过 `contextBridge.exposeInMainWorld('dividendMonitor', api)` 暴露以下命名空间：
+
+### 4.0 API 命名空间图
+
+```mermaid
+flowchart TB
+    API[window.dividendMonitor]
+    API --> Asset[asset]
+    API --> Stock[stock]
+    API --> Watchlist[watchlist]
+    API --> Calculation[calculation]
+    API --> Portfolio[portfolio]
+
+    Asset --> AssetSearch[search]
+    Asset --> AssetDetail[getDetail]
+    Asset --> AssetCompare[compare]
+
+    Stock --> StockSearch[search]
+    Stock --> StockDetail[getDetail]
+    Stock --> StockCompare[compare]
+
+    Watchlist --> WatchlistList[list]
+    Watchlist --> WatchlistAdd[add]
+    Watchlist --> WatchlistRemove[remove]
+    Watchlist --> WatchlistAddAsset[addAsset]
+    Watchlist --> WatchlistRemoveAsset[removeAsset]
+
+    Calculation --> CalcHistory[getHistoricalYield]
+    Calculation --> CalcEstimate[estimateFutureYield]
+    Calculation --> CalcBacktest[runDividendReinvestmentBacktest]
+    Calculation --> CalcHistoryAsset[getHistoricalYieldForAsset]
+    Calculation --> CalcEstimateAsset[estimateFutureYieldForAsset]
+    Calculation --> CalcBacktestAsset[runDividendReinvestmentBacktestForAsset]
+
+    Portfolio --> PortfolioList[list]
+    Portfolio --> PortfolioUpsert[upsert]
+    Portfolio --> PortfolioRemove[remove]
+    Portfolio --> PortfolioRemoveByAsset[removeByAsset]
+    Portfolio --> PortfolioReplaceByAsset[replaceByAsset]
+```
 
 ### 4.1 `stock`
 
@@ -171,9 +262,35 @@ interface DividendMonitorApi {
    - 回退到 `browserRuntimeApi`
    - 使用浏览器 fallback 能力
 
+### 6.1 运行时选择图
+
+```mermaid
+sequenceDiagram
+    participant Hook as page / hook
+    participant Service as renderer service
+    participant Selector as desktopApi
+    participant Desktop as window.dividendMonitor
+    participant Browser as browserRuntimeApi
+
+    Hook->>Service: call api
+    Service->>Selector: getRuntimeApi()
+    alt Electron 桌面端
+        Selector->>Desktop: use exposed preload api
+        Desktop-->>Service: response
+    else 浏览器预览端
+        Selector->>Browser: fallback call
+        Browser-->>Service: response
+    end
+    Service-->>Hook: response
+```
+
 ## 7. 浏览器 Fallback 覆盖范围
 
-当前浏览器 fallback 文件：
+当前浏览器默认运行时文件：
+
+- `src/renderer/src/services/browserHttpRuntimeApi.ts`
+
+调试态 mock runtime 文件：
 
 - `src/renderer/src/services/browserRuntimeApi.ts`
 
@@ -202,8 +319,8 @@ interface DividendMonitorApi {
 
 当前存储方式：
 
-1. 浏览器 `localStorage`
-2. 使用 key：`dm:web-watchlist`
+1. 浏览器端默认通过本地 HTTP API 调主进程 `listWatchlist/addWatchlistAsset/removeWatchlistAsset`
+2. SQLite 中的 `watchlist_items` 是双端共享数据源
 
 ### 7.3 `calculation`
 
@@ -213,8 +330,8 @@ interface DividendMonitorApi {
 
 当前数据来源：
 
-1. 内置 mock 历史收益率与分红事件
-2. 内置 mock 回测结果
+1. 浏览器端默认通过本地 HTTP API 调主进程计算用例
+2. 仅在显式 `runtime=mock` 时才回退到 mock 计算结果
 
 ## 8. 桌面端存储现状
 
@@ -228,8 +345,9 @@ interface DividendMonitorApi {
 1. 已从 JSON 文件切换为 SQLite
 2. 当前使用 Node 内建 `node:sqlite`
 3. 当前未在 `package.json` 中显式安装第三方 SQLite npm 包
-4. 当前最小 schema 仅包含：
+4. 当前 schema 已覆盖：
    - `watchlist_items`
+   - `portfolio_positions`
    - `app_settings`
 
 ## 9. 开发态数据目录
@@ -251,10 +369,10 @@ interface DividendMonitorApi {
 
 ## 10. 当前已知边界
 
-1. 桌面端与浏览器预览端当前不是同一条物理数据链路
-2. 浏览器预览端当前是联调用 fallback，不代表正式生产数据链路
+1. Electron 与浏览器预览当前共享同一批主进程 use case，但接入层仍是 IPC 与 HTTP 两条传输通道
+2. 浏览器 mock runtime 仍保留为显式调试开关，不再是默认链路
 3. `node:sqlite` 方案当前可运行，但从依赖可见性角度看仍不是最终理想方案
-4. 桌面端 stock 详情链路当前已拆为“基础股票数据 adapter + valuation adapter + repository 聚合”
+4. 工作台持仓已从前端 localStorage 升级为 SQLite 持久化，并带一次性迁移逻辑
 5. 文档中凡写“当前实现”，均以本文件和仓库现状为准
 
 ## 11. 建议后续补充
