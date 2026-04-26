@@ -250,6 +250,19 @@ function buildValuationWindows(metric) {
   };
 }
 const FUND_YIELD_BASIS = "Event-level yield accumulation by distribution year, using per-share cash distribution divided by the close on or before the record date";
+function toValuationMetricDto(metric) {
+  if (!metric) {
+    return void 0;
+  }
+  const windows = buildValuationWindows(metric);
+  return {
+    ...windows,
+    history: metric.history.map((point) => ({
+      date: point.date,
+      value: point.value
+    }))
+  };
+}
 function createUnavailableEstimate(assetType) {
   return {
     estimatedDividendPerShare: 0,
@@ -321,8 +334,8 @@ function toStockDetailDto(source) {
     futureYieldEstimate: estimates.baseline,
     futureYieldEstimates: [estimates.baseline, estimates.conservative],
     valuation: {
-      pe: source.valuation?.pe ? buildValuationWindows(source.valuation.pe) : void 0,
-      pb: source.valuation?.pb ? buildValuationWindows(source.valuation.pb) : void 0
+      pe: toValuationMetricDto(source.valuation?.pe),
+      pb: toValuationMetricDto(source.valuation?.pb)
     }
   };
 }
@@ -377,8 +390,8 @@ function toStockComparisonRowDto(source) {
     averageYield,
     estimatedFutureYield: estimates.baseline.estimatedFutureYield,
     valuation: {
-      pe: source.valuation?.pe ? buildValuationWindows(source.valuation.pe) : void 0,
-      pb: source.valuation?.pb ? buildValuationWindows(source.valuation.pb) : void 0
+      pe: toValuationMetricDto(source.valuation?.pe),
+      pb: toValuationMetricDto(source.valuation?.pb)
     }
   };
 }
@@ -998,6 +1011,12 @@ function buildHeaders() {
     Origin: "https://emdata.eastmoney.com"
   };
 }
+async function fetchTrendPage(symbol, indicatorType, page, pageSize) {
+  const url = `${EASTMONEY_DATA_CENTER_BASE_URL}?type=RPT_CUSTOM_DMSK_TREND&sr=-1&st=TRADE_DATE&p=${page}&ps=${pageSize}&var=source=DataCenter&client=WAP&filter=${encodeURIComponent(`(SECURITY_CODE="${symbol}")(INDICATORTYPE=${indicatorType})(DATETYPE=2)`)}`;
+  return getJson(url, {
+    headers: buildHeaders()
+  });
+}
 class EastmoneyValuationAdapter {
   async getSnapshot(symbol, indicatorType) {
     const url = `${EASTMONEY_DATA_CENTER_BASE_URL}?type=RPT_VALUATIONSTATUS&sty=SECUCODE,TRADE_DATE,INDICATOR_TYPE,INDEX_VALUE,INDEX_PERCENTILE,VALATION_STATUS&callback=&extraCols=&p=1&ps=1&sr=&st=&token=&var=source=DataCenter&client=WAP&filter=${encodeURIComponent(`(SECURITY_CODE="${symbol}")(INDICATOR_TYPE="${indicatorType}")`)}`;
@@ -1020,12 +1039,14 @@ class EastmoneyValuationAdapter {
   }
   async getTrend(symbol, indicatorType) {
     const pageSize = 2e3;
-    const url = `${EASTMONEY_DATA_CENTER_BASE_URL}?type=RPT_CUSTOM_DMSK_TREND&sr=-1&st=TRADE_DATE&p=1&ps=${pageSize}&var=source=DataCenter&client=WAP&filter=${encodeURIComponent(`(SECURITY_CODE="${symbol}")(INDICATORTYPE=${indicatorType})(DATETYPE=2)`)}`;
     try {
-      const payload = await getJson(url, {
-        headers: buildHeaders()
-      });
-      return (payload.result?.data ?? []).map((record) => {
+      const firstPage = await fetchTrendPage(symbol, indicatorType, 1, pageSize);
+      const pages = Math.max(1, firstPage.result?.pages ?? 1);
+      const payloads = [firstPage];
+      for (let page = 2; page <= pages; page += 1) {
+        payloads.push(await fetchTrendPage(symbol, indicatorType, page, pageSize));
+      }
+      return payloads.flatMap((payload) => payload.result?.data ?? []).map((record) => {
         const date = toIsoDate(record.TRADE_DATE);
         const value = toNumber(record.INDICATOR_VALUE);
         if (!date || value == null || value <= 0) {

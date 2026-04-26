@@ -19,6 +19,21 @@ import type { AssetSearchSource, FundAssetDetailSource, StockAssetDetailSource }
 const FUND_YIELD_BASIS =
   'Event-level yield accumulation by distribution year, using per-share cash distribution divided by the close on or before the record date'
 
+function toValuationMetricDto(metric?: Parameters<typeof buildValuationWindows>[0]) {
+  if (!metric) {
+    return undefined
+  }
+
+  const windows = buildValuationWindows(metric)
+  return {
+    ...windows,
+    history: metric.history.map((point) => ({
+      date: point.date,
+      value: point.value
+    }))
+  }
+}
+
 function createUnavailableEstimate(assetType: AssetType) {
   return {
     estimatedDividendPerShare: 0,
@@ -103,8 +118,8 @@ export function toStockDetailDto(source: StockAssetDetailSource): StockDetailDto
     futureYieldEstimate: estimates.baseline,
     futureYieldEstimates: [estimates.baseline, estimates.conservative],
     valuation: {
-      pe: source.valuation?.pe ? buildValuationWindows(source.valuation.pe) : undefined,
-      pb: source.valuation?.pb ? buildValuationWindows(source.valuation.pb) : undefined
+      pe: toValuationMetricDto(source.valuation?.pe),
+      pb: toValuationMetricDto(source.valuation?.pb)
     }
   }
 }
@@ -164,8 +179,8 @@ export function toStockComparisonRowDto(source: StockAssetDetailSource): Compari
     averageYield,
     estimatedFutureYield: estimates.baseline.estimatedFutureYield,
     valuation: {
-      pe: source.valuation?.pe ? buildValuationWindows(source.valuation.pe) : undefined,
-      pb: source.valuation?.pb ? buildValuationWindows(source.valuation.pb) : undefined
+      pe: toValuationMetricDto(source.valuation?.pe),
+      pb: toValuationMetricDto(source.valuation?.pb)
     }
   }
 }
