@@ -1,13 +1,29 @@
 import type {
+  AssetBacktestRequestDto,
+  AssetCompareRequestDto,
+  AssetComparisonRowDto,
+  AssetDetailDto,
+  AssetQueryDto,
+  AssetSearchItemDto,
+  AssetSearchRequestDto,
   BacktestResultDto,
-  ComparisonRowDto,
   DividendMonitorApi,
+  FutureYieldResponseDto,
   HistoricalYieldResponseDto,
+  WatchlistEntryDto,
+  ComparisonRowDto,
   StockDetailDto,
   StockSearchItemDto,
-  ValuationSnapshotDto,
-  WatchlistItemDto
+  ValuationSnapshotDto
 } from '@shared/contracts/api'
+import { buildAssetKey, buildStockAssetKey, createStockAssetQuery, resolveAssetQuery } from '@shared/contracts/api'
+import {
+  readPortfolioPositions,
+  removePortfolioPosition,
+  removePortfolioPositionsBySymbol,
+  replacePortfolioPositionsBySymbol,
+  upsertPortfolioPosition
+} from '@renderer/services/portfolioStore'
 
 const WATCHLIST_STORAGE_KEY = 'dm:web-watchlist'
 
@@ -51,6 +67,9 @@ function buildMockValuation(
 
 const mockStockDetails: Record<string, StockDetailDto> = {
   '600519': {
+    assetKey: buildStockAssetKey('600519'),
+    assetType: 'STOCK',
+    code: '600519',
     symbol: '600519',
     name: '贵州茅台',
     market: 'A_SHARE',
@@ -183,6 +202,9 @@ const mockStockDetails: Record<string, StockDetailDto> = {
     })
   },
   '000651': {
+    assetKey: buildStockAssetKey('000651'),
+    assetType: 'STOCK',
+    code: '000651',
     symbol: '000651',
     name: '格力电器',
     market: 'A_SHARE',
@@ -301,6 +323,9 @@ const mockStockDetails: Record<string, StockDetailDto> = {
     })
   },
   '601318': {
+    assetKey: buildStockAssetKey('601318'),
+    assetType: 'STOCK',
+    code: '601318',
     symbol: '601318',
     name: '中国平安',
     market: 'A_SHARE',
@@ -408,6 +433,167 @@ const mockStockDetails: Record<string, StockDetailDto> = {
   }
 }
 
+const mockFundSearchItems: AssetSearchItemDto[] = [
+  {
+    assetKey: 'ETF:A_SHARE:510300',
+    assetType: 'ETF',
+    market: 'A_SHARE',
+    code: '510300',
+    name: '沪深300ETF'
+  },
+  {
+    assetKey: 'ETF:A_SHARE:512880',
+    assetType: 'ETF',
+    market: 'A_SHARE',
+    code: '512880',
+    name: '证券ETF'
+  },
+  {
+    assetKey: 'FUND:A_SHARE:160222',
+    assetType: 'FUND',
+    market: 'A_SHARE',
+    code: '160222',
+    name: '国泰国证食品饮料行业指数'
+  }
+]
+
+const mockFundDetails: Record<string, AssetDetailDto> = {
+  'ETF:A_SHARE:510300': {
+    assetKey: 'ETF:A_SHARE:510300',
+    assetType: 'ETF',
+    market: 'A_SHARE',
+    code: '510300',
+    name: '沪深300ETF',
+    category: '指数型-股票',
+    manager: '华泰柏瑞基金',
+    trackingIndex: '沪深300指数',
+    benchmark: '沪深300指数',
+    latestNav: 4.7842,
+    fundScale: 199914000000,
+    latestPrice: 4.782,
+    dataSource: 'mock',
+    yieldBasis: '浏览器预览模式下使用 ETF mock 现金分配数据，按年度累加展示历史分配收益率。',
+    yearlyYields: [
+      { year: 2022, yield: 0.0156, events: 1 },
+      { year: 2023, yield: 0.0137, events: 1 },
+      { year: 2024, yield: 0.0144, events: 1 },
+      { year: 2025, yield: 0.0184, events: 1 },
+      { year: 2026, yield: 0.0257, events: 1 }
+    ],
+    dividendEvents: [
+      { year: 2022, recordDate: '2022-01-18', exDate: '2022-01-19', payDate: '2022-01-24', dividendPerShare: 0.075, referenceClosePrice: 4.81, source: 'mock-etf' },
+      { year: 2023, recordDate: '2023-01-13', exDate: '2023-01-16', payDate: '2023-01-19', dividendPerShare: 0.064, referenceClosePrice: 4.68, source: 'mock-etf' },
+      { year: 2024, recordDate: '2024-01-17', exDate: '2024-01-18', payDate: '2024-01-23', dividendPerShare: 0.069, referenceClosePrice: 4.80, source: 'mock-etf' },
+      { year: 2025, recordDate: '2025-06-17', exDate: '2025-06-18', payDate: '2025-06-27', dividendPerShare: 0.088, referenceClosePrice: 4.77, source: 'mock-etf' },
+      { year: 2026, recordDate: '2026-01-16', exDate: '2026-01-19', payDate: '2026-01-27', dividendPerShare: 0.123, referenceClosePrice: 4.79, source: 'mock-etf' }
+    ],
+    futureYieldEstimate: {
+      estimatedDividendPerShare: 0,
+      estimatedFutureYield: 0,
+      method: 'baseline',
+      isAvailable: false,
+      reason: 'ETF 暂不提供未来股息率估算',
+      inputs: {},
+      steps: ['浏览器预览模式下，ETF 仅展示历史现金分配收益率。']
+    },
+    futureYieldEstimates: [
+      {
+        estimatedDividendPerShare: 0,
+        estimatedFutureYield: 0,
+        method: 'baseline',
+        isAvailable: false,
+        reason: 'ETF 暂不提供未来股息率估算',
+        inputs: {},
+        steps: ['浏览器预览模式下，ETF 仅展示历史现金分配收益率。']
+      }
+    ]
+  },
+  'ETF:A_SHARE:512880': {
+    assetKey: 'ETF:A_SHARE:512880',
+    assetType: 'ETF',
+    market: 'A_SHARE',
+    code: '512880',
+    name: '证券ETF',
+    category: '指数型-股票',
+    manager: '国泰基金',
+    trackingIndex: '中证全指证券公司指数',
+    benchmark: '中证全指证券公司指数',
+    latestNav: 1.152,
+    fundScale: 18320000000,
+    latestPrice: 1.149,
+    dataSource: 'mock',
+    yieldBasis: '浏览器预览模式下使用 ETF mock 现金分配数据，按年度累加展示历史分配收益率。',
+    yearlyYields: [
+      { year: 2023, yield: 0.0103, events: 1 },
+      { year: 2024, yield: 0.0128, events: 1 }
+    ],
+    dividendEvents: [
+      { year: 2023, recordDate: '2023-12-08', exDate: '2023-12-11', payDate: '2023-12-15', dividendPerShare: 0.012, referenceClosePrice: 1.163, source: 'mock-etf' },
+      { year: 2024, recordDate: '2024-12-06', exDate: '2024-12-09', payDate: '2024-12-13', dividendPerShare: 0.015, referenceClosePrice: 1.172, source: 'mock-etf' }
+    ],
+    futureYieldEstimate: {
+      estimatedDividendPerShare: 0,
+      estimatedFutureYield: 0,
+      method: 'baseline',
+      isAvailable: false,
+      reason: 'ETF 暂不提供未来股息率估算',
+      inputs: {},
+      steps: ['浏览器预览模式下，ETF 仅展示历史现金分配收益率。']
+    },
+    futureYieldEstimates: [
+      {
+        estimatedDividendPerShare: 0,
+        estimatedFutureYield: 0,
+        method: 'baseline',
+        isAvailable: false,
+        reason: 'ETF 暂不提供未来股息率估算',
+        inputs: {},
+        steps: ['浏览器预览模式下，ETF 仅展示历史现金分配收益率。']
+      }
+    ]
+  },
+  'FUND:A_SHARE:160222': {
+    assetKey: 'FUND:A_SHARE:160222',
+    assetType: 'FUND',
+    market: 'A_SHARE',
+    code: '160222',
+    name: '国泰国证食品饮料行业指数',
+    category: 'LOF-指数',
+    manager: '国泰基金',
+    trackingIndex: '国证食品饮料行业指数',
+    benchmark: '国证食品饮料行业指数收益率',
+    latestNav: 1.836,
+    fundScale: 5200000000,
+    latestPrice: 1.832,
+    dataSource: 'mock',
+    yieldBasis: '浏览器预览模式下使用基金 mock 现金分配数据，按年度累加展示历史分配收益率。',
+    yearlyYields: [{ year: 2024, yield: 0.0068, events: 1 }],
+    dividendEvents: [
+      { year: 2024, recordDate: '2024-07-12', exDate: '2024-07-15', payDate: '2024-07-18', dividendPerShare: 0.012, referenceClosePrice: 1.764, source: 'mock-fund' }
+    ],
+    futureYieldEstimate: {
+      estimatedDividendPerShare: 0,
+      estimatedFutureYield: 0,
+      method: 'baseline',
+      isAvailable: false,
+      reason: '基金暂不提供未来股息率估算',
+      inputs: {},
+      steps: ['浏览器预览模式下，基金仅展示历史现金分配收益率。']
+    },
+    futureYieldEstimates: [
+      {
+        estimatedDividendPerShare: 0,
+        estimatedFutureYield: 0,
+        method: 'baseline',
+        isAvailable: false,
+        reason: '基金暂不提供未来股息率估算',
+        inputs: {},
+        steps: ['浏览器预览模式下，基金仅展示历史现金分配收益率。']
+      }
+    ]
+  }
+}
+
 const mockBacktests: Record<string, BacktestResultDto> = {
   '600519': {
     symbol: '600519',
@@ -470,7 +656,7 @@ function isBrowserStorageAvailable() {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
 }
 
-function readWatchlistSymbolsFromStorage() {
+function readWatchlistAssetKeysFromStorage() {
   if (!isBrowserStorageAvailable()) {
     return []
   }
@@ -482,45 +668,64 @@ function readWatchlistSymbolsFromStorage() {
 
   try {
     const parsed = JSON.parse(raw) as string[]
-    return Array.isArray(parsed) ? parsed.map(normalizeSymbol).filter((item) => item.length > 0) : []
+    if (!Array.isArray(parsed)) {
+      return []
+    }
+
+    return parsed
+      .map((item) => item.trim())
+      .filter((item) => item.length > 0)
+      .map((item) => (item.includes(':') ? item : buildStockAssetKey(item)))
   } catch {
     return []
   }
 }
 
-function writeWatchlistSymbolsToStorage(symbols: string[]) {
+function writeWatchlistAssetKeysToStorage(assetKeys: string[]) {
   if (!isBrowserStorageAvailable()) {
     return
   }
 
-  const normalized = [...new Set(symbols.map(normalizeSymbol).filter((item) => item.length > 0))]
+  const normalized = [...new Set(assetKeys.map((item) => item.trim()).filter((item) => item.length > 0))]
   window.localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(normalized))
 }
 
-function toWatchlistItem(detail: StockDetailDto): WatchlistItemDto {
+function toWatchlistItem(detail: AssetDetailDto): WatchlistEntryDto {
   return {
+    assetKey: detail.assetKey,
+    assetType: detail.assetType,
+    code: detail.code,
     symbol: detail.symbol,
     name: detail.name,
     market: detail.market,
     latestPrice: detail.latestPrice,
     peRatio: detail.peRatio,
-    estimatedFutureYield: detail.futureYieldEstimate.estimatedFutureYield
+    estimatedFutureYield: detail.futureYieldEstimate.isAvailable ? detail.futureYieldEstimate.estimatedFutureYield : undefined,
+    averageYield:
+      detail.yearlyYields.length > 0
+        ? detail.yearlyYields.reduce((sum, item) => sum + item.yield, 0) / Math.max(detail.yearlyYields.length, 1)
+        : undefined,
+    yieldLabel: detail.futureYieldEstimate.isAvailable ? '预期股息率' : '历史分配收益率'
   }
 }
 
-function toComparisonRow(detail: StockDetailDto): ComparisonRowDto {
+function toComparisonRow(detail: AssetDetailDto): AssetComparisonRowDto {
   const averageYield =
     detail.yearlyYields.reduce((sum, item) => sum + item.yield, 0) / Math.max(detail.yearlyYields.length, 1)
 
   return {
+    assetKey: detail.assetKey,
+    assetType: detail.assetType,
+    market: detail.market,
+    code: detail.code,
     symbol: detail.symbol,
     name: detail.name,
     latestPrice: detail.latestPrice,
     marketCap: detail.marketCap,
     peRatio: detail.peRatio,
     pbRatio: detail.pbRatio,
-    averageYield,
-    estimatedFutureYield: detail.futureYieldEstimate.estimatedFutureYield,
+    averageYield: detail.yearlyYields.length > 0 ? averageYield : undefined,
+    estimatedFutureYield: detail.futureYieldEstimate.isAvailable ? detail.futureYieldEstimate.estimatedFutureYield : undefined,
     valuation: detail.valuation
   }
 }
@@ -533,49 +738,114 @@ function ensureMockStockDetail(symbol: string) {
   return detail
 }
 
+function ensureMockAssetDetail(query: AssetQueryDto): AssetDetailDto {
+  const identifier = resolveAssetQuery(query)
+  const assetKey = buildAssetKey(identifier.assetType, identifier.market, identifier.code)
+  if (identifier.assetType === 'STOCK') {
+    return ensureMockStockDetail(identifier.code)
+  }
+
+  const detail = mockFundDetails[assetKey]
+  if (!detail) {
+    throw new Error(`浏览器预览模式暂不支持该基金资产：${assetKey}。`)
+  }
+  return detail
+}
+
+function assetKeyToDetail(assetKey: string) {
+  try {
+    return ensureMockAssetDetail({ assetKey })
+  } catch {
+    return null
+  }
+}
+
 export const browserRuntimeApi: DividendMonitorApi = {
-  stock: {
-    async search(keyword: string): Promise<StockSearchItemDto[]> {
-      const normalized = keyword.trim().toLowerCase()
+  asset: {
+    async search(request: AssetSearchRequestDto): Promise<AssetSearchItemDto[]> {
+      const normalized = request.keyword.trim().toLowerCase()
       if (!normalized) {
         return []
       }
 
-      return getAvailableStockDetails()
-        .filter((item) => item.symbol.includes(normalized) || item.name.toLowerCase().includes(normalized))
-        .map((item) => ({
-          symbol: item.symbol,
-          name: item.name,
-          market: item.market
-        }))
+      const supportedTypes = request.assetTypes ?? ['STOCK']
+      const stockResults = supportedTypes.includes('STOCK')
+        ? getAvailableStockDetails()
+            .filter((item) => item.symbol.includes(normalized) || item.name.toLowerCase().includes(normalized))
+            .map((item) => ({
+              assetKey: item.assetKey,
+              assetType: 'STOCK' as const,
+              market: item.market,
+              code: item.code,
+              symbol: item.symbol,
+              name: item.name
+            }))
+        : []
+
+      const fundResults = mockFundSearchItems.filter((item) => {
+        if (!supportedTypes.includes(item.assetType)) {
+          return false
+        }
+
+        return item.code.includes(normalized) || item.name.toLowerCase().includes(normalized)
+      })
+
+      return [...stockResults, ...fundResults]
+    },
+
+    async getDetail(request: AssetQueryDto): Promise<AssetDetailDto> {
+      return ensureMockAssetDetail(request)
+    },
+
+    async compare(request: AssetCompareRequestDto) {
+      return request.items.map((item) => toComparisonRow(ensureMockAssetDetail(item)))
+    }
+  },
+
+  stock: {
+    async search(keyword: string): Promise<StockSearchItemDto[]> {
+      return browserRuntimeApi.asset.search({
+        keyword,
+        assetTypes: ['STOCK']
+      }) as Promise<StockSearchItemDto[]>
     },
 
     async getDetail(symbol: string): Promise<StockDetailDto> {
-      return ensureMockStockDetail(symbol)
+      return browserRuntimeApi.asset.getDetail(createStockAssetQuery(symbol)) as Promise<StockDetailDto>
     },
 
     async compare(symbols: string[]): Promise<ComparisonRowDto[]> {
-      return symbols.map((symbol) => toComparisonRow(ensureMockStockDetail(symbol)))
+      return browserRuntimeApi.asset.compare({
+        items: symbols.map((symbol) => createStockAssetQuery(symbol))
+      }) as Promise<ComparisonRowDto[]>
     }
   },
 
   watchlist: {
-    async list(): Promise<WatchlistItemDto[]> {
-      return readWatchlistSymbolsFromStorage()
-        .map((symbol) => mockStockDetails[symbol])
-        .filter((item): item is StockDetailDto => item != null)
+    async list(): Promise<WatchlistEntryDto[]> {
+      return readWatchlistAssetKeysFromStorage()
+        .map((assetKey) => assetKeyToDetail(assetKey))
+        .filter((item): item is AssetDetailDto => item != null)
         .map(toWatchlistItem)
     },
 
     async add(symbol: string): Promise<void> {
-      const detail = ensureMockStockDetail(symbol)
-      const current = readWatchlistSymbolsFromStorage().filter((item) => item !== detail.symbol)
-      writeWatchlistSymbolsToStorage([detail.symbol, ...current])
+      await browserRuntimeApi.watchlist.addAsset(createStockAssetQuery(symbol))
     },
 
     async remove(symbol: string): Promise<void> {
-      const normalized = normalizeSymbol(symbol)
-      writeWatchlistSymbolsToStorage(readWatchlistSymbolsFromStorage().filter((item) => item !== normalized))
+      await browserRuntimeApi.watchlist.removeAsset(buildStockAssetKey(symbol))
+    },
+
+    async addAsset(request): Promise<void> {
+      const detail = ensureMockAssetDetail(request)
+      const current = readWatchlistAssetKeysFromStorage().filter((item) => item !== detail.assetKey)
+      writeWatchlistAssetKeysToStorage([detail.assetKey, ...current])
+    },
+
+    async removeAsset(assetKey: string): Promise<void> {
+      const normalized = assetKey.trim()
+      writeWatchlistAssetKeysToStorage(readWatchlistAssetKeysFromStorage().filter((item) => item !== normalized))
     }
   },
 
@@ -583,6 +853,10 @@ export const browserRuntimeApi: DividendMonitorApi = {
     async getHistoricalYield(symbol: string): Promise<HistoricalYieldResponseDto> {
       const detail = ensureMockStockDetail(symbol)
       return {
+        assetKey: detail.assetKey,
+        assetType: 'STOCK',
+        market: detail.market,
+        code: detail.code,
         symbol: detail.symbol,
         basis: detail.yieldBasis,
         yearlyYields: detail.yearlyYields,
@@ -593,6 +867,10 @@ export const browserRuntimeApi: DividendMonitorApi = {
     async estimateFutureYield(symbol: string) {
       const detail = ensureMockStockDetail(symbol)
       return {
+        assetKey: detail.assetKey,
+        assetType: 'STOCK',
+        market: detail.market,
+        code: detail.code,
         symbol: detail.symbol,
         estimates: detail.futureYieldEstimates
       }
@@ -606,9 +884,129 @@ export const browserRuntimeApi: DividendMonitorApi = {
       }
 
       return {
+        assetKey: buildStockAssetKey(normalized),
+        assetType: 'STOCK',
+        market: 'A_SHARE',
+        code: normalized,
         ...backtest,
         buyDate
       }
+    },
+
+    async getHistoricalYieldForAsset(request: AssetQueryDto) {
+      const detail = ensureMockAssetDetail(request)
+      return {
+        assetKey: detail.assetKey,
+        assetType: detail.assetType,
+        market: detail.market,
+        code: detail.code,
+        symbol: detail.symbol ?? detail.code,
+        basis: detail.yieldBasis,
+        yearlyYields: detail.yearlyYields,
+        dividendEvents: detail.dividendEvents
+      }
+    },
+
+    async estimateFutureYieldForAsset(request: AssetQueryDto): Promise<FutureYieldResponseDto> {
+      const detail = ensureMockAssetDetail(request)
+      return {
+        assetKey: detail.assetKey,
+        assetType: detail.assetType,
+        market: detail.market,
+        code: detail.code,
+        symbol: detail.symbol ?? detail.code,
+        estimates: detail.futureYieldEstimates
+      }
+    },
+
+    async runDividendReinvestmentBacktestForAsset(request: AssetBacktestRequestDto) {
+      const detail = ensureMockAssetDetail(request.asset)
+      if (detail.assetType === 'STOCK' && detail.symbol) {
+        return browserRuntimeApi.calculation.runDividendReinvestmentBacktest(detail.symbol, request.buyDate)
+      }
+
+      return {
+        assetKey: detail.assetKey,
+        assetType: detail.assetType,
+        market: detail.market,
+        code: detail.code,
+        symbol: detail.code,
+        buyDate: request.buyDate,
+        finalDate: '2026-04-24',
+        buyPrice: detail.latestPrice,
+        initialCost: detail.latestPrice * 10000,
+        finalShares: 10000,
+        totalDividendsReceived: detail.dividendEvents.reduce((sum, item) => sum + item.dividendPerShare * 10000, 0),
+        reinvestCount: detail.dividendEvents.length,
+        finalMarketValue: detail.latestPrice * 10000,
+        totalReturn: 0.041,
+        annualizedReturn: 0.017,
+        assumptions: ['浏览器预览模式下，ETF/FUND 回测使用简化 mock 结果。'],
+        transactions: [
+          {
+            type: 'BUY',
+            date: request.buyDate,
+            price: detail.latestPrice,
+            cashAmount: -(detail.latestPrice * 10000),
+            sharesDelta: 10000,
+            sharesAfter: 10000,
+            note: '使用 mock 数据生成的初始建仓'
+          }
+        ]
+      }
+    }
+  },
+  portfolio: {
+    async list() {
+      return readPortfolioPositions().map((item) => ({
+        id: item.id,
+        assetKey: buildStockAssetKey(item.symbol ?? ''),
+        assetType: 'STOCK' as const,
+        market: 'A_SHARE' as const,
+        code: item.symbol ?? '',
+        symbol: item.symbol,
+        name: item.name,
+        direction: item.direction === 'SELL' ? 'SELL' : 'BUY',
+        shares: item.shares,
+        avgCost: item.avgCost,
+        createdAt: item.updatedAt,
+        updatedAt: item.updatedAt
+      }))
+    },
+
+    async upsert(request) {
+      upsertPortfolioPosition({
+        id: request.id ?? '',
+        symbol: request.symbol ?? request.code,
+        name: request.name,
+        direction: request.direction,
+        shares: request.shares,
+        avgCost: request.avgCost
+      })
+    },
+
+    async remove(id: string) {
+      removePortfolioPosition(id)
+    },
+
+    async removeByAsset(request) {
+      const identifier = resolveAssetQuery(request)
+      if (identifier.assetType !== 'STOCK') {
+        return
+      }
+      removePortfolioPositionsBySymbol(identifier.code)
+    },
+
+    async replaceByAsset(request) {
+      const identifier = resolveAssetQuery(request.asset)
+      if (identifier.assetType !== 'STOCK') {
+        throw new Error('浏览器预览模式下持仓编辑仍仅支持股票。')
+      }
+      replacePortfolioPositionsBySymbol(identifier.code, {
+        name: request.name,
+        shares: request.shares,
+        avgCost: request.avgCost
+      })
     }
   }
 }

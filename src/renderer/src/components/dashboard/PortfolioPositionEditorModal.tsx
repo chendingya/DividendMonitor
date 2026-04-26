@@ -1,15 +1,18 @@
 import { Form, Input, InputNumber, message, Modal, Select } from 'antd'
-import { useEffect } from 'react'
-import type { StockSearchItemDto } from '@shared/contracts/api'
+import { useEffect, useState } from 'react'
+import type { AssetSearchItemDto, AssetType, MarketCode } from '@shared/contracts/api'
 
-type StockApi = {
-  search(keyword: string): Promise<StockSearchItemDto[]>
-  getDetail(symbol: string): Promise<{ symbol: string; name: string }>
+type AssetApi = {
+  search(request: { keyword: string; assetTypes?: AssetType[] }): Promise<AssetSearchItemDto[]>
 }
 
 export type PortfolioEditorMode = 'create' | 'edit'
 
 export type PortfolioEditorInitialValues = {
+  assetKey?: string
+  assetType?: AssetType
+  market?: MarketCode
+  code?: string
   symbol?: string
   name?: string
   direction?: 'BUY' | 'SELL'
@@ -18,6 +21,10 @@ export type PortfolioEditorInitialValues = {
 }
 
 export type PortfolioEditorSubmitValues = {
+  assetKey?: string
+  assetType?: AssetType
+  market?: MarketCode
+  code?: string
   symbol?: string
   name: string
   direction: 'BUY' | 'SELL'
@@ -32,21 +39,21 @@ type Props = {
   lockIdentity?: boolean
   onCancel: () => void
   onSubmit: (values: PortfolioEditorSubmitValues) => Promise<void> | void
-  stockApi: StockApi
+  assetApi: AssetApi
 }
 
-function isAShareSymbol(symbol: string) {
-  return /^(6|0|3)\d{5}$/.test(symbol.trim())
-}
-
-function pickBestSearchResult(keyword: string, results: StockSearchItemDto[]) {
+function pickBestSearchResult(keyword: string, results: AssetSearchItemDto[]) {
   const normalized = keyword.trim()
   if (!normalized) {
     return results[0]
   }
-  const exactSymbol = results.find((item) => item.symbol === normalized)
+  const exactSymbol = results.find((item) => (item.symbol ?? item.code) === normalized)
   if (exactSymbol) {
     return exactSymbol
+  }
+  const exactCode = results.find((item) => item.code === normalized)
+  if (exactCode) {
+    return exactCode
   }
   const exactName = results.find((item) => item.name === normalized)
   if (exactName) {
@@ -66,10 +73,15 @@ export function PortfolioPositionEditorModal({
   lockIdentity = false,
   onCancel,
   onSubmit,
-  stockApi
+  assetApi
 }: Props) {
   const [apiMessage, messageHolder] = message.useMessage()
+  const [searchingIdentity, setSearchingIdentity] = useState(false)
   const [form] = Form.useForm<{
+    assetKey?: string
+    assetType?: AssetType
+    market?: MarketCode
+    code?: string
     symbol?: string
     name?: string
     direction: 'BUY' | 'SELL'
@@ -82,6 +94,10 @@ export function PortfolioPositionEditorModal({
       return
     }
     form.setFieldsValue({
+      assetKey: initialValues.assetKey ?? '',
+      assetType: initialValues.assetType,
+      market: initialValues.market ?? 'A_SHARE',
+      code: initialValues.code ?? '',
       symbol: initialValues.symbol ?? '',
       name: initialValues.name ?? '',
       direction: initialValues.direction ?? 'BUY',
@@ -90,40 +106,59 @@ export function PortfolioPositionEditorModal({
     })
   }, [form, initialValues, open])
 
-  async function onSymbolBlur() {
-    const symbol = form.getFieldValue('symbol')?.trim()
+  function fillIdentity(item: AssetSearchItemDto) {
+    form.setFieldsValue({
+      assetKey: item.assetKey,
+      assetType: item.assetType,
+      market: item.market,
+      code: item.code,
+      symbol: item.symbol,
+      name: item.name
+    })
+  }
+
+  async function searchAndFill(keyword: string) {
+    const normalized = keyword.trim()
+    if (!normalized) {
+      return null
+    }
+    setSearchingIdentity(true)
+    try {
+      const results = await assetApi.search({
+        keyword: normalized,
+        assetTypes: ['STOCK', 'ETF', 'FUND']
+      })
+      const best = pickBestSearchResult(normalized, results)
+      if (best) {
+        fillIdentity(best)
+      }
+      return best ?? null
+    } finally {
+      setSearchingIdentity(false)
+    }
+  }
+
+  async function onCodeBlur() {
+    const code = form.getFieldValue('code')?.trim()
     const name = form.getFieldValue('name')?.trim()
-    if (!symbol || name || !isAShareSymbol(symbol)) {
+    if (!code || name) {
       return
     }
     try {
-      const detail = await stockApi.getDetail(symbol)
-      form.setFieldsValue({ symbol: detail.symbol, name: detail.name })
+      await searchAndFill(code)
     } catch {
-      try {
-        const results = await stockApi.search(symbol)
-        const best = pickBestSearchResult(symbol, results)
-        if (best) {
-          form.setFieldsValue({ symbol: best.symbol, name: best.name })
-        }
-      } catch {
-        // ignore blur-time lookup failures
-      }
+      // ignore blur-time lookup failures
     }
   }
 
   async function onNameBlur() {
-    const symbol = form.getFieldValue('symbol')?.trim()
+    const code = form.getFieldValue('code')?.trim()
     const name = form.getFieldValue('name')?.trim()
-    if (!name || symbol || mode === 'edit') {
+    if (!name || code || mode === 'edit') {
       return
     }
     try {
-      const results = await stockApi.search(name)
-      const best = pickBestSearchResult(name, results)
-      if (best) {
-        form.setFieldsValue({ symbol: best.symbol, name: best.name })
-      }
+      await searchAndFill(name)
     } catch {
       // ignore blur-time lookup failures
     }
@@ -132,47 +167,54 @@ export function PortfolioPositionEditorModal({
   async function handleOk() {
     try {
       const values = await form.validateFields()
+      const assetKeyRaw = values.assetKey?.trim() ?? ''
+      const assetType = values.assetType
+      const market = values.market
+      const codeRaw = values.code?.trim() ?? ''
       const symbolRaw = values.symbol?.trim() ?? ''
       const nameRaw = values.name?.trim() ?? ''
-      let resolvedSymbol = symbolRaw
+      let resolvedAssetKey = assetKeyRaw
+      let resolvedAssetType = assetType
+      let resolvedMarket = market
+      let resolvedCode = codeRaw
+      let resolvedSymbol: string | undefined = symbolRaw || undefined
       let resolvedName = nameRaw
 
-      if (!resolvedSymbol && !resolvedName) {
-        apiMessage.error('股票代码和名称至少填写一个')
+      if (!resolvedCode && !resolvedName) {
+        apiMessage.error('资产代码和名称至少填写一个')
         return
       }
 
       if (mode === 'create') {
-        if (resolvedSymbol && !resolvedName) {
+        if (resolvedCode && !resolvedName) {
           try {
-            const detail = await stockApi.getDetail(resolvedSymbol)
-            resolvedSymbol = detail.symbol
-            resolvedName = detail.name
-            form.setFieldsValue({ symbol: detail.symbol, name: detail.name })
-          } catch {
-            const results = await stockApi.search(resolvedSymbol)
-            const best = pickBestSearchResult(resolvedSymbol, results)
+            const best = await searchAndFill(resolvedCode)
             if (best) {
-              resolvedSymbol = best.symbol
+              resolvedAssetKey = best.assetKey
+              resolvedAssetType = best.assetType
+              resolvedMarket = best.market
+              resolvedCode = best.code
+              resolvedSymbol = best.symbol ?? (best.assetType === 'STOCK' ? best.code : undefined)
               resolvedName = best.name
-              form.setFieldsValue({ symbol: best.symbol, name: best.name })
-            } else {
-              resolvedName = resolvedSymbol
-              apiMessage.warning('未匹配到标准股票名称，已按代码保存，可后续编辑修正。')
             }
+          } catch {
+            resolvedName = resolvedCode
+            apiMessage.warning('未匹配到标准资产名称，已按输入代码保存，可后续编辑修正。')
           }
         }
 
-        if (!resolvedSymbol && resolvedName) {
+        if (!resolvedCode && resolvedName) {
           try {
-            const results = await stockApi.search(resolvedName)
-            const best = pickBestSearchResult(resolvedName, results)
+            const best = await searchAndFill(resolvedName)
             if (best) {
-              resolvedSymbol = best.symbol
+              resolvedAssetKey = best.assetKey
+              resolvedAssetType = best.assetType
+              resolvedMarket = best.market
+              resolvedCode = best.code
+              resolvedSymbol = best.symbol ?? (best.assetType === 'STOCK' ? best.code : undefined)
               resolvedName = best.name
-              form.setFieldsValue({ symbol: best.symbol, name: best.name })
             } else {
-              apiMessage.error('未能根据名称匹配股票代码，请补充代码或更换名称')
+              apiMessage.error('未能根据名称匹配资产代码，请补充代码或更换名称')
               return
             }
           } catch {
@@ -183,8 +225,12 @@ export function PortfolioPositionEditorModal({
       }
 
       await onSubmit({
+        assetKey: resolvedAssetKey || undefined,
+        assetType: resolvedAssetType,
+        market: resolvedMarket,
+        code: resolvedCode || undefined,
         symbol: resolvedSymbol || undefined,
-        name: resolvedName || (mode === 'edit' ? initialValues.name ?? '未命名标的' : `无代码资产-${new Date().toISOString().slice(0, 10)}`),
+        name: resolvedName || (mode === 'edit' ? initialValues.name ?? '未命名标的' : `未命名资产-${new Date().toISOString().slice(0, 10)}`),
         direction: values.direction,
         shares: values.shares,
         avgCost: values.avgCost
@@ -200,6 +246,15 @@ export function PortfolioPositionEditorModal({
     <Modal open={open} title={mode === 'edit' ? '编辑持仓' : '添加资产'} onCancel={onCancel} onOk={handleOk} okText={mode === 'edit' ? '保存修改' : '添加'}>
       {messageHolder}
       <Form form={form} layout="vertical">
+        <Form.Item name="assetKey" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="assetType" hidden>
+          <Input />
+        </Form.Item>
+        <Form.Item name="market" hidden>
+          <Input />
+        </Form.Item>
         {mode === 'create' ? (
           <Form.Item label="交易方向" name="direction" rules={[{ required: true, message: '请选择交易方向' }]}>
             <Select
@@ -211,8 +266,8 @@ export function PortfolioPositionEditorModal({
           </Form.Item>
         ) : null}
         <Form.Item
-          label="股票代码"
-          name="symbol"
+          label="资产代码"
+          name="code"
           rules={[
             {
               validator: async (_, value: string | undefined) => {
@@ -220,26 +275,35 @@ export function PortfolioPositionEditorModal({
                 if (!raw) {
                   return
                 }
-                if (!isAShareSymbol(raw)) {
-                  throw new Error('若填写代码，仅支持 A 股 6 位代码')
-                }
               }
             }
           ]}
         >
           <Input
-            placeholder={mode === 'edit' ? '编辑模式下股票代码不可修改' : '可选，例如 600519；不填则可通过名称自动反查'}
-            onBlur={mode === 'create' ? onSymbolBlur : undefined}
-            disabled={mode === 'edit'}
+            placeholder={mode === 'edit' ? '编辑模式下资产代码不可修改' : '可选，例如 600519 / 510880 / 160222；不填则可通过名称自动反查'}
+            onBlur={mode === 'create' ? onCodeBlur : undefined}
+            disabled={mode === 'edit' && lockIdentity}
           />
         </Form.Item>
-        <Form.Item label="股票名称" name="name">
+        <Form.Item label="资产名称" name="name">
           <Input
-            placeholder={mode === 'edit' ? '编辑模式下股票名称不可修改' : '可选，例如 贵州茅台；可自动反查代码'}
+            placeholder={mode === 'edit' ? '编辑模式下资产名称不可修改' : '可选，例如 贵州茅台 / 红利ETF；可自动反查代码'}
             onBlur={mode === 'create' ? onNameBlur : undefined}
             disabled={mode === 'edit' && lockIdentity}
           />
         </Form.Item>
+        {mode === 'create' ? (
+          <Form.Item label="识别结果">
+            <Input
+              value={
+                [form.getFieldValue('assetType'), form.getFieldValue('market'), form.getFieldValue('code')]
+                  .filter((item) => typeof item === 'string' && item.trim().length > 0)
+                  .join(' / ') || (searchingIdentity ? '识别中...' : '未识别')
+              }
+              disabled
+            />
+          </Form.Item>
+        ) : null}
         <Form.Item label="持仓股数" name="shares" rules={[{ required: true, message: '请输入持仓股数' }]}>
           <InputNumber min={0.01} precision={2} style={{ width: '100%' }} />
         </Form.Item>

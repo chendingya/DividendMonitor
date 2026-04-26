@@ -5,4 +5,5 @@ out/
 .electron-vite/
 coverage/
 .runtime-data/
+.trae/
 *.log

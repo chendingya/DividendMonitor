@@ -1,5 +1,5 @@
 import { Space, Table, Tag, Typography } from 'antd'
-import type { ComparisonRowDto, ValuationWindowKeyDto } from '@shared/contracts/api'
+import type { AssetComparisonRowDto, ValuationWindowKeyDto } from '@shared/contracts/api'
 import { AppCard } from '@renderer/components/app/AppCard'
 
 const percent = new Intl.NumberFormat('zh-CN', {
@@ -9,12 +9,39 @@ const percent = new Intl.NumberFormat('zh-CN', {
 })
 
 type ComparisonTableProps = {
-  items: ComparisonRowDto[]
+  items: AssetComparisonRowDto[]
   valuationWindow: ValuationWindowKeyDto
-  onOpenDetail?: (symbol: string) => void
+  onOpenDetail?: (assetKey: string) => void
 }
 
-function getWindowPercentile(record: ComparisonRowDto, metric: 'pe' | 'pb', window: ValuationWindowKeyDto) {
+export function resolveComparisonMetricClassName(
+  value: number | undefined,
+  options?: {
+    highlightHigh?: number
+    highlightLow?: number
+  }
+) {
+  if (value == null) {
+    return 'comparison-metric-chip'
+  }
+
+  const hasComparableRange =
+    options?.highlightHigh != null && options?.highlightLow != null ? options.highlightHigh !== options.highlightLow : true
+  if (!hasComparableRange) {
+    return 'comparison-metric-chip'
+  }
+
+  if (options?.highlightHigh != null && value === options.highlightHigh) {
+    return 'comparison-metric-chip is-positive'
+  }
+  if (options?.highlightLow != null && value === options.highlightLow) {
+    return 'comparison-metric-chip is-cautious'
+  }
+
+  return 'comparison-metric-chip'
+}
+
+function getWindowPercentile(record: AssetComparisonRowDto, metric: 'pe' | 'pb', window: ValuationWindowKeyDto) {
   return record.valuation?.[metric]?.windows.find((item) => item.window === window)?.percentile
 }
 
@@ -32,10 +59,15 @@ export function ComparisonTable({ items, valuationWindow, onOpenDetail }: Compar
   const highestFutureYield = futureYieldValues.length > 0 ? Math.max(...futureYieldValues) : undefined
   const lowestFutureYield = futureYieldValues.length > 0 ? Math.min(...futureYieldValues) : undefined
   const lowestPeRatio = peValues.length > 0 ? Math.min(...peValues) : undefined
+  const highestPeRatio = peValues.length > 0 ? Math.max(...peValues) : undefined
   const lowestPbRatio = pbValues.length > 0 ? Math.min(...pbValues) : undefined
+  const highestPbRatio = pbValues.length > 0 ? Math.max(...pbValues) : undefined
   const lowestPePercentile = pePercentileValues.length > 0 ? Math.min(...pePercentileValues) : undefined
+  const highestPePercentile = pePercentileValues.length > 0 ? Math.max(...pePercentileValues) : undefined
   const lowestPbPercentile = pbPercentileValues.length > 0 ? Math.min(...pbPercentileValues) : undefined
+  const highestPbPercentile = pbPercentileValues.length > 0 ? Math.max(...pbPercentileValues) : undefined
   const highestAverageYield = averageYieldValues.length > 0 ? Math.max(...averageYieldValues) : undefined
+  const lowestAverageYield = averageYieldValues.length > 0 ? Math.min(...averageYieldValues) : undefined
 
   function renderMetricValue(
     value: number | undefined,
@@ -49,13 +81,7 @@ export function ComparisonTable({ items, valuationWindow, onOpenDetail }: Compar
       return '-'
     }
 
-    let className = 'comparison-metric-chip'
-    if (options?.highlightHigh != null && value === options.highlightHigh) {
-      className += ' is-positive'
-    } else if (options?.highlightLow != null && value === options.highlightLow) {
-      className += ' is-cautious'
-    }
-
+    const className = resolveComparisonMetricClassName(value, options)
     return <span className={className}>{formatter(value)}</span>
   }
 
@@ -69,10 +95,10 @@ export function ComparisonTable({ items, valuationWindow, onOpenDetail }: Compar
               <circle cx="16.5" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.8" />
             </svg>
           </span>
-          多股对比
+          多资产对比
         </span>
       }
-      extra={<Tag color="blue">{items.length} 个标的</Tag>}
+      extra={<Tag color="blue">{items.length} 个资产</Tag>}
     >
       <Space wrap size={[8, 8]} style={{ marginBottom: 16 }}>
         <span className="pill primary">绿色高亮：当前列更优值</span>
@@ -81,17 +107,19 @@ export function ComparisonTable({ items, valuationWindow, onOpenDetail }: Compar
       </Space>
       <Table
         className="soft-table"
-        rowKey="symbol"
+        rowKey="assetKey"
         pagination={false}
         scroll={{ x: 1180 }}
         dataSource={items}
         columns={[
           {
-            title: '股票',
+            title: '标的',
             render: (_, record) => (
               <div>
                 <Typography.Text strong>{record.name}</Typography.Text>
-                <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }}>{record.symbol}</div>
+                <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }}>
+                  {record.symbol ?? record.code} · {record.assetType}
+                </div>
               </div>
             )
           },
@@ -107,7 +135,8 @@ export function ComparisonTable({ items, valuationWindow, onOpenDetail }: Compar
             sorter: (a, b) => (a.peRatio ?? Number.POSITIVE_INFINITY) - (b.peRatio ?? Number.POSITIVE_INFINITY),
             render: (value?: number) =>
               renderMetricValue(value, (next) => next.toFixed(2), {
-                highlightLow: lowestPeRatio
+                highlightHigh: lowestPeRatio,
+                highlightLow: highestPeRatio
               })
           },
           {
@@ -116,7 +145,8 @@ export function ComparisonTable({ items, valuationWindow, onOpenDetail }: Compar
             sorter: (a, b) => (a.pbRatio ?? Number.POSITIVE_INFINITY) - (b.pbRatio ?? Number.POSITIVE_INFINITY),
             render: (value?: number) =>
               renderMetricValue(value, (next) => next.toFixed(2), {
-                highlightLow: lowestPbRatio
+                highlightHigh: lowestPbRatio,
+                highlightLow: highestPbRatio
               })
           },
           {
@@ -126,7 +156,8 @@ export function ComparisonTable({ items, valuationWindow, onOpenDetail }: Compar
               (getWindowPercentile(b, 'pe', valuationWindow) ?? Number.POSITIVE_INFINITY),
             render: (_, record) =>
               renderMetricValue(getWindowPercentile(record, 'pe', valuationWindow), (next) => `${next.toFixed(2)}%`, {
-                highlightLow: lowestPePercentile
+                highlightHigh: lowestPePercentile,
+                highlightLow: highestPePercentile
               })
           },
           {
@@ -136,7 +167,8 @@ export function ComparisonTable({ items, valuationWindow, onOpenDetail }: Compar
               (getWindowPercentile(b, 'pb', valuationWindow) ?? Number.POSITIVE_INFINITY),
             render: (_, record) =>
               renderMetricValue(getWindowPercentile(record, 'pb', valuationWindow), (next) => `${next.toFixed(2)}%`, {
-                highlightLow: lowestPbPercentile
+                highlightHigh: lowestPbPercentile,
+                highlightLow: highestPbPercentile
               })
           },
           {
@@ -145,7 +177,8 @@ export function ComparisonTable({ items, valuationWindow, onOpenDetail }: Compar
             sorter: (a, b) => (a.averageYield ?? Number.NEGATIVE_INFINITY) - (b.averageYield ?? Number.NEGATIVE_INFINITY),
             render: (value?: number) =>
               renderMetricValue(value, (next) => percent.format(next), {
-                highlightHigh: highestAverageYield
+                highlightHigh: highestAverageYield,
+                highlightLow: lowestAverageYield
               })
           },
           {
@@ -167,7 +200,7 @@ export function ComparisonTable({ items, valuationWindow, onOpenDetail }: Compar
               <button
                 type="button"
                 className="ledger-inline-action-btn"
-                onClick={() => onOpenDetail?.(record.symbol)}
+                onClick={() => onOpenDetail?.(record.assetKey)}
                 disabled={!onOpenDetail}
               >
                 查看详情

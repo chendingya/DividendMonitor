@@ -1,5 +1,7 @@
-import type { AShareDataSource, ValuationDataSource } from '@main/adapters/contracts'
+import type { AShareDataSource, FundCatalogDataSource, FundDetailDataSource, ValuationDataSource } from '@main/adapters/contracts'
 import { EastmoneyAShareDataSource } from '@main/adapters/eastmoney/eastmoneyAShareDataSource'
+import { EastmoneyFundCatalogAdapter } from '@main/adapters/eastmoney/eastmoneyFundCatalogAdapter'
+import { EastmoneyFundDetailDataSource } from '@main/adapters/eastmoney/eastmoneyFundDetailDataSource'
 import { EastmoneyValuationAdapter } from '@main/adapters/eastmoney/eastmoneyValuationAdapter'
 import type { DataSourceMode } from '@main/infrastructure/config/appConfig'
 import { getAppConfig } from '@main/infrastructure/config/appConfig'
@@ -20,3 +22,18 @@ export function createValuationDataSource(mode: DataSourceMode = getAppConfig().
   return new EastmoneyValuationAdapter()
 }
 
+export function createFundCatalogDataSource(mode: DataSourceMode = getAppConfig().dataSourceMode): FundCatalogDataSource {
+  if (mode !== 'eastmoney') {
+    throw new Error(`Unsupported fund catalog data source mode: ${mode}`)
+  }
+
+  return new EastmoneyFundCatalogAdapter()
+}
+
+export function createFundDetailDataSource(mode: DataSourceMode = getAppConfig().dataSourceMode): FundDetailDataSource {
+  if (mode !== 'eastmoney') {
+    throw new Error(`Unsupported fund detail data source mode: ${mode}`)
+  }
+
+  return new EastmoneyFundDetailDataSource()
+}

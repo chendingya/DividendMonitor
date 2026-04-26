@@ -4,12 +4,12 @@ import { useNavigate } from 'react-router-dom'
 import { WatchlistTable } from '@renderer/components/watchlist/WatchlistTable'
 import { useWatchlist } from '@renderer/hooks/useWatchlist'
 import {
-  buildComparisonPath,
-  buildStockDetailPath,
-  getRememberedWatchlistSelections,
-  rememberComparisonSymbols,
-  rememberLastSymbol,
-  rememberWatchlistSelections
+  buildAssetDetailPath,
+  buildComparisonPathFromAssetKeys,
+  getRememberedWatchlistAssetSelections,
+  rememberComparisonAssetKeys,
+  rememberLastAssetKey,
+  rememberWatchlistAssetSelections
 } from '@renderer/services/routeContext'
 
 export function WatchlistPage() {
@@ -17,8 +17,8 @@ export function WatchlistPage() {
   const [apiMessage, messageHolder] = message.useMessage()
   const [keyword, setKeyword] = useState('')
   const [sortBy, setSortBy] = useState<'yield-desc' | 'yield-asc' | 'symbol-asc' | 'price-desc'>('yield-desc')
-  const [selectedSymbols, setSelectedSymbols] = useState<string[]>(() => getRememberedWatchlistSelections())
-  const { data, loading, error, reload, remove, mutatingSymbol } = useWatchlist()
+  const [selectedAssetKeys, setSelectedAssetKeys] = useState<string[]>(() => getRememberedWatchlistAssetSelections())
+  const { data, loading, error, reload, removeAsset, mutatingAssetKey } = useWatchlist()
   const filteredData = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase()
     const next = data.filter((item) => {
@@ -26,32 +26,36 @@ export function WatchlistPage() {
         return true
       }
 
-      return item.symbol.toLowerCase().includes(normalizedKeyword) || item.name.toLowerCase().includes(normalizedKeyword)
+      return (item.symbol ?? item.code).toLowerCase().includes(normalizedKeyword) || item.name.toLowerCase().includes(normalizedKeyword)
     })
 
     next.sort((left, right) => {
       if (sortBy === 'symbol-asc') {
-        return left.symbol.localeCompare(right.symbol)
+        return (left.symbol ?? left.code).localeCompare(right.symbol ?? right.code)
       }
 
       if (sortBy === 'price-desc') {
         return right.latestPrice - left.latestPrice
       }
 
-      const leftYield = left.estimatedFutureYield ?? (sortBy === 'yield-asc' ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY)
-      const rightYield = right.estimatedFutureYield ?? (sortBy === 'yield-asc' ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY)
+      const leftYield =
+        left.estimatedFutureYield ?? left.averageYield ?? (sortBy === 'yield-asc' ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY)
+      const rightYield =
+        right.estimatedFutureYield ?? right.averageYield ?? (sortBy === 'yield-asc' ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY)
       return sortBy === 'yield-asc' ? leftYield - rightYield : rightYield - leftYield
     })
 
     return next
   }, [data, keyword, sortBy])
-  const topSymbols = useMemo(() => filteredData.slice(0, 3).map((item) => item.symbol), [filteredData])
-  const selectedAvailableSymbols = useMemo(
-    () => selectedSymbols.filter((symbol) => filteredData.some((item) => item.symbol === symbol)),
-    [filteredData, selectedSymbols]
+  const topAssetKeys = useMemo(() => filteredData.slice(0, 3).map((item) => item.assetKey), [filteredData])
+  const selectedAvailableAssetKeys = useMemo(
+    () => selectedAssetKeys.filter((assetKey) => filteredData.some((item) => item.assetKey === assetKey)),
+    [filteredData, selectedAssetKeys]
   )
   const avgYield = useMemo(() => {
-    const values = filteredData.map((item) => item.estimatedFutureYield).filter((item): item is number => item != null)
+    const values = filteredData
+      .map((item) => item.estimatedFutureYield ?? item.averageYield)
+      .filter((item): item is number => item != null)
     if (values.length === 0) {
       return null
     }
@@ -59,68 +63,68 @@ export function WatchlistPage() {
   }, [filteredData])
   const maxYieldItem = useMemo(() => {
     return [...filteredData]
-      .filter((item) => item.estimatedFutureYield != null)
-      .sort((a, b) => (b.estimatedFutureYield ?? 0) - (a.estimatedFutureYield ?? 0))[0]
+      .filter((item) => item.estimatedFutureYield != null || item.averageYield != null)
+      .sort((a, b) => (b.estimatedFutureYield ?? b.averageYield ?? 0) - (a.estimatedFutureYield ?? a.averageYield ?? 0))[0]
   }, [filteredData])
 
   useEffect(() => {
-    setSelectedSymbols((current) => current.filter((symbol) => data.some((item) => item.symbol === symbol)))
+    setSelectedAssetKeys((current) => current.filter((assetKey) => data.some((item) => item.assetKey === assetKey)))
   }, [data])
 
   useEffect(() => {
-    rememberWatchlistSelections(selectedSymbols)
-  }, [selectedSymbols])
+    rememberWatchlistAssetSelections(selectedAssetKeys)
+  }, [selectedAssetKeys])
 
   function goToBestYieldDetail() {
     if (!maxYieldItem) {
       return
     }
-    rememberLastSymbol(maxYieldItem.symbol)
-    navigate(buildStockDetailPath(maxYieldItem.symbol))
+    rememberLastAssetKey(maxYieldItem.assetKey)
+    navigate(buildAssetDetailPath(maxYieldItem.assetKey))
   }
 
-  function goToDetail(symbol: string) {
-    rememberLastSymbol(symbol)
-    navigate(buildStockDetailPath(symbol))
+  function goToDetail(assetKey: string) {
+    rememberLastAssetKey(assetKey)
+    navigate(buildAssetDetailPath(assetKey))
   }
 
   function goToComparison() {
-    if (topSymbols.length === 0) {
+    if (topAssetKeys.length === 0) {
       return
     }
-    rememberComparisonSymbols(topSymbols)
-    navigate(buildComparisonPath(topSymbols))
+    rememberComparisonAssetKeys(topAssetKeys)
+    navigate(buildComparisonPathFromAssetKeys(topAssetKeys))
   }
 
-  function toggleSelect(symbol: string) {
-    setSelectedSymbols((current) => {
-      if (current.includes(symbol)) {
-        return current.filter((item) => item !== symbol)
+  function toggleSelect(assetKey: string) {
+    setSelectedAssetKeys((current) => {
+      if (current.includes(assetKey)) {
+        return current.filter((item) => item !== assetKey)
       }
-      return [...current, symbol].slice(0, 10)
+      return [...current, assetKey].slice(0, 10)
     })
   }
 
   function selectTopThree() {
-    setSelectedSymbols(filteredData.slice(0, 3).map((item) => item.symbol))
+    setSelectedAssetKeys(filteredData.slice(0, 3).map((item) => item.assetKey))
   }
 
   function clearSelection() {
-    setSelectedSymbols([])
+    setSelectedAssetKeys([])
   }
 
   function goToSelectedComparison() {
-    if (selectedAvailableSymbols.length < 2) {
+    if (selectedAvailableAssetKeys.length < 2) {
       return
     }
-    rememberComparisonSymbols(selectedAvailableSymbols)
-    navigate(buildComparisonPath(selectedAvailableSymbols))
+    rememberComparisonAssetKeys(selectedAvailableAssetKeys)
+    navigate(buildComparisonPathFromAssetKeys(selectedAvailableAssetKeys))
   }
 
-  async function removeFromWatchlist(symbol: string) {
+  async function removeFromWatchlist(assetKey: string) {
     try {
-      await remove(symbol)
-      apiMessage.success(`已将 ${symbol} 移出自选`)
+      await removeAsset(assetKey)
+      apiMessage.success('已将该资产移出自选')
     } catch (actionError) {
       apiMessage.error(actionError instanceof Error ? actionError.message : '移除自选失败')
     }
@@ -155,7 +159,7 @@ export function WatchlistPage() {
           <div className="ledger-watchlist-summary">
             <span className="pill primary">已追踪 {data.length} 只</span>
             <span className="pill">当前筛选 {filteredData.length} 只</span>
-            <span className="pill">已选对比 {selectedAvailableSymbols.length} 只</span>
+            <span className="pill">已选对比 {selectedAvailableAssetKeys.length} 只</span>
           </div>
         </div>
         <div className="ledger-hero-actions">
@@ -165,19 +169,19 @@ export function WatchlistPage() {
           <button
             type="button"
             className="ledger-primary-button"
-            onClick={selectedAvailableSymbols.length >= 2 ? goToSelectedComparison : goToComparison}
-            disabled={selectedAvailableSymbols.length < 2 && topSymbols.length < 2}
+            onClick={selectedAvailableAssetKeys.length >= 2 ? goToSelectedComparison : goToComparison}
+            disabled={selectedAvailableAssetKeys.length < 2 && topAssetKeys.length < 2}
           >
-            {selectedAvailableSymbols.length >= 2 ? `对比已选 ${selectedAvailableSymbols.length} 只` : '对比前 3 只'}
+            {selectedAvailableAssetKeys.length >= 2 ? `对比已选 ${selectedAvailableAssetKeys.length} 只` : '对比前 3 只'}
           </button>
         </div>
       </section>
 
       <section className="ledger-metric-grid">
         <div className="ledger-metric-panel is-primary">
-          <div className="ledger-metric-label">平均未来股息率</div>
+          <div className="ledger-metric-label">平均收益率</div>
           <div className="ledger-metric-value">{avgYield == null ? '--' : `${(avgYield * 100).toFixed(2)}%`}</div>
-          <div className="ledger-metric-hint">基于当前筛选结果中的可计算标的</div>
+          <div className="ledger-metric-hint">按可计算的股息率或历史分配收益率汇总</div>
         </div>
         <div className="ledger-metric-panel">
           <div className="ledger-metric-label">追踪资产数量</div>
@@ -185,11 +189,15 @@ export function WatchlistPage() {
           <div className="ledger-metric-hint">{keyword.trim() ? `共 ${data.length} 只，当前展示 ${filteredData.length} 只` : '来自本地自选与真实数据链路'}</div>
         </div>
         <div className="ledger-metric-panel">
-          <div className="ledger-metric-label">最高估算股息率</div>
+          <div className="ledger-metric-label">最高收益率</div>
           <div className="ledger-metric-value">
-            {maxYieldItem?.estimatedFutureYield == null ? '--' : `${(maxYieldItem.estimatedFutureYield * 100).toFixed(2)}%`}
+            {maxYieldItem == null
+              ? '--'
+              : `${(((maxYieldItem.estimatedFutureYield ?? maxYieldItem.averageYield) ?? 0) * 100).toFixed(2)}%`}
           </div>
-          <div className="ledger-metric-hint">{maxYieldItem ? `${maxYieldItem.symbol} ${maxYieldItem.name}` : '暂无可计算结果'}</div>
+          <div className="ledger-metric-hint">
+            {maxYieldItem ? `${maxYieldItem.symbol ?? maxYieldItem.code} ${maxYieldItem.name}` : '暂无可计算结果'}
+          </div>
         </div>
       </section>
 
@@ -214,10 +222,10 @@ export function WatchlistPage() {
             onChange={(value) => setSortBy(value)}
             style={{ width: 200 }}
             options={[
-              { value: 'yield-desc', label: '按未来股息率从高到低' },
-              { value: 'yield-asc', label: '按未来股息率从低到高' },
+              { value: 'yield-desc', label: '按收益率从高到低' },
+              { value: 'yield-asc', label: '按收益率从低到高' },
               { value: 'price-desc', label: '按最新价从高到低' },
-              { value: 'symbol-asc', label: '按股票代码排序' }
+              { value: 'symbol-asc', label: '按资产代码排序' }
             ]}
           />
         </Space>
@@ -233,16 +241,16 @@ export function WatchlistPage() {
         <div className="ledger-toolbar-divider" />
         <div className="ledger-filter-bar" style={{ alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <Space wrap size={12}>
-            <span className="pill primary">已选 {selectedAvailableSymbols.length} 只</span>
+            <span className="pill primary">已选 {selectedAvailableAssetKeys.length} 只</span>
             <span className="ledger-selection-note">
-              {selectedAvailableSymbols.length >= 2
+              {selectedAvailableAssetKeys.length >= 2
                 ? '已满足对比条件，可直接进入对比页。'
-                : '至少选择 2 只股票后，才能进入对比页。'}
+                : '至少选择 2 只资产后，才能进入对比页。'}
             </span>
             <button type="button" className="ledger-filter-chip" onClick={selectTopThree} disabled={filteredData.length === 0}>
             选中前 3 只
           </button>
-            <button type="button" className="ledger-filter-chip" onClick={clearSelection} disabled={selectedSymbols.length === 0}>
+            <button type="button" className="ledger-filter-chip" onClick={clearSelection} disabled={selectedAssetKeys.length === 0}>
             清空选择
           </button>
           </Space>
@@ -251,7 +259,7 @@ export function WatchlistPage() {
               type="button"
               className="ledger-primary-button"
               onClick={goToSelectedComparison}
-              disabled={selectedAvailableSymbols.length < 2}
+              disabled={selectedAvailableAssetKeys.length < 2}
             >
               批量进入对比
             </button>
@@ -263,8 +271,8 @@ export function WatchlistPage() {
         <Col span={24}>
           <WatchlistTable
             items={filteredData}
-            removingSymbol={mutatingSymbol}
-            selectedSymbols={selectedAvailableSymbols}
+            removingAssetKey={mutatingAssetKey}
+            selectedAssetKeys={selectedAvailableAssetKeys}
             onOpenDetail={goToDetail}
             onRemove={removeFromWatchlist}
             onToggleSelect={toggleSelect}

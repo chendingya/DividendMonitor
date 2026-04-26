@@ -98,16 +98,17 @@ type OpportunityCardProps = {
   title: string
   subtitle: string
   value: string
+  valueLabel?: string
 }
 
-export function OpportunityCard({ symbol, title, subtitle, value }: OpportunityCardProps) {
+export function OpportunityCard({ symbol, title, subtitle, value, valueLabel = '远期收益率' }: OpportunityCardProps) {
   return (
     <section className="ledger-opportunity-card">
       <div className="ledger-opportunity-head">
         <div className="ledger-opportunity-badge">{symbol}</div>
         <div className="ledger-opportunity-value">
           <strong>{value}</strong>
-          <span>远期收益率</span>
+          <span>{valueLabel}</span>
         </div>
       </div>
       <div className="ledger-opportunity-title">{title}</div>
