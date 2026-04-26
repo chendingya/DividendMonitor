@@ -187,11 +187,17 @@ export type ValuationWindowDto = {
   sampleSize: number
 }
 
+export type ValuationTrendPointDto = {
+  date: string
+  value: number
+}
+
 export type ValuationMetricDto = {
   currentValue?: number
   currentPercentile?: number
   status?: string
   windows: ValuationWindowDto[]
+  history?: ValuationTrendPointDto[]
 }
 
 export type ValuationSnapshotDto = {

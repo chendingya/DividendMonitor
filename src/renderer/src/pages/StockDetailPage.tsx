@@ -4,6 +4,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppCard } from '@renderer/components/app/AppCard'
 import { PageStateBlock } from '@renderer/components/app/PageStateBlock'
 import { FutureYieldEstimateCard } from '@renderer/components/stock-detail/FutureYieldEstimateCard'
+import { ValuationTrendChart } from '@renderer/components/stock-detail/ValuationTrendChart'
 import { YearlyDividendTrendChart } from '@renderer/components/stock-detail/YearlyDividendTrendChart'
 import { DEFAULT_STOCK_SYMBOL } from '@renderer/defaults'
 import { useAssetDetail } from '@renderer/hooks/useAssetDetail'
@@ -364,6 +365,8 @@ export function StockDetailPage() {
       </Row>
 
       <YearlyDividendTrendChart items={data.yearlyYields} />
+
+      {hasValuation ? <ValuationTrendChart detail={data} valuationWindow={valuationWindow} /> : null}
 
       <AppCard title="现金分配历史（最近在上）">
         <Table
