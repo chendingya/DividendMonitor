@@ -2,17 +2,63 @@
   "name": "shou-xi-lao",
   "version": "0.1.0",
   "private": true,
-  "description": "DividendMonitor desktop app scaffold",
+  "description": "收息佬（DividendMonitor）桌面版，支持股票、ETF 与基金的收益追踪、估值对比和回测。",
+  "author": "chendingya",
+  "homepage": "https://github.com/chendingya/DividendMonitor",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chendingya/DividendMonitor.git"
+  },
   "main": "out/main/index.js",
   "type": "module",
   "scripts": {
     "dev": "electron-vite dev",
     "dev:browser-preview": "node scripts/dev-browser-preview.mjs",
     "build": "electron-vite build",
+    "dist:dir": "npm run build && electron-builder --dir",
+    "dist:win": "npm run build && electron-builder --win nsis",
     "preview": "electron-vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
+  },
+  "build": {
+    "appId": "com.chendingya.dividendmonitor",
+    "productName": "收息佬",
+    "copyright": "Copyright (c) chendingya",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "artifactName": "${productName} Setup ${version}.${ext}",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "chendingya",
+        "repo": "DividendMonitor",
+        "releaseType": "release"
+      }
+    ],
+    "win": {
+      "executableName": "DividendMonitor",
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
   },
   "dependencies": {
     "antd": "^5.27.0",
@@ -31,6 +77,7 @@
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.4.1",
     "electron": "^35.2.1",
+    "electron-builder": "^26.8.1",
     "electron-vite": "^3.1.0",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",

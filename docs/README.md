@@ -9,8 +9,9 @@
 3. `ARCHITECTURE.md`：代码分层、目录职责、依赖方向和当前实现边界
 4. `MULTI-ASSET-ARCHITECTURE.md`：股票扩展到 ETF/基金的多资产架构设计与实施计划
 5. `IPC-CONTRACTS.md`：preload、IPC 和 renderer runtime 接口
-6. `MANUAL-VERIFICATION-GUIDE.md`：手动验证路径
-7. `UI-UX-DESIGN-PRINCIPLES.md`：页面视觉与交互风格
+6. `PACKAGING-AND-DEPLOYMENT.md`：Windows exe 打包与网页部署现状、步骤和缺口
+7. `MANUAL-VERIFICATION-GUIDE.md`：手动验证路径
+8. `UI-UX-DESIGN-PRINCIPLES.md`：页面视觉与交互风格
 
 ## 2. 当前有效文档
 
@@ -25,6 +26,7 @@
 - `ARCHITECTURE.md`
 - `MULTI-ASSET-ARCHITECTURE.md`
 - `IPC-CONTRACTS.md`
+- `PACKAGING-AND-DEPLOYMENT.md`
 
 ### 交互与验收
 
