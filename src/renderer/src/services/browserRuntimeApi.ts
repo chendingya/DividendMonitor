@@ -65,7 +65,71 @@ function buildMockValuation(
   }
 }
 
-const mockStockDetails: Record<string, StockDetailDto> = {
+const STOCK_CAPABILITIES = {
+  hasIncomeAnalysis: true,
+  hasValuationAnalysis: true,
+  hasBacktest: true,
+  hasComparisonMetrics: true
+} as const
+
+const FUND_CAPABILITIES = {
+  hasIncomeAnalysis: true,
+  hasValuationAnalysis: false,
+  hasBacktest: true,
+  hasComparisonMetrics: true
+} as const
+
+type FlatDetailDto = Omit<AssetDetailDto, 'capabilities' | 'modules'>
+
+function augmentStockMock(detail: FlatDetailDto): AssetDetailDto {
+  return {
+    ...detail,
+    capabilities: STOCK_CAPABILITIES,
+    modules: {
+      income: {
+        yieldBasis: detail.yieldBasis,
+        yearlyYields: detail.yearlyYields,
+        dividendEvents: detail.dividendEvents,
+        futureYieldEstimate: detail.futureYieldEstimate,
+        futureYieldEstimates: detail.futureYieldEstimates
+      },
+      valuation: detail.valuation,
+      equity: {
+        industry: detail.industry,
+        marketCap: detail.marketCap,
+        peRatio: detail.peRatio,
+        pbRatio: detail.pbRatio,
+        totalShares: detail.totalShares
+      }
+    }
+  }
+}
+
+function augmentFundMock(detail: FlatDetailDto): AssetDetailDto {
+  return {
+    ...detail,
+    capabilities: FUND_CAPABILITIES,
+    modules: {
+      income: {
+        yieldBasis: detail.yieldBasis,
+        yearlyYields: detail.yearlyYields,
+        dividendEvents: detail.dividendEvents,
+        futureYieldEstimate: detail.futureYieldEstimate,
+        futureYieldEstimates: detail.futureYieldEstimates
+      },
+      fund: {
+        category: detail.category,
+        manager: detail.manager,
+        trackingIndex: detail.trackingIndex,
+        benchmark: detail.benchmark,
+        latestNav: detail.latestNav,
+        fundScale: detail.fundScale
+      }
+    }
+  }
+}
+
+const mockStockDetails: Record<string, FlatDetailDto> = {
   '600519': {
     assetKey: buildStockAssetKey('600519'),
     assetType: 'STOCK',
@@ -457,7 +521,7 @@ const mockFundSearchItems: AssetSearchItemDto[] = [
   }
 ]
 
-const mockFundDetails: Record<string, AssetDetailDto> = {
+const mockFundDetails: Record<string, FlatDetailDto> = {
   'ETF:A_SHARE:510300': {
     assetKey: 'ETF:A_SHARE:510300',
     assetType: 'ETF',
@@ -644,8 +708,8 @@ const mockBacktests: Record<string, BacktestResultDto> = {
   }
 }
 
-function getAvailableStockDetails() {
-  return Object.values(mockStockDetails)
+function getAvailableStockDetails(): AssetDetailDto[] {
+  return Object.values(mockStockDetails).map((d) => augmentStockMock(d))
 }
 
 function normalizeSymbol(symbol: string) {
@@ -730,12 +794,13 @@ function toComparisonRow(detail: AssetDetailDto): AssetComparisonRowDto {
   }
 }
 
-function ensureMockStockDetail(symbol: string) {
-  const detail = mockStockDetails[normalizeSymbol(symbol)]
+function ensureMockStockDetail(symbol: string): AssetDetailDto {
+  const s = normalizeSymbol(symbol)
+  const detail = mockStockDetails[s]
   if (!detail) {
     throw new Error(`浏览器预览模式暂不支持该股票代码：${symbol}。当前可用示例：600519、000651、601318。`)
   }
-  return detail
+  return augmentStockMock(detail)
 }
 
 function ensureMockAssetDetail(query: AssetQueryDto): AssetDetailDto {
@@ -749,7 +814,7 @@ function ensureMockAssetDetail(query: AssetQueryDto): AssetDetailDto {
   if (!detail) {
     throw new Error(`浏览器预览模式暂不支持该基金资产：${assetKey}。`)
   }
-  return detail
+  return augmentFundMock(detail)
 }
 
 function assetKeyToDetail(assetKey: string) {
@@ -771,7 +836,7 @@ export const browserRuntimeApi: DividendMonitorApi = {
       const supportedTypes = request.assetTypes ?? ['STOCK']
       const stockResults = supportedTypes.includes('STOCK')
         ? getAvailableStockDetails()
-            .filter((item) => item.symbol.includes(normalized) || item.name.toLowerCase().includes(normalized))
+            .filter((item) => (item.symbol ?? '').includes(normalized) || item.name.toLowerCase().includes(normalized))
             .map((item) => ({
               assetKey: item.assetKey,
               assetType: 'STOCK' as const,
@@ -857,7 +922,7 @@ export const browserRuntimeApi: DividendMonitorApi = {
         assetType: 'STOCK',
         market: detail.market,
         code: detail.code,
-        symbol: detail.symbol,
+        symbol: detail.code,
         basis: detail.yieldBasis,
         yearlyYields: detail.yearlyYields,
         dividendEvents: detail.dividendEvents
@@ -871,7 +936,7 @@ export const browserRuntimeApi: DividendMonitorApi = {
         assetType: 'STOCK',
         market: detail.market,
         code: detail.code,
-        symbol: detail.symbol,
+        symbol: detail.code,
         estimates: detail.futureYieldEstimates
       }
     },

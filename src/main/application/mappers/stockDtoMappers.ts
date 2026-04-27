@@ -1,4 +1,5 @@
 import type {
+  AssetCapabilitiesDto,
   AssetComparisonRowDto,
   AssetDetailDto,
   AssetSearchItemDto,
@@ -18,6 +19,24 @@ import type { AssetSearchSource, FundAssetDetailSource, StockAssetDetailSource }
 
 const FUND_YIELD_BASIS =
   'Event-level yield accumulation by distribution year, using per-share cash distribution divided by the close on or before the record date'
+
+const STOCK_CAPABILITIES: AssetCapabilitiesDto = {
+  hasIncomeAnalysis: true,
+  hasValuationAnalysis: true,
+  hasBacktest: true,
+  hasComparisonMetrics: true
+}
+
+const ETF_FUND_CAPABILITIES: AssetCapabilitiesDto = {
+  hasIncomeAnalysis: true,
+  hasValuationAnalysis: false,
+  hasBacktest: true,
+  hasComparisonMetrics: true
+}
+
+function deriveCapabilities(kind: 'STOCK' | 'ETF' | 'FUND'): AssetCapabilitiesDto {
+  return kind === 'STOCK' ? STOCK_CAPABILITIES : ETF_FUND_CAPABILITIES
+}
 
 function toValuationMetricDto(metric?: Parameters<typeof buildValuationWindows>[0]) {
   if (!metric) {
@@ -98,6 +117,11 @@ export function toStockDetailDto(source: StockAssetDetailSource): StockDetailDto
     lastYearTotalDividendAmount: source.lastYearTotalDividendAmount
   })
 
+  const valuationDto = {
+    pe: toValuationMetricDto(source.valuation?.pe),
+    pb: toValuationMetricDto(source.valuation?.pb)
+  }
+
   return {
     assetKey: buildStockAssetKey(source.stock.symbol),
     assetType: 'STOCK',
@@ -117,9 +141,24 @@ export function toStockDetailDto(source: StockAssetDetailSource): StockDetailDto
     dividendEvents: source.dividendEvents,
     futureYieldEstimate: estimates.baseline,
     futureYieldEstimates: [estimates.baseline, estimates.conservative],
-    valuation: {
-      pe: toValuationMetricDto(source.valuation?.pe),
-      pb: toValuationMetricDto(source.valuation?.pb)
+    valuation: valuationDto,
+    capabilities: STOCK_CAPABILITIES,
+    modules: {
+      income: {
+        yieldBasis: NATURAL_YEAR_YIELD_BASIS,
+        yearlyYields,
+        dividendEvents: source.dividendEvents,
+        futureYieldEstimate: estimates.baseline,
+        futureYieldEstimates: [estimates.baseline, estimates.conservative]
+      },
+      valuation: valuationDto,
+      equity: {
+        industry: source.stock.industry,
+        marketCap: source.stock.marketCap,
+        peRatio: source.stock.peRatio,
+        pbRatio: source.stock.pbRatio,
+        totalShares: source.stock.totalShares
+      }
     }
   }
 }
@@ -131,9 +170,11 @@ export function toAssetDetailDto(source: StockAssetDetailSource | FundAssetDetai
 
   const yearlyYields = buildHistoricalYields(source.dividendEvents)
   const unavailableEstimate = createUnavailableEstimate(source.identifier.assetType)
+  const caps = deriveCapabilities(source.kind)
+  const assetKey = buildAssetKey(source.identifier.assetType, source.identifier.market, source.identifier.code)
 
   return {
-    assetKey: buildAssetKey(source.identifier.assetType, source.identifier.market, source.identifier.code),
+    assetKey,
     assetType: source.identifier.assetType,
     market: source.identifier.market,
     code: source.identifier.code,
@@ -150,7 +191,25 @@ export function toAssetDetailDto(source: StockAssetDetailSource | FundAssetDetai
     yearlyYields,
     dividendEvents: source.dividendEvents,
     futureYieldEstimate: unavailableEstimate,
-    futureYieldEstimates: [unavailableEstimate]
+    futureYieldEstimates: [unavailableEstimate],
+    capabilities: caps,
+    modules: {
+      income: {
+        yieldBasis: FUND_YIELD_BASIS,
+        yearlyYields,
+        dividendEvents: source.dividendEvents,
+        futureYieldEstimate: unavailableEstimate,
+        futureYieldEstimates: [unavailableEstimate]
+      },
+      fund: {
+        category: source.category,
+        manager: source.manager,
+        trackingIndex: source.trackingIndex,
+        benchmark: source.benchmark,
+        latestNav: source.latestNav,
+        fundScale: source.fundScale
+      }
+    }
   }
 }
 

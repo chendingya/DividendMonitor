@@ -141,10 +141,10 @@ export function StockDetailPage() {
   const pbWindow = data.valuation?.pb?.windows.find((item) => item.window === valuationWindow)
   const displayCode = data.symbol ?? data.code
   const displayName = data.name?.trim() || displayCode
-  const isStockAsset = data.assetType === 'STOCK'
-  const hasValuation = isStockAsset && (data.peRatio != null || data.pbRatio != null || data.valuation != null)
+  const caps = data.capabilities
+  const hasValuation = caps.hasValuationAnalysis && (data.peRatio != null || data.pbRatio != null || data.valuation != null)
   const hasFundProfile =
-    !isStockAsset &&
+    !caps.hasValuationAnalysis &&
     Boolean(data.category || data.manager || data.trackingIndex || data.benchmark || data.latestNav != null || data.fundScale != null)
 
   function formatFundScale(value?: number) {

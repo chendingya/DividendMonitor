@@ -67,7 +67,8 @@ const SEARCH_TOKEN = 'D43BF722C8E33BDC906FB84D85E326E8'
 const TENCENT_KLINE_LIMIT = 2000
 
 function isAShareSymbol(symbol: string) {
-  return /^(6|0|3)\d{5}$/.test(symbol.trim())
+  // A-share stock codes: 6xxxxx (Shanghai), 000xxx-004xxx (Shenzhen main/SME), 300xxx-301xxx (ChiNext)
+  return /^(6\d{5}|00[0-4]\d{3}|30[0-1]\d{3})$/.test(symbol.trim())
 }
 
 function toTencentSymbol(symbol: string) {
@@ -209,7 +210,7 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
         return (
           classify === 'astock' ||
           securityTypeName.includes('A') ||
-          /^(6|0|3)\d{5}$/.test(code)
+          /^(6\d{5}|00[0-4]\d{3}|30[0-1]\d{3})$/.test(code)
         )
       })
       .map((item) => ({

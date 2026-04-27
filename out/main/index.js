@@ -250,6 +250,21 @@ function buildValuationWindows(metric) {
   };
 }
 const FUND_YIELD_BASIS = "Event-level yield accumulation by distribution year, using per-share cash distribution divided by the close on or before the record date";
+const STOCK_CAPABILITIES$1 = {
+  hasIncomeAnalysis: true,
+  hasValuationAnalysis: true,
+  hasBacktest: true,
+  hasComparisonMetrics: true
+};
+const ETF_FUND_CAPABILITIES = {
+  hasIncomeAnalysis: true,
+  hasValuationAnalysis: false,
+  hasBacktest: true,
+  hasComparisonMetrics: true
+};
+function deriveCapabilities(kind) {
+  return kind === "STOCK" ? STOCK_CAPABILITIES$1 : ETF_FUND_CAPABILITIES;
+}
 function toValuationMetricDto(metric) {
   if (!metric) {
     return void 0;
@@ -314,6 +329,10 @@ function toStockDetailDto(source) {
     lastAnnualPayoutRatio: source.lastAnnualPayoutRatio,
     lastYearTotalDividendAmount: source.lastYearTotalDividendAmount
   });
+  const valuationDto = {
+    pe: toValuationMetricDto(source.valuation?.pe),
+    pb: toValuationMetricDto(source.valuation?.pb)
+  };
   return {
     assetKey: buildStockAssetKey(source.stock.symbol),
     assetType: "STOCK",
@@ -333,9 +352,24 @@ function toStockDetailDto(source) {
     dividendEvents: source.dividendEvents,
     futureYieldEstimate: estimates.baseline,
     futureYieldEstimates: [estimates.baseline, estimates.conservative],
-    valuation: {
-      pe: toValuationMetricDto(source.valuation?.pe),
-      pb: toValuationMetricDto(source.valuation?.pb)
+    valuation: valuationDto,
+    capabilities: STOCK_CAPABILITIES$1,
+    modules: {
+      income: {
+        yieldBasis: NATURAL_YEAR_YIELD_BASIS,
+        yearlyYields,
+        dividendEvents: source.dividendEvents,
+        futureYieldEstimate: estimates.baseline,
+        futureYieldEstimates: [estimates.baseline, estimates.conservative]
+      },
+      valuation: valuationDto,
+      equity: {
+        industry: source.stock.industry,
+        marketCap: source.stock.marketCap,
+        peRatio: source.stock.peRatio,
+        pbRatio: source.stock.pbRatio,
+        totalShares: source.stock.totalShares
+      }
     }
   };
 }
@@ -345,8 +379,10 @@ function toAssetDetailDto(source) {
   }
   const yearlyYields = buildHistoricalYields(source.dividendEvents);
   const unavailableEstimate = createUnavailableEstimate(source.identifier.assetType);
+  const caps = deriveCapabilities(source.kind);
+  const assetKey = buildAssetKey(source.identifier.assetType, source.identifier.market, source.identifier.code);
   return {
-    assetKey: buildAssetKey(source.identifier.assetType, source.identifier.market, source.identifier.code),
+    assetKey,
     assetType: source.identifier.assetType,
     market: source.identifier.market,
     code: source.identifier.code,
@@ -363,7 +399,25 @@ function toAssetDetailDto(source) {
     yearlyYields,
     dividendEvents: source.dividendEvents,
     futureYieldEstimate: unavailableEstimate,
-    futureYieldEstimates: [unavailableEstimate]
+    futureYieldEstimates: [unavailableEstimate],
+    capabilities: caps,
+    modules: {
+      income: {
+        yieldBasis: FUND_YIELD_BASIS,
+        yearlyYields,
+        dividendEvents: source.dividendEvents,
+        futureYieldEstimate: unavailableEstimate,
+        futureYieldEstimates: [unavailableEstimate]
+      },
+      fund: {
+        category: source.category,
+        manager: source.manager,
+        trackingIndex: source.trackingIndex,
+        benchmark: source.benchmark,
+        latestNav: source.latestNav,
+        fundScale: source.fundScale
+      }
+    }
   };
 }
 function toStockComparisonRowDto(source) {
@@ -556,7 +610,7 @@ function extractYear(value) {
 const SEARCH_TOKEN$1 = "D43BF722C8E33BDC906FB84D85E326E8";
 const TENCENT_KLINE_LIMIT = 2e3;
 function isAShareSymbol$1(symbol) {
-  return /^(6|0|3)\d{5}$/.test(symbol.trim());
+  return /^(6\d{5}|00[0-4]\d{3}|30[0-1]\d{3})$/.test(symbol.trim());
 }
 function toTencentSymbol(symbol) {
   return symbol.startsWith("6") ? `sh${symbol}` : `sz${symbol}`;
@@ -661,7 +715,7 @@ class EastmoneyAShareDataSource {
       const classify = (item.Classify ?? "").toLowerCase();
       const securityTypeName = item.SecurityTypeName ?? "";
       const code = item.Code ?? "";
-      return classify === "astock" || securityTypeName.includes("A") || /^(6|0|3)\d{5}$/.test(code);
+      return classify === "astock" || securityTypeName.includes("A") || /^(6\d{5}|00[0-4]\d{3}|30[0-1]\d{3})$/.test(code);
     }).map((item) => ({
       symbol: item.Code,
       name: item.Name,
@@ -942,11 +996,11 @@ function resolveFundSecId(code) {
   throw new Error(`Unsupported A-share fund code: ${code}`);
 }
 function normalizeQuotePrice(value) {
-  if (value == null) {
+  if (value == null || value <= 0) {
     return void 0;
   }
   const price = value >= 1e3 ? value / 1e3 : value;
-  return Number.isFinite(price) ? price : void 0;
+  return Number.isFinite(price) && price > 0 ? price : void 0;
 }
 function parseKlines(payload) {
   return (payload.data?.klines ?? []).map((item) => item.split(",")).flatMap((parts) => {
@@ -978,9 +1032,9 @@ class EastmoneyFundDetailDataSource {
     const basicProfile = parseFundBasicProfile(basicHtml);
     const priceHistory = parseKlines(klinePayload);
     const dividendEvents = parseFundDividendEvents(dividendHtml, priceHistory);
-    const latestPrice = normalizeQuotePrice(quotePayload.data?.f43) ?? priceHistory[priceHistory.length - 1]?.close;
+    const latestPrice = normalizeQuotePrice(quotePayload.data?.f43) ?? priceHistory[priceHistory.length - 1]?.close ?? basicProfile.latestNav;
     if (!latestPrice) {
-      throw new Error(`Fund latest price is unavailable: ${normalizedCode}`);
+      throw new Error(`Fund latest price / NAV is unavailable: ${normalizedCode}`);
     }
     return {
       assetType,
@@ -1133,6 +1187,24 @@ class ValuationRepository {
     return buildMetric(snapshot, history);
   }
 }
+const STOCK_CAPABILITIES = {
+  hasIncomeAnalysis: true,
+  hasValuationAnalysis: true,
+  hasBacktest: true,
+  hasComparisonMetrics: true
+};
+const ETF_CAPABILITIES = {
+  hasIncomeAnalysis: true,
+  hasValuationAnalysis: false,
+  hasBacktest: true,
+  hasComparisonMetrics: true
+};
+const FUND_CAPABILITIES = {
+  hasIncomeAnalysis: true,
+  hasValuationAnalysis: false,
+  hasBacktest: true,
+  hasComparisonMetrics: true
+};
 const sharedValuationRepository = new ValuationRepository();
 function mergeStockDetail(source, valuation) {
   return {
@@ -1151,6 +1223,9 @@ class StockAssetProvider {
     this.valuationRepository = valuationRepository;
   }
   assetType = "STOCK";
+  getCapabilities() {
+    return STOCK_CAPABILITIES;
+  }
   supports(identifier) {
     return identifier.assetType === "STOCK" && identifier.market === "A_SHARE";
   }
@@ -1206,6 +1281,9 @@ class EtfAssetProvider {
     this.detailDataSource = detailDataSource;
   }
   assetType = "ETF";
+  getCapabilities() {
+    return ETF_CAPABILITIES;
+  }
   supports(identifier) {
     return identifier.assetType === "ETF" && identifier.market === "A_SHARE";
   }
@@ -1236,6 +1314,9 @@ class FundAssetProvider {
     this.detailDataSource = detailDataSource;
   }
   assetType = "FUND";
+  getCapabilities() {
+    return FUND_CAPABILITIES;
+  }
   supports(identifier) {
     return identifier.assetType === "FUND" && identifier.market === "A_SHARE";
   }
