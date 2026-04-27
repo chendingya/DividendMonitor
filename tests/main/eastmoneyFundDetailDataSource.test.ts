@@ -36,6 +36,26 @@ describe('eastmoney fund detail parsers', () => {
     })
   })
 
+  it('extracts unit nav when label has parenthesized date', () => {
+    const html = `
+      <div>单位净值（04-27）：
+      <b class="grn lar bold">
+      1.2949 ( -0.19% )</b>
+      </div>
+      <div>净资产规模（截止至：2026年03月31日）<b>35.36亿</b></div>
+    `
+
+    expect(parseFundBasicProfile(html)).toEqual({
+      name: undefined,
+      category: undefined,
+      manager: undefined,
+      trackingIndex: undefined,
+      benchmark: undefined,
+      latestNav: 1.2949,
+      fundScale: 3_536_000_000
+    })
+  })
+
   it('falls back to title when name field blocks are not directly parsable', () => {
     const html = `
       <html>
@@ -121,5 +141,24 @@ describe('eastmoney fund detail parsers', () => {
         source: 'eastmoney-fund'
       }
     ])
+  })
+
+  it('falls back to fallbackPrice when priceHistory is empty for off-market funds', () => {
+    const html = `
+      <table>
+        <tr>
+          <td>2024年</td>
+          <td>2024-07-12</td>
+          <td>2024-07-15</td>
+          <td>每份派现金0.012元</td>
+          <td>2024-07-18</td>
+        </tr>
+      </table>
+    `
+    const priceHistory: { date: string; close: number }[] = []
+    const fallbackPrice = 1.2345
+
+    const events = parseFundDividendEvents(html, priceHistory, fallbackPrice)
+    expect(events[0].referenceClosePrice).toBeCloseTo(fallbackPrice, 4)
   })
 })

@@ -13,7 +13,7 @@ import type {
 } from '@shared/contracts/api'
 import { buildAssetKey, buildStockAssetKey } from '@shared/contracts/api'
 import { buildHistoricalYields, NATURAL_YEAR_YIELD_BASIS } from '@main/domain/services/dividendYieldService'
-import { estimateFutureYield } from '@main/domain/services/futureYieldEstimator'
+import { estimateFutureYield, estimateFundFutureYield } from '@main/domain/services/futureYieldEstimator'
 import { buildValuationWindows } from '@main/domain/services/valuationService'
 import type { AssetSearchSource, FundAssetDetailSource, StockAssetDetailSource } from '@main/repositories/assetProviderRegistry'
 
@@ -169,9 +169,21 @@ export function toAssetDetailDto(source: StockAssetDetailSource | FundAssetDetai
   }
 
   const yearlyYields = buildHistoricalYields(source.dividendEvents)
-  const unavailableEstimate = createUnavailableEstimate(source.identifier.assetType)
   const caps = deriveCapabilities(source.kind)
   const assetKey = buildAssetKey(source.identifier.assetType, source.identifier.market, source.identifier.code)
+
+  const estimates = source.dividendEvents.length > 0
+    ? estimateFundFutureYield({
+        latestPrice: source.latestPrice,
+        dividendEvents: source.dividendEvents
+      })
+    : null
+
+  const futureYieldEstimate =
+    estimates?.baseline ?? createUnavailableEstimate(source.identifier.assetType)
+  const futureYieldEstimates = estimates
+    ? [estimates.baseline, estimates.conservative]
+    : [createUnavailableEstimate(source.identifier.assetType)]
 
   return {
     assetKey,
@@ -190,16 +202,16 @@ export function toAssetDetailDto(source: StockAssetDetailSource | FundAssetDetai
     yieldBasis: FUND_YIELD_BASIS,
     yearlyYields,
     dividendEvents: source.dividendEvents,
-    futureYieldEstimate: unavailableEstimate,
-    futureYieldEstimates: [unavailableEstimate],
+    futureYieldEstimate,
+    futureYieldEstimates,
     capabilities: caps,
     modules: {
       income: {
         yieldBasis: FUND_YIELD_BASIS,
         yearlyYields,
         dividendEvents: source.dividendEvents,
-        futureYieldEstimate: unavailableEstimate,
-        futureYieldEstimates: [unavailableEstimate]
+        futureYieldEstimate,
+        futureYieldEstimates
       },
       fund: {
         category: source.category,
@@ -251,6 +263,12 @@ export function toAssetComparisonRowDto(source: StockAssetDetailSource | FundAss
 
   const yearlyYields = buildHistoricalYields(source.dividendEvents)
   const averageYield = yearlyYields.reduce((sum, item) => sum + item.yield, 0) / Math.max(yearlyYields.length, 1)
+  const estimates = source.dividendEvents.length > 0
+    ? estimateFundFutureYield({
+        latestPrice: source.latestPrice,
+        dividendEvents: source.dividendEvents
+      })
+    : null
 
   return {
     assetKey: buildAssetKey(source.identifier.assetType, source.identifier.market, source.identifier.code),
@@ -260,7 +278,10 @@ export function toAssetComparisonRowDto(source: StockAssetDetailSource | FundAss
     name: source.name,
     latestPrice: source.latestPrice,
     marketCap: source.fundScale,
-    averageYield: yearlyYields.length > 0 ? averageYield : undefined
+    averageYield: yearlyYields.length > 0 ? averageYield : undefined,
+    estimatedFutureYield: estimates?.baseline.isAvailable
+      ? estimates.baseline.estimatedFutureYield
+      : undefined
   }
 }
 
@@ -290,6 +311,12 @@ export function toWatchlistEntryDto(source: StockAssetDetailSource | FundAssetDe
 
   const yearlyYields = buildHistoricalYields(source.dividendEvents)
   const averageYield = yearlyYields.reduce((sum, item) => sum + item.yield, 0) / Math.max(yearlyYields.length, 1)
+  const estimates = source.dividendEvents.length > 0
+    ? estimateFundFutureYield({
+        latestPrice: source.latestPrice,
+        dividendEvents: source.dividendEvents
+      })
+    : null
 
   return {
     assetKey: buildAssetKey(source.identifier.assetType, source.identifier.market, source.identifier.code),
@@ -299,7 +326,10 @@ export function toWatchlistEntryDto(source: StockAssetDetailSource | FundAssetDe
     name: source.name,
     latestPrice: source.latestPrice,
     averageYield: yearlyYields.length > 0 ? averageYield : undefined,
-    yieldLabel: '历史分配收益率'
+    estimatedFutureYield: estimates?.baseline.isAvailable
+      ? estimates.baseline.estimatedFutureYield
+      : undefined,
+    yieldLabel: estimates?.baseline.isAvailable ? '预期分配收益率' : '历史分配收益率'
   }
 }
 
@@ -349,12 +379,21 @@ export function toFutureYieldResponseDto(source: StockAssetDetailSource | FundAs
     }
   }
 
+  const estimates = source.dividendEvents.length > 0
+    ? estimateFundFutureYield({
+        latestPrice: source.latestPrice,
+        dividendEvents: source.dividendEvents
+      })
+    : null
+
   return {
     assetKey: buildAssetKey(source.identifier.assetType, source.identifier.market, source.identifier.code),
     assetType: source.identifier.assetType,
     market: source.identifier.market,
     code: source.identifier.code,
     symbol: source.identifier.code,
-    estimates: [createUnavailableEstimate(source.identifier.assetType)]
+    estimates: estimates
+      ? [estimates.baseline, estimates.conservative]
+      : [createUnavailableEstimate(source.identifier.assetType)]
   }
 }

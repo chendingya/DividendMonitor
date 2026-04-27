@@ -90,7 +90,22 @@ function extractFieldText(html: string, label: string) {
     return normalizeOptionalText(stripTags(blockMatch[1]))
   }
 
-  const inlineMatch = html.match(new RegExp(`${escapeRegExp(label)}[：:]?([\\s\\S]{0,200}?)<`, 'i'))
+  // Label followed by optional date in parentheses, colon, then value in a tag.
+  // e.g. 单位净值（04-27）：<b>1.2949</b>
+  const labeledTagMatch = html.match(
+    new RegExp(
+      `${escapeRegExp(label)}(?:[(（][^)）]*[)）])?[：:]?\\s*<[^>]*>([\\s\\S]{0,200}?)<\\/[^>]*>`,
+      'i'
+    )
+  )
+  if (labeledTagMatch) {
+    return normalizeOptionalText(stripTags(labeledTagMatch[1]))
+  }
+
+  // Label followed by optional date in parentheses, colon, then inline text.
+  const inlineMatch = html.match(
+    new RegExp(`${escapeRegExp(label)}(?:[(（][^)）]*[)）])?[：:]?([\\s\\S]{0,200}?)<`, 'i')
+  )
   if (inlineMatch) {
     return normalizeOptionalText(stripTags(inlineMatch[1]))
   }
@@ -132,7 +147,7 @@ export function parseFundBasicProfile(html: string): ParsedFundBasicProfile {
   }
 }
 
-function toReferenceClosePrice(date: string | undefined, priceHistory: HistoricalPricePoint[]) {
+function toReferenceClosePrice(date: string | undefined, priceHistory: HistoricalPricePoint[], fallbackPrice?: number) {
   if (!date) {
     return 0
   }
@@ -143,10 +158,10 @@ function toReferenceClosePrice(date: string | undefined, priceHistory: Historica
   }
 
   const previous = [...priceHistory].reverse().find((item) => item.date < date)
-  return previous?.close ?? 0
+  return previous?.close ?? fallbackPrice ?? 0
 }
 
-export function parseFundDividendEvents(html: string, priceHistory: HistoricalPricePoint[]): DividendEvent[] {
+export function parseFundDividendEvents(html: string, priceHistory: HistoricalPricePoint[], fallbackPrice?: number): DividendEvent[] {
   const rows = html.match(/<tr[\s\S]*?<\/tr>/g) ?? []
   const events: DividendEvent[] = []
 
@@ -177,7 +192,7 @@ export function parseFundDividendEvents(html: string, priceHistory: HistoricalPr
       exDate,
       payDate,
       dividendPerShare,
-      referenceClosePrice: toReferenceClosePrice(recordDate ?? exDate, priceHistory),
+      referenceClosePrice: toReferenceClosePrice(recordDate ?? exDate, priceHistory, fallbackPrice),
       source: 'eastmoney-fund'
     })
   }
@@ -247,21 +262,33 @@ export class EastmoneyFundDetailDataSource implements FundDetailDataSource {
         `https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&fields=f43,f57,f58&secid=${secId}`
       ),
       getJson<FundKlineResponse>(
-        `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secId}&klt=101&fqt=1&lmt=800&end=20500101&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56`
+        `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secId}&klt=101&fqt=0&lmt=800&end=20500101&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56`
       )
     ])
 
     const basicProfile = parseFundBasicProfile(basicHtml)
     const priceHistory = parseKlines(klinePayload)
-    const dividendEvents = parseFundDividendEvents(dividendHtml, priceHistory)
+    const quotePrice = normalizeQuotePrice(quotePayload.data?.f43)
+    const lastKlineClose = priceHistory[priceHistory.length - 1]?.close
+    const unitNav = basicProfile.latestNav
+
+    // Off-market funds don't trade on exchanges; quote API may return
+    // accumulated NAV rather than unit NAV. Prefer unit NAV from the
+    // profile page to avoid inflated price display.
     const latestPrice =
-      normalizeQuotePrice(quotePayload.data?.f43) ??
-      priceHistory[priceHistory.length - 1]?.close ??
-      basicProfile.latestNav
+      assetType === 'FUND'
+        ? (unitNav ?? quotePrice ?? lastKlineClose)
+        : (quotePrice ?? lastKlineClose ?? unitNav)
 
     if (!latestPrice) {
       throw new Error(`Fund latest price / NAV is unavailable: ${normalizedCode}`)
     }
+
+    // Off-market fund K-line data represents NAV history, not trading
+    // prices. For yield calculations, always use unit NAV as the
+    // reference close price.
+    const effectivePriceHistory = assetType === 'FUND' ? [] : priceHistory
+    const dividendEvents = parseFundDividendEvents(dividendHtml, effectivePriceHistory, latestPrice)
 
     return {
       assetType,

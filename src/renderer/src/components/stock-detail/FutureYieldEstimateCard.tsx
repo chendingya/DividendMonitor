@@ -67,18 +67,26 @@ function formatScaledValue(value: number, suffix: string) {
 }
 
 function buildStepDetails(estimate: FutureYieldEstimateDto) {
-  const latestPrice = estimate.inputs.latestPrice
-  const latestTotalShares = estimate.inputs.latestTotalShares
-  const latestAnnualNetProfit = estimate.inputs.latestAnnualNetProfit
-  const lastAnnualPayoutRatio = estimate.inputs.lastAnnualPayoutRatio
-  const lastYearTotalDividendAmount = estimate.inputs.lastYearTotalDividendAmount
-
   if (!estimate.isAvailable) {
     return estimate.steps.map((step) => ({
       title: step,
       detail: ''
     }))
   }
+
+  const isFundEstimate = estimate.inputs.latestTotalShares == null
+  if (isFundEstimate) {
+    return estimate.steps.map((step) => ({
+      title: step,
+      detail: ''
+    }))
+  }
+
+  const latestPrice = estimate.inputs.latestPrice
+  const latestTotalShares = estimate.inputs.latestTotalShares
+  const latestAnnualNetProfit = estimate.inputs.latestAnnualNetProfit
+  const lastAnnualPayoutRatio = estimate.inputs.lastAnnualPayoutRatio
+  const lastYearTotalDividendAmount = estimate.inputs.lastYearTotalDividendAmount
 
   if (estimate.method === 'baseline') {
     const estimatedTotalDividend =
@@ -157,31 +165,63 @@ export function FutureYieldEstimateCard({ estimate }: { estimate: FutureYieldEst
             关键输入
           </Typography.Title>
           <div className="ledger-calc-summary">
-            {estimate.method === 'baseline' ? (
+            {estimate.inputs.latestTotalShares == null ? (
               <>
                 <div className="ledger-calc-summary-item">
-                  <span>最新年度净利润</span>
-                  <strong>{formatCurrencyValue(estimate.inputs.latestAnnualNetProfit)}</strong>
+                  <span>可用年份数</span>
+                  <strong>{estimate.inputs.availableYearCount ?? '--'} 年</strong>
                 </div>
+                {estimate.method === 'baseline' ? (
+                  <div className="ledger-calc-summary-item">
+                    <span>最近年份分配合计</span>
+                    <strong>{formatPerShareValue(estimate.inputs.baselineYearDistPerShare)}</strong>
+                  </div>
+                ) : (
+                  <>
+                    <div className="ledger-calc-summary-item">
+                      <span>年均分配</span>
+                      <strong>{formatPerShareValue(estimate.inputs.avgAnnualDistPerShare)}</strong>
+                    </div>
+                    <div className="ledger-calc-summary-item">
+                      <span>保守统计年数</span>
+                      <strong>{estimate.inputs.conservativeYearCount ?? '--'} 年</strong>
+                    </div>
+                  </>
+                )}
                 <div className="ledger-calc-summary-item">
-                  <span>上一年分红率</span>
-                  <strong>{formatPercentValue(estimate.inputs.lastAnnualPayoutRatio)}</strong>
+                  <span>最新价格</span>
+                  <strong>{formatPriceValue(estimate.inputs.latestPrice)}</strong>
                 </div>
               </>
             ) : (
-              <div className="ledger-calc-summary-item">
-                <span>上一年实际总分红</span>
-                <strong>{formatCurrencyValue(estimate.inputs.lastYearTotalDividendAmount)}</strong>
-              </div>
+              <>
+                {estimate.method === 'baseline' ? (
+                  <>
+                    <div className="ledger-calc-summary-item">
+                      <span>最新年度净利润</span>
+                      <strong>{formatCurrencyValue(estimate.inputs.latestAnnualNetProfit)}</strong>
+                    </div>
+                    <div className="ledger-calc-summary-item">
+                      <span>上一年分红率</span>
+                      <strong>{formatPercentValue(estimate.inputs.lastAnnualPayoutRatio)}</strong>
+                    </div>
+                  </>
+                ) : (
+                  <div className="ledger-calc-summary-item">
+                    <span>上一年实际总分红</span>
+                    <strong>{formatCurrencyValue(estimate.inputs.lastYearTotalDividendAmount)}</strong>
+                  </div>
+                )}
+                <div className="ledger-calc-summary-item">
+                  <span>最新总股本</span>
+                  <strong>{formatSharesValue(estimate.inputs.latestTotalShares)}</strong>
+                </div>
+                <div className="ledger-calc-summary-item">
+                  <span>最新股价</span>
+                  <strong>{formatPriceValue(estimate.inputs.latestPrice)}</strong>
+                </div>
+              </>
             )}
-            <div className="ledger-calc-summary-item">
-              <span>最新总股本</span>
-              <strong>{formatSharesValue(estimate.inputs.latestTotalShares)}</strong>
-            </div>
-            <div className="ledger-calc-summary-item">
-              <span>最新股价</span>
-              <strong>{formatPriceValue(estimate.inputs.latestPrice)}</strong>
-            </div>
           </div>
         </>
       ) : null}
