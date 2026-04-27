@@ -32,6 +32,23 @@ function buildUnavailableEstimate(
   }
 }
 
+export type FundFutureYieldInput = {
+  latestPrice: number
+  dividendEvents: { year: number; dividendPerShare: number }[]
+}
+
+function buildFundUnavailable(method: 'baseline' | 'conservative', reason: string, inputs: Record<string, number | null>) {
+  return {
+    estimatedDividendPerShare: 0,
+    estimatedFutureYield: 0,
+    method,
+    isAvailable: false,
+    reason,
+    inputs: { ...inputs },
+    steps: [reason]
+  }
+}
+
 export function estimateFutureYield(input: FutureYieldInput) {
   const baseInputs = {
     latestPrice: input.latestPrice ?? null,
@@ -106,5 +123,93 @@ export function estimateFutureYield(input: FutureYieldInput) {
   return {
     baseline,
     conservative
+  }
+}
+
+export function estimateFundFutureYield(input: FundFutureYieldInput) {
+  const baseInputs: Record<string, number | null> = {
+    latestPrice: input.latestPrice ?? null,
+    availableYearCount: null,
+    baselineYearDistPerShare: null,
+    baselineYear: null,
+    avgAnnualDistPerShare: null,
+    conservativeYearCount: null
+  }
+
+  if (!(input.latestPrice > 0)) {
+    const reason = '最新价格无效，无法估算未来分配率'
+    return {
+      baseline: buildFundUnavailable('baseline', reason, baseInputs),
+      conservative: buildFundUnavailable('conservative', reason, baseInputs)
+    }
+  }
+
+  if (!input.dividendEvents || input.dividendEvents.length === 0) {
+    const reason = '暂无历史分配记录，无法估算未来分配率'
+    return {
+      baseline: buildFundUnavailable('baseline', reason, baseInputs),
+      conservative: buildFundUnavailable('conservative', reason, baseInputs)
+    }
+  }
+
+  const yearTotals = new Map<number, number>()
+  const yearEventCounts = new Map<number, number>()
+
+  for (const event of input.dividendEvents) {
+    const current = yearTotals.get(event.year) ?? 0
+    yearTotals.set(event.year, current + event.dividendPerShare)
+    yearEventCounts.set(event.year, (yearEventCounts.get(event.year) ?? 0) + 1)
+  }
+
+  const sortedYears = [...yearTotals.entries()].sort((a, b) => b[0] - a[0])
+
+  const [baselineYear, baselineTotal] = sortedYears[0]
+  const baselineDividendPerShare = baselineTotal
+  const baselineYield = baselineDividendPerShare / input.latestPrice
+
+  const conservativeYears = sortedYears.slice(0, Math.min(3, sortedYears.length))
+  const conservativeTotal = conservativeYears.reduce((sum, [, total]) => sum + total, 0)
+  const conservativeDividendPerShare = conservativeTotal / conservativeYears.length
+  const conservativeYield = conservativeDividendPerShare / input.latestPrice
+
+  return {
+    baseline: {
+      estimatedDividendPerShare: baselineDividendPerShare,
+      estimatedFutureYield: baselineYield,
+      method: 'baseline' as const,
+      isAvailable: true,
+      reason: undefined,
+      inputs: {
+        ...baseInputs,
+        availableYearCount: sortedYears.length,
+        baselineYearDistPerShare: baselineDividendPerShare,
+        baselineYear,
+        avgAnnualDistPerShare: null,
+        conservativeYearCount: null
+      },
+      steps: [
+        `最近完成年份（${baselineYear}）的分配记录：${yearEventCounts.get(baselineYear)} 次事件，每份合计 ${formatNumber(baselineTotal)} 元`,
+        `每份分配 ${formatNumber(baselineTotal)} / 最新价格 ${formatNumber(input.latestPrice)} = 估算分配率 ${formatNumber(baselineYield)}`
+      ]
+    },
+    conservative: {
+      estimatedDividendPerShare: conservativeDividendPerShare,
+      estimatedFutureYield: conservativeYield,
+      method: 'conservative' as const,
+      isAvailable: true,
+      reason: undefined,
+      inputs: {
+        ...baseInputs,
+        availableYearCount: sortedYears.length,
+        baselineYearDistPerShare: null,
+        baselineYear: null,
+        avgAnnualDistPerShare: conservativeDividendPerShare,
+        conservativeYearCount: conservativeYears.length
+      },
+      steps: [
+        `最近 ${conservativeYears.length} 年（${conservativeYears.map(([y]) => y).join('、')}）的分配记录：每份合计 ${formatNumber(conservativeTotal)} 元`,
+        `年均每份分配 ${formatNumber(conservativeDividendPerShare)} / 最新价格 ${formatNumber(input.latestPrice)} = 估算分配率 ${formatNumber(conservativeYield)}`
+      ]
+    }
   }
 }
