@@ -176,32 +176,96 @@ DividendMonitor/
 
 对外部数据源做统一封装，避免业务逻辑直接依赖第三方接口。
 
-首期限定为 A 股免费公开接口，建议采用“主源 + 补充校验源”的方式：
+已接入数据源：
 
-1. 主源：东方财富公开接口，覆盖搜索、分红、估值和部分基础字段
-2. 补充源：新浪财经、巨潮资讯或交易所披露页，用于补充分红实施、股本变更等字段
-3. 本地缓存：当前仅自选已落 SQLite；估值链路已补 15 分钟内存缓存，完整 SQLite 缓存层仍未完成
+1. 股票（A 股）：东方财富公开接口（搜索 + 分红记录）+ 腾讯行情接口（K 线、实时行情）
+2. ETF / 场外基金：东方财富公开接口（行情、K 线、基本档案 HTML 解析、分红记录 HTML 解析）
+3. 估值分位：东方财富接口（PE / PB 历史序列 + 当前快照）
+4. 本地缓存：自选已落 SQLite；估值链路已补 15 分钟内存缓存
 
-建议抽象接口：
+适配器目录：
 
-- `searchStocks(keyword)`
-- `getQuote(symbol)`
-- `getValuationSnapshot(symbol)`
-- `getValuationTrend(symbol)`
-- `getDividendHistory(symbol, range)`
-- `getFinancialSummary(symbol, period)`
-- `getShareCapitalHistory(symbol, range)`
-- `getTradingCalendar(range)`
+```
+src/main/adapters/
+├── contracts.ts                          # 数据源接口定义
+├── eastmoney/
+│   ├── eastmoneyAShareDataSource.ts      # A 股搜索 + 行情 + 分红
+│   ├── eastmoneyFundCatalogAdapter.ts    # 基金/ETF 搜索
+│   ├── eastmoneyFundDetailDataSource.ts  # 基金/ETF 详情 + 分红 HTML 解析
+│   ├── eastmoneyValuationAdapter.ts      # PE/PB 估值数据
+│   └── eastmoneyUtils.ts                 # 共享工具函数
+```
+
+基金 HTML 解析（`eastmoneyFundDetailDataSource.ts`）：
+- `parseFundBasicProfile()` — 从基金档案页提取名称、类型、管理人、跟踪标的、单位净值、规模
+- `parseFundDividendEvents()` — 从分红记录页解析分配事件
+- `extractFieldText()` — 通用 HTML 字段提取，支持括号日期格式（如 `单位净值（04-27）：<b>1.2949</b>`）
+- 基金 K 线使用 `fqt=0`（未复权），与股票腾讯接口的 `day` 原始行情保持一致
 
 ## 8. 核心数据模型
 
-### 8.1 Stock
+### 8.1 资产身份与能力
+
+所有资产通过 `AssetIdentifierDto` (`assetType:market:code`) 统一标识：
 
 ```ts
-type Stock = {
-  symbol: string;
-  name: string;
-  market: string;
+type AssetType = 'STOCK' | 'ETF' | 'FUND'
+type MarketCode = 'A_SHARE'
+type AssetKey = string  // e.g. "STOCK:A_SHARE:600519"
+
+type AssetIdentifierDto = {
+  assetType: AssetType
+  market: MarketCode
+  code: string
+}
+```
+
+`AssetCapabilitiesDto` 声明每种资产支持的分析能力：
+
+```ts
+type AssetCapabilitiesDto = {
+  hasIncomeAnalysis: boolean      // 历史收益率分析
+  hasValuationAnalysis: boolean   // PE/PB 估值分位
+  hasBacktest: boolean            // 股息复投回测
+  hasComparisonMetrics: boolean   // 多资产对比
+}
+```
+
+| 资产类型 | hasIncomeAnalysis | hasValuationAnalysis | hasBacktest | hasComparisonMetrics |
+|----------|:---:|:---:|:---:|:---:|
+| STOCK    | ✓ | ✓ | ✓ | ✓ |
+| ETF      | ✓ |   | ✓ | ✓ |
+| FUND     | ✓ |   | ✓ | ✓ |
+
+### 8.2 资产详情模块化结构
+
+`AssetDetailDto` 不再使用扁平字段，改为按功能模块组织：
+
+```ts
+type AssetDetailDto = {
+  // 基础字段
+  assetKey: AssetKey
+  assetType: AssetType
+  code: string; name: string; market: string
+  latestPrice: number; latestNav?: number
+  // ... 其他基础字段
+  // 能力声明
+  capabilities: AssetCapabilitiesDto
+  // 模块化详情
+  modules: AssetDetailModulesDto
+}
+
+type AssetDetailModulesDto = {
+  income?: IncomeAnalysisDto       // 历史收益率 + 未来估算
+  valuation?: ValuationSnapshotDto // PE/PB 估值（仅 STOCK）
+  equity?: EquityAssetModuleDto    // 股票专属：行业/市值/PE/PB/总股本
+  fund?: FundAssetModuleDto        // 基金专属：类型/管理人/跟踪标的/净值/规模
+}
+```
+
+前端通过 `capabilities` 决定渲染哪些模块，不再硬编码 `assetType === 'STOCK'` 分支。
+
+### 8.3 Stock（遗留，仅股票内部使用）
   industry?: string;
   currency?: string;
 };
@@ -373,9 +437,13 @@ AverageYield(startYear, endYear) =
   Average(NaturalYearDividendYield(year))
 ```
 
-### 10.3 基于去年分红的未来股息率估算
+### 10.3 未来收益率估算
 
-首期不接受用户手工输入估算参数，系统自动根据可得数据生成结果，并展示全过程。
+估算分为两套公式：股票使用财务数据驱动，ETF/基金使用历史分配记录驱动。
+
+#### 股票方法（`estimateFutureYield`）
+
+基于公司财务数据的两种方式：
 
 方式一：基准估算，沿用上一年度分红比例
 
@@ -391,6 +459,33 @@ EstimatedFutureYield = EstimatedDividendPerShare / currentPrice
 EstimatedDividendPerShare = lastYearTotalDividendAmount / latestTotalShares
 EstimatedFutureYield = EstimatedDividendPerShare / currentPrice
 ```
+
+#### ETF / 基金方法（`estimateFundFutureYield`）
+
+基于历史分配记录的两种方式：
+
+方式一（baseline）：最近完整年份
+
+```text
+baselineDistPerShare = SUM(dividendPerShare for events in mostRecentYear)
+estimatedFutureYield = baselineDistPerShare / latestPrice
+```
+
+方式二（conservative）：最近 1-3 年平均
+
+```text
+annualAvgDistPerShare = SUM(dividendPerShare for events in last 1-3 years) / yearCount
+estimatedFutureYield = annualAvgDistPerShare / latestPrice
+```
+
+输入字段（`FundFutureYieldInput`）：
+- `latestPrice`：当前价格（ETF 用市价，场外基金用单位净值）
+- `dividendEvents`：历史分配事件列表
+
+场外基金价格基准：
+- 场外基金不通过交易所交易，行情接口 `f43` 可能返回累计净值而非单位净值
+- 系统优先使用基金档案页 HTML 解析的"单位净值"（约 1-5 元量级）
+- `extractFieldText` 支持 `标签（日期）：<标签>值</标签>` 格式的 HTML 解析
 
 ### 10.4 计算设计要求
 
@@ -665,13 +760,18 @@ window.dividendMonitor = {
 - 数据适配器转换
 - 回测流水重放
 
-## 23. 当前实现对齐状态（2026-04-25）
+## 23. 当前实现对齐状态（2026-04-27）
 
 1. Electron + React + preload + IPC 主链路已可运行
-2. 自选持久化已从 JSON 文件切换到 SQLite，当前使用 `node:sqlite`
-3. 开发态 Electron 的 `userData` 已切换到项目内 `.runtime-data`，避免开发环境写系统 `Roaming` 目录
-4. 渲染层已增加 runtime adapter，浏览器预览可通过 fallback 跑通搜索、自选、对比、详情和回测的最小链路
-5. 浏览器预览当前依赖 mock/fallback 数据，不等同于桌面端真实数据链路
+2. 多资产架构已落地：`AssetProviderRegistry` + `StockAssetProvider` / `EtfAssetProvider` / `FundAssetProvider`
+3. `AssetCapabilitiesDto` + `AssetDetailModulesDto` 贯穿共享合约、Mapper、Mock 数据和前端渲染
+4. 前端能力驱动渲染：`StockDetailPage` 通过 `data.capabilities` 决定展示估值模块或基金画像模块
+5. 自选持久化已从 JSON 文件切换到 SQLite，当前使用 `node:sqlite`
+6. 开发态 Electron 的 `userData` 已切换到项目内 `.runtime-data`
+7. 渲染层已增加 runtime adapter，浏览器预览可通过 fallback 跑通搜索、自选、对比、详情和回测的最小链路
+8. ETF/基金详情、历史分配收益率、未来分配率估算已实现
+9. 基金数据源使用 `fqt=0`（未复权）K 线，与股票端未复权价格口径一致
+10. 场外基金优先使用单位净值作为价格基准，避免累计净值干扰
 
 ### 20.3 E2E 测试
 
