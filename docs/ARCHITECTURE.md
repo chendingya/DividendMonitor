@@ -239,17 +239,21 @@ src/main/adapters/
   contracts.ts
   index.ts
   eastmoney/
-    eastmoneyAShareDataSource.ts
-    eastmoneyValuationAdapter.ts
-    eastmoneyUtils.ts
+    eastmoneyAShareDataSource.ts        # A 股搜索 + 行情 + 分红
+    eastmoneyFundCatalogAdapter.ts      # 基金/ETF 搜索
+    eastmoneyFundDetailDataSource.ts    # 基金/ETF 详情 + 分红 HTML 解析
+    eastmoneyValuationAdapter.ts        # PE/PB 估值快照与趋势
+    eastmoneyUtils.ts                   # 共享工具函数
 ```
 
 说明：
 
 1. 当前体量下，`contracts.ts` 统一承载 adapter 契约，减少碎文件
-2. `eastmoneyAShareDataSource.ts` 负责搜索、行情、分红等基础接入
-3. `eastmoneyValuationAdapter.ts` 负责估值快照和趋势接入
-4. 当后续出现第二个以上外部源或 adapter 数量明显增长时，再细分为 `quote/dividend/finance` 子适配器
+2. `eastmoneyAShareDataSource.ts` 负责股票搜索、行情、分红等基础接入
+3. `eastmoneyFundDetailDataSource.ts` 负责基金/ETF 的详情 HTML 抓取、分红记录解析、K 线数据获取（`fqt=0` 未复权）
+4. `eastmoneyFundCatalogAdapter.ts` 负责基金/ETF 的搜索与类型识别
+5. `eastmoneyValuationAdapter.ts` 负责估值快照和趋势接入
+6. 当后续出现第二个以上外部源或 adapter 数量明显增长时，再细分为 `quote/dividend/finance` 子适配器
 
 规则：
 
@@ -264,19 +268,17 @@ src/main/adapters/
 - 为上层提供统一数据访问能力
 - 管理缓存策略、刷新策略和回源策略
 
-建议目录：
+当前目录：
 
 ```text
 src/main/repositories/
-  stockRepository.ts
-  watchlistRepository.ts
-  quoteRepository.ts
-  dividendRepository.ts
-  financeRepository.ts
-  shareCapitalRepository.ts
-  backtestRepository.ts
-  settingsRepository.ts
+  assetProviderRegistry.ts    # 资产提供者注册表 + AssetProvider 接口
+  assetRepository.ts          # 资产仓储（按 assetKey 路由到对应 Provider）
+  watchlistRepository.ts      # 自选管理
+  valuationRepository.ts      # PE/PB 估值数据
 ```
+
+`AssetProviderRegistry` 是核心路由层：根据 `AssetIdentifierDto` 的 `assetType` 分发到 `StockAssetProvider` / `EtfAssetProvider` / `FundAssetProvider`，每个 Provider 实现 `supports` / `search` / `getDetail` / `compare` / `getCapabilities` 方法。
 
 典型模式：
 
@@ -847,9 +849,13 @@ flowchart LR
 3. `docs/DB-DDL.sql`
 4. `src` 目录脚手架初始化
 
-## 18. 当前实现状态（2026-04-25）
+## 18. 当前实现状态（2026-04-27）
 
 1. Main 侧已落地最小数据库设施与 `watchlistRepository`
-2. Renderer 侧已落地 `desktopApi` 运行时选择器与 `browserRuntimeApi`
-3. 架构目标中的“统一 renderer service 接口、多运行时实现”已开始落地
-4. 架构目标中的“完整缓存层、完整 repository 回源策略、显式 SQLite 第三方依赖”尚未完成
+2. Main 侧已落地多资产路由：`AssetProviderRegistry` + Stock / ETF / Fund 三个 Provider
+3. Renderer 侧已落地 `desktopApi` 运行时选择器与 `browserRuntimeApi`
+4. 架构目标中的”统一 renderer service 接口、多运行时实现”已开始落地
+5. 前端能力驱动渲染：`StockDetailPage` 通过 `data.capabilities` 控制模块显隐
+6. ETF/基金完整链路已通：搜索 → 详情 → 历史分配收益率 → 未来分配率估算
+7. `FutureYieldEstimateCard` 区分股票（财务驱动）和基金（分配记录驱动）的估算展示
+8. 架构目标中的”完整缓存层、完整 repository 回源策略、显式 SQLite 第三方依赖”尚未完成

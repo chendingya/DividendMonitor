@@ -1056,3 +1056,30 @@ flowchart LR
 4. 港股高股息资产
 
 都可以沿用同一套演进路径，而不需要再次重构顶层结构。
+
+## 16. 实施状态（2026-04-27）
+
+### 已完成
+
+| 设计项 | 对应设计节 | 实现文件 |
+|--------|-----------|---------|
+| AssetIdentifier / AssetKey | §5.1 | `shared/contracts/api.ts` |
+| AssetCapabilitiesDto | §5.2 | `shared/contracts/api.ts:273-278` |
+| AssetDetailModulesDto (income/valuation/equity/fund) | §5.3 | `shared/contracts/api.ts:305-310` |
+| AssetProvider 接口 + getCapabilities() | §5.4 / §7.3 | `src/main/repositories/assetProviderRegistry.ts:33-40` |
+| AssetProviderRegistry | §7.3 | `src/main/repositories/assetProviderRegistry.ts:227-248` |
+| StockAssetProvider | §7.3 | `src/main/repositories/assetProviderRegistry.ts:77-145` |
+| EtfAssetProvider | §7.3 | `src/main/repositories/assetProviderRegistry.ts:147-185` |
+| FundAssetProvider | §7.3 | `src/main/repositories/assetProviderRegistry.ts:187-225` |
+| EastmoneyFundDetailDataSource | §7.1 | `src/main/adapters/eastmoney/eastmoneyFundDetailDataSource.ts` |
+| EastmoneyFundCatalogAdapter | §7.1 | `src/main/adapters/eastmoney/eastmoneyFundCatalogAdapter.ts` |
+| 前端能力驱动渲染 | §10.1 | `src/renderer/src/pages/StockDetailPage.tsx` |
+| ETF/基金未来分配率估算 | §6.3 基金专属 | `src/main/domain/services/futureYieldEstimator.ts` (`estimateFundFutureYield`) |
+| asset:* IPC 通道 | §8.1 | `src/main/ipc/channels/assetChannels.ts` |
+
+### 与设计文档的差异
+
+1. **§5.2 AssetSummaryDto**：实际实现中未独立出 `AssetSummaryDto`，基础字段直接在 `AssetDetailDto` 顶层平铺，与 `modules` 并列。前端按 `capabilities` + `modules` 渲染，工作良好。
+2. **§5.4 独立能力接口**：设计建议拆成 `AssetCatalogRepository` / `IncomeAnalysisRepository` 等独立接口，实际采用聚合的 `AssetProvider` 接口（含 `supports` / `search` / `getDetail` / `compare` / `getCapabilities`），通过 `AssetProviderRegistry` 路由。
+3. **ETF 能力声明**：ETF 和 FUND 当前使用相同的能力矩阵 (`ETF_FUND_CAPABILITIES`)，后续可拆细（如部分 ETF 可能有估值数据）。
+4. **基金未来收益率估算**：`estimateFundFutureYield()` 基于历史分配记录，使用最近 1-3 年数据（而非原设计 §6.3 提到的"近 12 个月滚动分配率"）。两者概念相近，当前实现更简洁。
