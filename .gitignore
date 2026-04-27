@@ -7,4 +7,5 @@ release/
 coverage/
 .runtime-data/
 .trae/
+.claude/
 *.log

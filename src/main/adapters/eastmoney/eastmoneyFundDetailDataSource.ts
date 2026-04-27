@@ -207,12 +207,12 @@ function resolveFundSecId(code: string) {
 }
 
 function normalizeQuotePrice(value: number | undefined) {
-  if (value == null) {
+  if (value == null || value <= 0) {
     return undefined
   }
 
   const price = value >= 1000 ? value / 1000 : value
-  return Number.isFinite(price) ? price : undefined
+  return Number.isFinite(price) && price > 0 ? price : undefined
 }
 
 function parseKlines(payload: FundKlineResponse): HistoricalPricePoint[] {
@@ -254,10 +254,13 @@ export class EastmoneyFundDetailDataSource implements FundDetailDataSource {
     const basicProfile = parseFundBasicProfile(basicHtml)
     const priceHistory = parseKlines(klinePayload)
     const dividendEvents = parseFundDividendEvents(dividendHtml, priceHistory)
-    const latestPrice = normalizeQuotePrice(quotePayload.data?.f43) ?? priceHistory[priceHistory.length - 1]?.close
+    const latestPrice =
+      normalizeQuotePrice(quotePayload.data?.f43) ??
+      priceHistory[priceHistory.length - 1]?.close ??
+      basicProfile.latestNav
 
     if (!latestPrice) {
-      throw new Error(`Fund latest price is unavailable: ${normalizedCode}`)
+      throw new Error(`Fund latest price / NAV is unavailable: ${normalizedCode}`)
     }
 
     return {

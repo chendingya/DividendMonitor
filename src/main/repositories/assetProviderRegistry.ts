@@ -1,4 +1,4 @@
-import type { AssetIdentifierDto, AssetType } from '@shared/contracts/api'
+import type { AssetCapabilitiesDto, AssetIdentifierDto, AssetType } from '@shared/contracts/api'
 import type { FundDetailSource, StockDetailSource } from '@main/adapters/contracts'
 import { createAShareDataSource, createFundCatalogDataSource, createFundDetailDataSource } from '@main/adapters'
 import type {
@@ -33,9 +33,31 @@ export type AssetDetailSource = StockAssetDetailSource | FundAssetDetailSource
 export interface AssetProvider {
   readonly assetType: AssetType
   supports(identifier: AssetIdentifierDto): boolean
+  getCapabilities(): AssetCapabilitiesDto
   search(keyword: string): Promise<AssetSearchSource[]>
   getDetail(identifier: AssetIdentifierDto): Promise<AssetDetailSource>
   compare?(identifiers: AssetIdentifierDto[]): Promise<AssetDetailSource[]>
+}
+
+const STOCK_CAPABILITIES: AssetCapabilitiesDto = {
+  hasIncomeAnalysis: true,
+  hasValuationAnalysis: true,
+  hasBacktest: true,
+  hasComparisonMetrics: true
+}
+
+const ETF_CAPABILITIES: AssetCapabilitiesDto = {
+  hasIncomeAnalysis: true,
+  hasValuationAnalysis: false,
+  hasBacktest: true,
+  hasComparisonMetrics: true
+}
+
+const FUND_CAPABILITIES: AssetCapabilitiesDto = {
+  hasIncomeAnalysis: true,
+  hasValuationAnalysis: false,
+  hasBacktest: true,
+  hasComparisonMetrics: true
 }
 
 const sharedValuationRepository = new ValuationRepository()
@@ -59,6 +81,10 @@ export class StockAssetProvider implements AssetProvider {
     private readonly dataSource: AShareDataSource = createAShareDataSource(),
     private readonly valuationRepository: ValuationRepository = sharedValuationRepository
   ) {}
+
+  getCapabilities(): AssetCapabilitiesDto {
+    return STOCK_CAPABILITIES
+  }
 
   supports(identifier: AssetIdentifierDto) {
     return identifier.assetType === 'STOCK' && identifier.market === 'A_SHARE'
@@ -126,6 +152,10 @@ export class EtfAssetProvider implements AssetProvider {
     private readonly detailDataSource: FundDetailDataSource = createFundDetailDataSource()
   ) {}
 
+  getCapabilities(): AssetCapabilitiesDto {
+    return ETF_CAPABILITIES
+  }
+
   supports(identifier: AssetIdentifierDto) {
     return identifier.assetType === 'ETF' && identifier.market === 'A_SHARE'
   }
@@ -161,6 +191,10 @@ export class FundAssetProvider implements AssetProvider {
     private readonly catalogDataSource: FundCatalogDataSource = createFundCatalogDataSource(),
     private readonly detailDataSource: FundDetailDataSource = createFundDetailDataSource()
   ) {}
+
+  getCapabilities(): AssetCapabilitiesDto {
+    return FUND_CAPABILITIES
+  }
 
   supports(identifier: AssetIdentifierDto) {
     return identifier.assetType === 'FUND' && identifier.market === 'A_SHARE'

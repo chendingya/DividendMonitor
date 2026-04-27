@@ -270,6 +270,45 @@ export type AssetComparisonRowDto = {
   valuation?: ValuationSnapshotDto
 }
 
+export type AssetCapabilitiesDto = {
+  hasIncomeAnalysis: boolean
+  hasValuationAnalysis: boolean
+  hasBacktest: boolean
+  hasComparisonMetrics: boolean
+}
+
+export type IncomeAnalysisDto = {
+  yieldBasis: string
+  yearlyYields: HistoricalYieldPointDto[]
+  dividendEvents: DividendEventDto[]
+  futureYieldEstimate: FutureYieldEstimateDto
+  futureYieldEstimates: FutureYieldEstimateDto[]
+}
+
+export type EquityAssetModuleDto = {
+  industry?: string
+  marketCap?: number
+  peRatio?: number
+  pbRatio?: number
+  totalShares?: number
+}
+
+export type FundAssetModuleDto = {
+  category?: string
+  manager?: string
+  trackingIndex?: string
+  benchmark?: string
+  latestNav?: number
+  fundScale?: number
+}
+
+export type AssetDetailModulesDto = {
+  income?: IncomeAnalysisDto
+  valuation?: ValuationSnapshotDto
+  equity?: EquityAssetModuleDto
+  fund?: FundAssetModuleDto
+}
+
 export type AssetDetailDto = {
   assetKey: AssetKey
   assetType: AssetType
@@ -296,6 +335,8 @@ export type AssetDetailDto = {
   futureYieldEstimate: FutureYieldEstimateDto
   futureYieldEstimates: FutureYieldEstimateDto[]
   valuation?: ValuationSnapshotDto
+  capabilities: AssetCapabilitiesDto
+  modules: AssetDetailModulesDto
 }
 
 export type HistoricalYieldResponseDto = {
