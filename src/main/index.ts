@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { startLocalHttpServer, stopLocalHttpServer } from '@main/http/server'
 import { registerIpcHandlers } from '@main/ipc/channels'
+import { AssetCacheSyncService } from '@main/application/services/assetCacheSyncService'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -40,6 +41,10 @@ function createWindow() {
 app.whenReady().then(() => {
   registerIpcHandlers()
   void startLocalHttpServer()
+
+  const cacheSync = new AssetCacheSyncService()
+  void cacheSync.syncFromWatchlist()
+
   if (!isHeadlessRuntime) {
     createWindow()
   }
