@@ -1,5 +1,6 @@
 import { Typography } from 'antd'
 import type { WatchlistEntryDto } from '@shared/contracts/api'
+import { AssetAvatar } from '@renderer/components/app/AssetAvatar'
 
 const percent = new Intl.NumberFormat('zh-CN', {
   style: 'percent',
@@ -50,7 +51,7 @@ export function WatchlistTable({
         {items.map((record) => (
           <div className={`ledger-data-row ${selectedAssetKeys.includes(record.assetKey) ? 'is-selected' : ''}`} key={record.assetKey}>
             <div className="ledger-asset-cell">
-              <div className="ledger-asset-badge">{(record.symbol ?? record.code).slice(-2)}</div>
+              <AssetAvatar name={record.name} assetType={record.assetType} />
               <div>
                 <Typography.Text strong>{record.name}</Typography.Text>
                 <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }}>
