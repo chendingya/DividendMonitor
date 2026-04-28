@@ -53,6 +53,13 @@ type TencentKlineResponse = {
   >
 }
 
+type EastmoneyPush2Response = {
+  data?: {
+    f43?: number
+    f173?: number
+  }
+}
+
 type TencentMarketSnapshot = {
   name: string
   symbol: string
@@ -73,6 +80,10 @@ function isAShareSymbol(symbol: string) {
 
 function toTencentSymbol(symbol: string) {
   return symbol.startsWith('6') ? `sh${symbol}` : `sz${symbol}`
+}
+
+function toPush2Secid(symbol: string) {
+  return symbol.startsWith('6') ? `1.${symbol}` : `0.${symbol}`
 }
 
 function parseTencentPriceHistory(rows?: string[][]): HistoricalPricePoint[] {
@@ -244,14 +255,23 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
     return payload.result?.data ?? []
   }
 
+  private async getPush2Roe(symbol: string): Promise<number | undefined> {
+    const secid = toPush2Secid(symbol)
+    const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=f43,f173`
+    const payload = await getJson<EastmoneyPush2Response>(url)
+    const roe = payload.data?.f173
+    return roe != null && roe !== 0 ? roe : undefined
+  }
+
   async getDetail(symbol: string): Promise<CoreStockDetailSource> {
     if (!isAShareSymbol(symbol)) {
       throw new Error(`Only A-share 6-digit symbols are supported: ${symbol}`)
     }
 
-    const [marketResult, dividendResult] = await Promise.allSettled([
+    const [marketResult, dividendResult, roeResult] = await Promise.allSettled([
       this.getTencentMarketSnapshot(symbol),
-      this.getDividendRecords(symbol)
+      this.getDividendRecords(symbol),
+      this.getPush2Roe(symbol)
     ])
 
     if (marketResult.status !== 'fulfilled') {
@@ -302,6 +322,7 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
       .sort((a, b) => (a.exDate ?? '').localeCompare(b.exDate ?? ''))
 
     const fiscalYearSummary = buildLatestFiscalYearSummary(dividendRecords)
+    const roe = roeResult.status === 'fulfilled' ? roeResult.value : undefined
 
     return {
       stock: {
@@ -311,6 +332,7 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
         latestPrice: market.latestPrice,
         marketCap: market.marketCap,
         peRatio: market.peRatio,
+        roe,
         totalShares: market.totalShares ?? fiscalYearSummary.latestAnnualTotalShares
       },
       dividendEvents,

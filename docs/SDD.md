@@ -527,10 +527,22 @@ AnnualizedReturn = (finalMarketValue / initialCost) ^ (365 / holdingDays) - 1
 
 展示内容：
 
-- 最近查看股票
-- 自选股摘要
-- 高股息股票概览
-- 数据更新时间
+- 投资组合持仓表格（汇总多笔交易为净持仓，支持编辑/删除/详情跳转）
+- 投资组合摘要指标卡片：总收益率、总市值、加权平均收益指标
+- 组合风险指标卡片：组合年化波动率、组合夏普比率、最大回撤
+- 持仓相关性矩阵热力图（ECharts heatmap，红→蓝渐变显示正/负相关）
+- 高收益机会检测（来自当前持仓的 Top 4）
+- 最近浏览记录 + 快捷工具入口（回测、多股对比）
+- 资产搜索入口 + 一键导入/导出持仓（CSV 报告 / JSON 持仓）
+- 数据刷新入口
+
+技术实现：`usePortfolio` 钩子（数据加载、富化、聚合）+ 5 个子组件：
+- `DashboardHero` — 标题 + 操作按钮
+- `DashboardMetricCards` — 两行指标卡片（收益 + 风险）
+- `PortfolioTable` — 持仓明细表格
+- `DashboardOpportunities` — 高收益机会
+- `DashboardTools` — 最近浏览 + 快捷工具
+- `CorrelationMatrix` — 相关性矩阵热力图
 
 ### 11.2 股票搜索页
 
@@ -760,7 +772,7 @@ window.dividendMonitor = {
 - 数据适配器转换
 - 回测流水重放
 
-## 23. 当前实现对齐状态（2026-04-27）
+## 23. 当前实现对齐状态（2026-04-28）
 
 1. Electron + React + preload + IPC 主链路已可运行
 2. 多资产架构已落地：`AssetProviderRegistry` + `StockAssetProvider` / `EtfAssetProvider` / `FundAssetProvider`
@@ -772,6 +784,12 @@ window.dividendMonitor = {
 8. ETF/基金详情、历史分配收益率、未来分配率估算已实现
 9. 基金数据源使用 `fqt=0`（未复权）K 线，与股票端未复权价格口径一致
 10. 场外基金优先使用单位净值作为价格基准，避免累计净值干扰
+11. ROE 指标已实现：从东方财富 push2 API `f173` 字段提取，展示在 `StockDetailPage`（估值卡片区）和 `ComparisonTable`（对比列）
+12. 年化波动率与夏普比率已实现：`riskMetricsService.ts` 计算，展示在详情页和对比表
+13. SQLite 资产数据缓存层已实现：`AssetSnapshotRepository` + 启动同步 `AssetCacheSyncService`
+14. 组合风险领域服务已实现：`portfolioRiskService.ts` 计算组合波动率、夏普比率、最大回撤、相关性矩阵
+15. Dashboard 已重构：852 行拆分为 `usePortfolio` 钩子 + 5 个子组件 + `CorrelationMatrix` 热力图
+16. IPC 通道新增：`portfolio:getRiskMetrics`，HTTP 路由新增 `POST /api/portfolio/risk-metrics`
 
 ### 20.3 E2E 测试
 

@@ -511,6 +511,7 @@ export type IncomeDistributionEvent = {
 1. 基于利润和派息率的未来股息率估算
 2. 基于总股本和净利润的派息推演
 3. PE / PB 分位估值解释
+4. ROE（净资产收益率，来源东方财富 push2 `f173`），展示在详情页和对比表
 
 #### ETF / 基金专属计算
 
@@ -1057,7 +1058,7 @@ flowchart LR
 
 都可以沿用同一套演进路径，而不需要再次重构顶层结构。
 
-## 16. 实施状态（2026-04-27）
+## 16. 实施状态（2026-04-28）
 
 ### 已完成
 
@@ -1065,7 +1066,7 @@ flowchart LR
 |--------|-----------|---------|
 | AssetIdentifier / AssetKey | §5.1 | `shared/contracts/api.ts` |
 | AssetCapabilitiesDto | §5.2 | `shared/contracts/api.ts:273-278` |
-| AssetDetailModulesDto (income/valuation/equity/fund) | §5.3 | `shared/contracts/api.ts:305-310` |
+| AssetDetailModulesDto (income/valuation/equity/fund/risk) | §5.3 | `shared/contracts/api.ts:305-310` |
 | AssetProvider 接口 + getCapabilities() | §5.4 / §7.3 | `src/main/repositories/assetProviderRegistry.ts:33-40` |
 | AssetProviderRegistry | §7.3 | `src/main/repositories/assetProviderRegistry.ts:227-248` |
 | StockAssetProvider | §7.3 | `src/main/repositories/assetProviderRegistry.ts:77-145` |
@@ -1076,6 +1077,11 @@ flowchart LR
 | 前端能力驱动渲染 | §10.1 | `src/renderer/src/pages/StockDetailPage.tsx` |
 | ETF/基金未来分配率估算 | §6.3 基金专属 | `src/main/domain/services/futureYieldEstimator.ts` (`estimateFundFutureYield`) |
 | asset:* IPC 通道 | §8.1 | `src/main/ipc/channels/assetChannels.ts` |
+| ROE 指标（东方财富 push2 f173） | §6.3 股票专属 | `src/main/adapters/eastmoney/eastmoneyAShareDataSource.ts` |
+| 组合风险服务 | §6.3 | `src/main/domain/services/portfolioRiskService.ts` |
+| Dashboard 重构 | §10.1 | `src/renderer/src/pages/DashboardPage.tsx` → `usePortfolio` + 5 子组件 |
+| 组合风险 IPC 通道 | §8.1 | `src/main/ipc/channels/portfolioChannels.ts`（`portfolio:getRiskMetrics`） |
+| 相关性矩阵热力图 | §10.1 | `src/renderer/src/components/dashboard/CorrelationMatrix.tsx` |
 
 ### 与设计文档的差异
 

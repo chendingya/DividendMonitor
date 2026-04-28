@@ -137,6 +137,7 @@ export function toStockDetailDto(source: StockAssetDetailSource): StockDetailDto
     marketCap: source.stock.marketCap,
     peRatio: source.stock.peRatio,
     pbRatio: source.stock.pbRatio,
+    roe: source.stock.roe,
     totalShares: source.stock.totalShares,
     dataSource: source.dataSource,
     yieldBasis: NATURAL_YEAR_YIELD_BASIS,
@@ -162,6 +163,7 @@ export function toStockDetailDto(source: StockAssetDetailSource): StockDetailDto
         marketCap: source.stock.marketCap,
         peRatio: source.stock.peRatio,
         pbRatio: source.stock.pbRatio,
+        roe: source.stock.roe,
         totalShares: source.stock.totalShares
       },
       risk: riskMetrics
@@ -258,6 +260,7 @@ export function toStockComparisonRowDto(source: StockAssetDetailSource): Compari
     marketCap: source.stock.marketCap,
     peRatio: source.stock.peRatio,
     pbRatio: source.stock.pbRatio,
+    roe: source.stock.roe,
     averageYield,
     estimatedFutureYield: estimates.baseline.estimatedFutureYield,
     annualVolatility: riskMetrics?.annualVolatility,

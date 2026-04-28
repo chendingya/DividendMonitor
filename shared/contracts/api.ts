@@ -265,6 +265,7 @@ export type AssetComparisonRowDto = {
   marketCap?: number
   peRatio?: number
   pbRatio?: number
+  roe?: number
   averageYield?: number
   estimatedFutureYield?: number
   annualVolatility?: number
@@ -292,6 +293,7 @@ export type EquityAssetModuleDto = {
   marketCap?: number
   peRatio?: number
   pbRatio?: number
+  roe?: number
   totalShares?: number
 }
 
@@ -335,6 +337,7 @@ export type AssetDetailDto = {
   marketCap?: number
   peRatio?: number
   pbRatio?: number
+  roe?: number
   totalShares?: number
   dataSource: 'mock' | 'eastmoney'
   yieldBasis: string
@@ -409,6 +412,26 @@ export type StockDetailDto = AssetDetailDto & {
   symbol: string
 }
 
+export type PortfolioCorrelationMatrixDto = {
+  assetKeys: string[]
+  names: string[]
+  matrix: number[][]
+}
+
+export type PortfolioCommonDateRangeDto = {
+  start: string
+  end: string
+  tradingDays: number
+}
+
+export type PortfolioRiskMetricsDto = {
+  portfolioVolatility?: number
+  portfolioSharpeRatio?: number
+  maxDrawdown?: number
+  commonDateRange?: PortfolioCommonDateRangeDto
+  correlationMatrix?: PortfolioCorrelationMatrixDto
+}
+
 export interface DividendMonitorApi {
   asset: {
     search(request: AssetSearchRequestDto): Promise<AssetSearchItemDto[]>
@@ -441,6 +464,7 @@ export interface DividendMonitorApi {
     remove(id: string): Promise<void>
     removeByAsset(request: AssetQueryDto): Promise<void>
     replaceByAsset(request: PortfolioPositionReplaceByAssetDto): Promise<void>
+    getRiskMetrics(request: { items: Array<{ assetKey: string; marketValue: number }> }): Promise<PortfolioRiskMetricsDto>
   }
 }
 

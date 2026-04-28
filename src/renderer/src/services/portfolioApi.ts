@@ -16,5 +16,8 @@ export const portfolioApi = {
   },
   replaceByAsset(request: PortfolioPositionReplaceByAssetDto) {
     return getPortfolioDesktopApi().replaceByAsset(request)
+  },
+  getRiskMetrics(items: Array<{ assetKey: string; marketValue: number }>) {
+    return getPortfolioDesktopApi().getRiskMetrics({ items })
   }
 }

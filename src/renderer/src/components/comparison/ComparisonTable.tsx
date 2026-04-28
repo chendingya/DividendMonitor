@@ -49,6 +49,7 @@ function getWindowPercentile(record: AssetComparisonRowDto, metric: 'pe' | 'pb',
 export function ComparisonTable({ items, valuationWindow, onOpenDetail }: ComparisonTableProps) {
   const peValues = items.map((item) => item.peRatio).filter((value): value is number => value != null)
   const pbValues = items.map((item) => item.pbRatio).filter((value): value is number => value != null)
+  const roeValues = items.map((item) => item.roe).filter((value): value is number => value != null)
   const averageYieldValues = items.map((item) => item.averageYield).filter((value): value is number => value != null)
   const futureYieldValues = items.map((item) => item.estimatedFutureYield).filter((value): value is number => value != null)
   const volatilityValues = items.map((item) => item.annualVolatility).filter((value): value is number => value != null)
@@ -65,6 +66,8 @@ export function ComparisonTable({ items, valuationWindow, onOpenDetail }: Compar
   const highestPeRatio = peValues.length > 0 ? Math.max(...peValues) : undefined
   const lowestPbRatio = pbValues.length > 0 ? Math.min(...pbValues) : undefined
   const highestPbRatio = pbValues.length > 0 ? Math.max(...pbValues) : undefined
+  const highestRoe = roeValues.length > 0 ? Math.max(...roeValues) : undefined
+  const lowestRoe = roeValues.length > 0 ? Math.min(...roeValues) : undefined
   const lowestPePercentile = pePercentileValues.length > 0 ? Math.min(...pePercentileValues) : undefined
   const highestPePercentile = pePercentileValues.length > 0 ? Math.max(...pePercentileValues) : undefined
   const lowestPbPercentile = pbPercentileValues.length > 0 ? Math.min(...pbPercentileValues) : undefined
@@ -157,6 +160,16 @@ export function ComparisonTable({ items, valuationWindow, onOpenDetail }: Compar
               renderMetricValue(value, (next) => next.toFixed(2), {
                 highlightHigh: lowestPbRatio,
                 highlightLow: highestPbRatio
+              })
+          },
+          {
+            title: 'ROE',
+            dataIndex: 'roe',
+            sorter: (a, b) => (a.roe ?? Number.NEGATIVE_INFINITY) - (b.roe ?? Number.NEGATIVE_INFINITY),
+            render: (value?: number) =>
+              renderMetricValue(value, (next) => `${next.toFixed(2)}%`, {
+                highlightHigh: highestRoe,
+                highlightLow: lowestRoe
               })
           },
           {

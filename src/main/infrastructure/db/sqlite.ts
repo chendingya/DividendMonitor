@@ -62,6 +62,15 @@ function createBaseSchema(db: DatabaseSync) {
 
     CREATE INDEX IF NOT EXISTS idx_asset_snapshots_asset_type
       ON asset_snapshots(asset_type);
+
+    CREATE TABLE IF NOT EXISTS portfolio_risk_snapshots (
+      cache_key TEXT PRIMARY KEY,
+      data_json TEXT NOT NULL,
+      fetched_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_portfolio_risk_snapshots_fetched_at
+      ON portfolio_risk_snapshots(fetched_at DESC);
   `)
 }
 
