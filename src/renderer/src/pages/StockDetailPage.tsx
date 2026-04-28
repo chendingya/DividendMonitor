@@ -2,6 +2,7 @@ import { Alert, Col, Divider, Progress, Row, Skeleton, Space, Table, Typography,
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { AppCard } from '@renderer/components/app/AppCard'
+import { AssetAvatar } from '@renderer/components/app/AssetAvatar'
 import { PageStateBlock } from '@renderer/components/app/PageStateBlock'
 import { FutureYieldEstimateCard } from '@renderer/components/stock-detail/FutureYieldEstimateCard'
 import { ValuationTrendChart } from '@renderer/components/stock-detail/ValuationTrendChart'
@@ -165,12 +166,17 @@ export function StockDetailPage() {
       {messageHolder}
       <section className="ledger-detail-header">
         <div>
-          <div className="ledger-detail-tags">
-            <span className="pill">{data.industry ?? data.category ?? '未分类'}</span>
-            <span className="pill primary">{displayCode}</span>
-            <span className="pill">{data.assetType}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 10 }}>
+            <AssetAvatar name={data.name} assetType={data.assetType} size={40} />
+            <div>
+              <div className="ledger-detail-tags">
+                <span className="pill">{data.industry ?? data.category ?? '未分类'}</span>
+                <span className="pill primary">{displayCode}</span>
+                <span className="pill">{data.assetType}</span>
+              </div>
+              <h1 className="ledger-detail-title">{displayName}</h1>
+            </div>
           </div>
-          <h1 className="ledger-detail-title">{displayName}</h1>
         </div>
         <div>
           <div className="ledger-detail-price">

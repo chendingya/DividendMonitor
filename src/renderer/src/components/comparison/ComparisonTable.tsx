@@ -1,6 +1,7 @@
 import { Space, Table, Tag, Typography } from 'antd'
 import type { AssetComparisonRowDto, ValuationWindowKeyDto } from '@shared/contracts/api'
 import { AppCard } from '@renderer/components/app/AppCard'
+import { AssetAvatar } from '@renderer/components/app/AssetAvatar'
 
 const percent = new Intl.NumberFormat('zh-CN', {
   style: 'percent',
@@ -121,10 +122,13 @@ export function ComparisonTable({ items, valuationWindow, onOpenDetail }: Compar
           {
             title: '标的',
             render: (_, record) => (
-              <div>
-                <Typography.Text strong>{record.name}</Typography.Text>
-                <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }}>
-                  {record.symbol ?? record.code} · {record.assetType}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <AssetAvatar name={record.name} assetType={record.assetType} size={32} />
+                <div>
+                  <Typography.Text strong>{record.name}</Typography.Text>
+                  <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }}>
+                    {record.symbol ?? record.code} · {record.assetType}
+                  </div>
                 </div>
               </div>
             )

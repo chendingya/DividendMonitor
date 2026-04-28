@@ -2,6 +2,7 @@ import { Alert, Col, Row, Skeleton } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { PageStateBlock } from '@renderer/components/app/PageStateBlock'
+import { AssetAvatar } from '@renderer/components/app/AssetAvatar'
 import { ComparisonTable } from '@renderer/components/comparison/ComparisonTable'
 import { DEFAULT_COMPARISON_SYMBOLS } from '@renderer/defaults'
 import { useAssetComparison } from '@renderer/hooks/useAssetComparison'
@@ -129,9 +130,10 @@ export function ComparisonPage() {
           <span className="pill">默认按收益率指标降序</span>
           <span className="pill">支持点击表头重新排序</span>
         </div>
-        <div className="comparison-hero-symbols">
+        <div className="comparison-hero-symbols" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
           {data.map((item) => (
-            <span key={item.assetKey} className="comparison-hero-symbol-chip">
+            <span key={item.assetKey} className="comparison-hero-symbol-chip" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <AssetAvatar name={item.name} assetType={item.assetType} size={20} />
               {item.symbol ?? item.code}
             </span>
           ))}

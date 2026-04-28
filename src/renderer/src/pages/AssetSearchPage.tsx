@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { AssetSearchItemDto } from '@shared/contracts/api'
 import { AppCard } from '@renderer/components/app/AppCard'
+import { AssetAvatar } from '@renderer/components/app/AssetAvatar'
 import { PageStateBlock } from '@renderer/components/app/PageStateBlock'
 import { useWatchlist } from '@renderer/hooks/useWatchlist'
 import { assetApi } from '@renderer/services/assetApi'
@@ -138,10 +139,13 @@ export function AssetSearchPage() {
               {
                 title: '资产',
                 render: (_, record: AssetSearchItemDto) => (
-                  <div>
-                    <Typography.Text strong>{record.name}</Typography.Text>
-                    <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }}>
-                      {record.symbol ?? record.code} · {record.assetKey}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <AssetAvatar name={record.name} assetType={record.assetType} size={32} />
+                    <div>
+                      <Typography.Text strong>{record.name}</Typography.Text>
+                      <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }}>
+                        {record.symbol ?? record.code} · {record.assetKey}
+                      </div>
                     </div>
                   </div>
                 )
