@@ -1,5 +1,5 @@
 import { Button, Input, message, Modal, Space, Table, Tag, Typography } from 'antd'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AssetDetailDto } from '@shared/contracts/api'
 import { AppCard } from '@renderer/components/app/AppCard'
 import {
@@ -63,6 +63,7 @@ type PortfolioOpportunity = PortfolioRow & {
 
 export function DashboardPage() {
   const navigate = useNavigate()
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [apiMessage, messageHolder] = message.useMessage()
   const [positions, setPositions] = useState<PortfolioPosition[]>([])
   const [details, setDetails] = useState<Record<string, AssetDetailDto>>({})
@@ -341,13 +342,105 @@ export function DashboardPage() {
       ].join(',')
     })
     const csv = [header.join(','), ...lines].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const bom = new Uint8Array([0xef, 0xbb, 0xbf])
+    const content = new TextEncoder().encode(csv)
+    const blob = new Blob([bom, content], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
     anchor.download = `portfolio-report-${new Date().toISOString().slice(0, 10)}.csv`
     anchor.click()
     URL.revokeObjectURL(url)
+  }
+
+  function exportPositions() {
+    if (positions.length === 0) return
+    const data = positions.map((p) => ({
+      assetType: p.assetType,
+      code: p.code,
+      symbol: p.symbol,
+      name: p.name,
+      direction: p.direction ?? 'BUY',
+      shares: p.shares,
+      avgCost: p.avgCost
+    }))
+    const json = JSON.stringify(data, null, 2)
+    const content = new TextEncoder().encode(json)
+    const blob = new Blob([content], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = `portfolio-positions-${new Date().toISOString().slice(0, 10)}.json`
+    anchor.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async function importPositions(file: File) {
+    try {
+      const text = await file.text()
+      const data = JSON.parse(text) as Array<{
+        assetType?: string
+        code?: string
+        symbol?: string
+        name: string
+        direction?: string
+        shares: number
+        avgCost: number
+      }>
+
+      if (!Array.isArray(data) || data.length === 0) {
+        apiMessage.error('文件格式无效或没有持仓数据')
+        return
+      }
+
+      let imported = 0
+      for (const item of data) {
+        if (!item.name || item.shares == null || item.avgCost == null) continue
+        const direction = (item.direction === 'SELL' ? 'SELL' : 'BUY') as 'BUY' | 'SELL'
+        const assetType = (item.assetType ?? 'STOCK') as 'STOCK' | 'ETF' | 'FUND'
+        const code = item.code ?? item.symbol ?? ''
+        const symbol = item.symbol ?? code
+        let assetKey = item.symbol
+          ? `STOCK:A_SHARE:${item.symbol}`
+          : assetType !== 'STOCK'
+            ? `${assetType}:A_SHARE:${code}`
+            : undefined
+
+        await upsertPortfolioPositionInBackend({
+          id: crypto.randomUUID(),
+          assetKey,
+          assetType,
+          code,
+          symbol,
+          name: item.name,
+          direction,
+          shares: Math.abs(item.shares),
+          avgCost: Math.abs(item.avgCost)
+        })
+        imported++
+      }
+
+      apiMessage.success(`成功导入 ${imported} 条持仓记录`)
+      const reloaded = await listPortfolioPositionsFromBackend()
+      setPositions(reloaded)
+    } catch (err) {
+      apiMessage.error(err instanceof Error ? err.message : '导入失败，请检查文件格式')
+    }
+  }
+
+  function triggerImport() {
+    fileInputRef.current?.click()
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) {
+      void importPositions(file)
+    }
+    // Reset so the same file can be re-imported
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
   function closeEditor() {
@@ -483,6 +576,24 @@ export function DashboardPage() {
             >
               导出报告
             </button>
+            <button
+              type="button"
+              className="ledger-secondary-button"
+              disabled={positions.length === 0}
+              onClick={exportPositions}
+            >
+              导出持仓
+            </button>
+            <button type="button" className="ledger-secondary-button" onClick={triggerImport}>
+              导入持仓
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              style={{ display: 'none' }}
+              onChange={handleFileChange}
+            />
             <button type="button" className="ledger-secondary-button" disabled={rows.length === 0} onClick={refreshQuotes}>
               {refreshing ? '刷新中...' : '刷新估值'}
             </button>

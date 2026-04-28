@@ -14,6 +14,7 @@ import type {
 import { buildAssetKey, buildStockAssetKey } from '@shared/contracts/api'
 import { buildHistoricalYields, NATURAL_YEAR_YIELD_BASIS } from '@main/domain/services/dividendYieldService'
 import { estimateFutureYield, estimateFundFutureYield } from '@main/domain/services/futureYieldEstimator'
+import { calculateRiskMetrics } from '@main/domain/services/riskMetricsService'
 import { buildValuationWindows } from '@main/domain/services/valuationService'
 import type { AssetSearchSource, FundAssetDetailSource, StockAssetDetailSource } from '@main/repositories/assetProviderRegistry'
 
@@ -122,6 +123,8 @@ export function toStockDetailDto(source: StockAssetDetailSource): StockDetailDto
     pb: toValuationMetricDto(source.valuation?.pb)
   }
 
+  const riskMetrics = calculateRiskMetrics(source.priceHistory)
+
   return {
     assetKey: buildStockAssetKey(source.stock.symbol),
     assetType: 'STOCK',
@@ -142,6 +145,8 @@ export function toStockDetailDto(source: StockAssetDetailSource): StockDetailDto
     futureYieldEstimate: estimates.baseline,
     futureYieldEstimates: [estimates.baseline, estimates.conservative],
     valuation: valuationDto,
+    annualVolatility: riskMetrics?.annualVolatility,
+    sharpeRatio: riskMetrics?.sharpeRatio,
     capabilities: STOCK_CAPABILITIES,
     modules: {
       income: {
@@ -158,7 +163,8 @@ export function toStockDetailDto(source: StockAssetDetailSource): StockDetailDto
         peRatio: source.stock.peRatio,
         pbRatio: source.stock.pbRatio,
         totalShares: source.stock.totalShares
-      }
+      },
+      risk: riskMetrics
     }
   }
 }
@@ -179,6 +185,7 @@ export function toAssetDetailDto(source: StockAssetDetailSource | FundAssetDetai
       })
     : null
 
+  const riskMetrics = calculateRiskMetrics(source.priceHistory)
   const futureYieldEstimate =
     estimates?.baseline ?? createUnavailableEstimate(source.identifier.assetType)
   const futureYieldEstimates = estimates
@@ -204,6 +211,8 @@ export function toAssetDetailDto(source: StockAssetDetailSource | FundAssetDetai
     dividendEvents: source.dividendEvents,
     futureYieldEstimate,
     futureYieldEstimates,
+    annualVolatility: riskMetrics?.annualVolatility,
+    sharpeRatio: riskMetrics?.sharpeRatio,
     capabilities: caps,
     modules: {
       income: {
@@ -220,7 +229,8 @@ export function toAssetDetailDto(source: StockAssetDetailSource | FundAssetDetai
         benchmark: source.benchmark,
         latestNav: source.latestNav,
         fundScale: source.fundScale
-      }
+      },
+      risk: riskMetrics
     }
   }
 }
@@ -235,6 +245,7 @@ export function toStockComparisonRowDto(source: StockAssetDetailSource): Compari
     lastYearTotalDividendAmount: source.lastYearTotalDividendAmount
   })
   const averageYield = yearlyYields.reduce((sum, item) => sum + item.yield, 0) / Math.max(yearlyYields.length, 1)
+  const riskMetrics = calculateRiskMetrics(source.priceHistory)
 
   return {
     assetKey: buildStockAssetKey(source.stock.symbol),
@@ -249,6 +260,8 @@ export function toStockComparisonRowDto(source: StockAssetDetailSource): Compari
     pbRatio: source.stock.pbRatio,
     averageYield,
     estimatedFutureYield: estimates.baseline.estimatedFutureYield,
+    annualVolatility: riskMetrics?.annualVolatility,
+    sharpeRatio: riskMetrics?.sharpeRatio,
     valuation: {
       pe: toValuationMetricDto(source.valuation?.pe),
       pb: toValuationMetricDto(source.valuation?.pb)
@@ -269,6 +282,7 @@ export function toAssetComparisonRowDto(source: StockAssetDetailSource | FundAss
         dividendEvents: source.dividendEvents
       })
     : null
+  const riskMetrics = calculateRiskMetrics(source.priceHistory)
 
   return {
     assetKey: buildAssetKey(source.identifier.assetType, source.identifier.market, source.identifier.code),
@@ -281,7 +295,9 @@ export function toAssetComparisonRowDto(source: StockAssetDetailSource | FundAss
     averageYield: yearlyYields.length > 0 ? averageYield : undefined,
     estimatedFutureYield: estimates?.baseline.isAvailable
       ? estimates.baseline.estimatedFutureYield
-      : undefined
+      : undefined,
+    annualVolatility: riskMetrics?.annualVolatility,
+    sharpeRatio: riskMetrics?.sharpeRatio
   }
 }
 

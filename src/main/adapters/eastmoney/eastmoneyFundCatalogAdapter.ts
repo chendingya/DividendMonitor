@@ -32,6 +32,11 @@ export function resolveFundAssetType(item: EastmoneySuggestItem): FundSearchSour
   const name = item.Name?.trim() ?? ''
   const code = item.Code?.trim() ?? ''
 
+  // ETF feeder funds (联接基金) are off-market FUND, not ETFs
+  if (/联接/.test(name)) {
+    return 'FUND'
+  }
+
   if (descriptor.includes('etf') || /etf/i.test(name)) {
     return 'ETF'
   }

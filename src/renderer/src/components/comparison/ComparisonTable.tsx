@@ -50,6 +50,8 @@ export function ComparisonTable({ items, valuationWindow, onOpenDetail }: Compar
   const pbValues = items.map((item) => item.pbRatio).filter((value): value is number => value != null)
   const averageYieldValues = items.map((item) => item.averageYield).filter((value): value is number => value != null)
   const futureYieldValues = items.map((item) => item.estimatedFutureYield).filter((value): value is number => value != null)
+  const volatilityValues = items.map((item) => item.annualVolatility).filter((value): value is number => value != null)
+  const sharpeValues = items.map((item) => item.sharpeRatio).filter((value): value is number => value != null)
   const pePercentileValues = items
     .map((item) => getWindowPercentile(item, 'pe', valuationWindow))
     .filter((value): value is number => value != null)
@@ -68,6 +70,10 @@ export function ComparisonTable({ items, valuationWindow, onOpenDetail }: Compar
   const highestPbPercentile = pbPercentileValues.length > 0 ? Math.max(...pbPercentileValues) : undefined
   const highestAverageYield = averageYieldValues.length > 0 ? Math.max(...averageYieldValues) : undefined
   const lowestAverageYield = averageYieldValues.length > 0 ? Math.min(...averageYieldValues) : undefined
+  const lowestVolatility = volatilityValues.length > 0 ? Math.min(...volatilityValues) : undefined
+  const highestVolatility = volatilityValues.length > 0 ? Math.max(...volatilityValues) : undefined
+  const highestSharpe = sharpeValues.length > 0 ? Math.max(...sharpeValues) : undefined
+  const lowestSharpe = sharpeValues.length > 0 ? Math.min(...sharpeValues) : undefined
 
   function renderMetricValue(
     value: number | undefined,
@@ -191,6 +197,27 @@ export function ComparisonTable({ items, valuationWindow, onOpenDetail }: Compar
               renderMetricValue(value, (next) => percent.format(next), {
                 highlightHigh: highestFutureYield,
                 highlightLow: lowestFutureYield
+              })
+          },
+          {
+            title: '年化波动率',
+            dataIndex: 'annualVolatility',
+            sorter: (a, b) =>
+              (a.annualVolatility ?? Number.POSITIVE_INFINITY) - (b.annualVolatility ?? Number.POSITIVE_INFINITY),
+            render: (value?: number) =>
+              renderMetricValue(value, (next) => percent.format(next), {
+                highlightHigh: lowestVolatility,
+                highlightLow: highestVolatility
+              })
+          },
+          {
+            title: '夏普比率',
+            dataIndex: 'sharpeRatio',
+            sorter: (a, b) => (a.sharpeRatio ?? Number.NEGATIVE_INFINITY) - (b.sharpeRatio ?? Number.NEGATIVE_INFINITY),
+            render: (value?: number) =>
+              renderMetricValue(value, (next) => next.toFixed(2), {
+                highlightHigh: highestSharpe,
+                highlightLow: lowestSharpe
               })
           },
           {

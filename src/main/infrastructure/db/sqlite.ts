@@ -114,9 +114,30 @@ function migrateLegacyWatchlistTable(db: DatabaseSync) {
   `)
 }
 
+function migrateWatchlistAssetTypes(db: DatabaseSync) {
+  const isEtfCode = (code: string) => /^(5\d{5}|1[15]\d{4})$/.test(code)
+
+  const rows = db
+    .prepare("SELECT asset_key, asset_type, code FROM watchlist_items WHERE asset_type IN ('ETF', 'FUND')")
+    .all() as Array<{ asset_key: string; asset_type: string; code: string }>
+
+  for (const row of rows) {
+    const expectedType = isEtfCode(row.code) ? 'ETF' : 'FUND'
+    if (row.asset_type !== expectedType) {
+      const newKey = `${expectedType}:A_SHARE:${row.code}`
+      db.prepare('UPDATE watchlist_items SET asset_type = ?, asset_key = ? WHERE asset_key = ?').run(
+        expectedType,
+        newKey,
+        row.asset_key
+      )
+    }
+  }
+}
+
 function initializeSchema(db: DatabaseSync) {
   createBaseSchema(db)
   migrateLegacyWatchlistTable(db)
+  migrateWatchlistAssetTypes(db)
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_watchlist_items_updated_at
       ON watchlist_items(updated_at DESC);
