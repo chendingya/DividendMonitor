@@ -1,10 +1,14 @@
 import type { AssetCompareRequestDto, AssetQueryDto, AssetSearchRequestDto } from '@shared/contracts/api'
-import { resolveAssetQuery } from '@shared/contracts/api'
+import { buildAssetKey, resolveAssetQuery } from '@shared/contracts/api'
 import type { AssetDetailSource, AssetSearchSource } from '@main/repositories/assetProviderRegistry'
 import { AssetProviderRegistry } from '@main/repositories/assetProviderRegistry'
+import { AssetSnapshotRepository } from '@main/repositories/assetSnapshotRepository'
 
 export class AssetRepository {
-  constructor(private readonly registry: AssetProviderRegistry = new AssetProviderRegistry()) {}
+  constructor(
+    private readonly registry: AssetProviderRegistry = new AssetProviderRegistry(),
+    private readonly snapshotRepo: AssetSnapshotRepository = new AssetSnapshotRepository()
+  ) {}
 
   async search(request: AssetSearchRequestDto): Promise<AssetSearchSource[]> {
     const providers = this.registry.getSearchProviders(request.assetTypes)
@@ -14,8 +18,23 @@ export class AssetRepository {
 
   async getDetail(query: AssetQueryDto): Promise<AssetDetailSource> {
     const identifier = resolveAssetQuery(query)
+    const assetKey = buildAssetKey(identifier.assetType, identifier.market, identifier.code)
+
+    const cached = this.snapshotRepo.findFreshByKey<AssetDetailSource>(assetKey, identifier.assetType)
+    if (cached) {
+      return cached
+    }
+
     const provider = this.registry.getProvider(identifier)
-    return provider.getDetail(identifier)
+    const source = await provider.getDetail(identifier)
+
+    try {
+      this.snapshotRepo.upsert(assetKey, identifier.assetType, JSON.stringify(source))
+    } catch (err) {
+      console.warn(`[AssetRepository] Failed to cache ${assetKey}:`, err)
+    }
+
+    return source
   }
 
   async compare(request: AssetCompareRequestDto): Promise<AssetDetailSource[]> {
