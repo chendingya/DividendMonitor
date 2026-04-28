@@ -267,6 +267,8 @@ export type AssetComparisonRowDto = {
   pbRatio?: number
   averageYield?: number
   estimatedFutureYield?: number
+  annualVolatility?: number
+  sharpeRatio?: number
   valuation?: ValuationSnapshotDto
 }
 
@@ -302,11 +304,17 @@ export type FundAssetModuleDto = {
   fundScale?: number
 }
 
+export type RiskMetricsDto = {
+  annualVolatility: number
+  sharpeRatio: number
+}
+
 export type AssetDetailModulesDto = {
   income?: IncomeAnalysisDto
   valuation?: ValuationSnapshotDto
   equity?: EquityAssetModuleDto
   fund?: FundAssetModuleDto
+  risk?: RiskMetricsDto
 }
 
 export type AssetDetailDto = {
@@ -335,6 +343,8 @@ export type AssetDetailDto = {
   futureYieldEstimate: FutureYieldEstimateDto
   futureYieldEstimates: FutureYieldEstimateDto[]
   valuation?: ValuationSnapshotDto
+  annualVolatility?: number
+  sharpeRatio?: number
   capabilities: AssetCapabilitiesDto
   modules: AssetDetailModulesDto
 }

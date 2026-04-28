@@ -23,9 +23,9 @@ type BreadcrumbItem = {
 const menuItems = [
   { key: '/', label: '投资组合', icon: 'dashboard' as const },
   { key: '/stock-detail', label: '股息', icon: 'dividend' as const },
-  { key: '/watchlist', label: '收益追踪', icon: 'watchlist' as const },
+  { key: '/watchlist', label: '自选', icon: 'watchlist' as const },
   { key: '/comparison', label: '数据分析', icon: 'comparison' as const },
-  { key: '/backtest', label: '收益追踪器', icon: 'backtest' as const }
+  { key: '/backtest', label: '回测', icon: 'backtest' as const }
 ]
 
 function AppShellIcon({ name, className }: { name: AppIconName; className?: string }) {
@@ -139,7 +139,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
 
     if (location.pathname.startsWith('/watchlist')) {
-      items.push({ label: '收益追踪' })
+      items.push({ label: '自选' })
       return items
     }
 
@@ -149,7 +149,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
 
     if (location.pathname.startsWith('/backtest')) {
-      items.push({ label: '收益追踪器' })
+      items.push({ label: '回测' })
       if (symbol) {
         items.push({ label: symbol })
       }

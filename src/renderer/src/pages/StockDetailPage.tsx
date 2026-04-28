@@ -237,6 +237,26 @@ export function StockDetailPage() {
           </AppCard>
         </Col>
       </Row>
+      <Row gutter={[18, 18]} style={{ marginTop: 18 }}>
+        <Col xs={24} md={12} xl={8}>
+          <AppCard className="ledger-detail-stat">
+            <div className="ledger-stat-label">年化波动率</div>
+            <div className="ledger-stat-value">
+              {data.annualVolatility != null ? `${(data.annualVolatility * 100).toFixed(1)}%` : '--'}
+            </div>
+            <div className="ledger-stat-hint">日收益标准差年化（252 交易日）</div>
+          </AppCard>
+        </Col>
+        <Col xs={24} md={12} xl={8}>
+          <AppCard className="ledger-detail-stat">
+            <div className="ledger-stat-label">夏普比率</div>
+            <div className="ledger-stat-value" style={{ color: '#0052d0' }}>
+              {data.sharpeRatio != null ? data.sharpeRatio.toFixed(2) : '--'}
+            </div>
+            <div className="ledger-stat-hint">（年化收益 - 无风险利率 2.5%）/ 年化波动率</div>
+          </AppCard>
+        </Col>
+      </Row>
 
       {hasFundProfile ? (
         <AppCard title="基金画像">
