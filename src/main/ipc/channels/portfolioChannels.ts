@@ -5,6 +5,7 @@ import { removePortfolioPosition } from '@main/application/useCases/removePortfo
 import { removePortfolioPositionsByAsset } from '@main/application/useCases/removePortfolioPositionsByAsset'
 import { replacePortfolioPositionsByAsset } from '@main/application/useCases/replacePortfolioPositionsByAsset'
 import { upsertPortfolioPosition } from '@main/application/useCases/upsertPortfolioPosition'
+import { getPortfolioRiskMetrics, type PortfolioRiskMetricsRequest } from '@main/application/useCases/getPortfolioRiskMetrics'
 
 export function registerPortfolioChannels() {
   ipcMain.handle('portfolio:list', async () => {
@@ -25,5 +26,9 @@ export function registerPortfolioChannels() {
 
   ipcMain.handle('portfolio:replace-by-asset', async (_event, request: PortfolioPositionReplaceByAssetDto) => {
     return replacePortfolioPositionsByAsset(request)
+  })
+
+  ipcMain.handle('portfolio:getRiskMetrics', async (_event, request: PortfolioRiskMetricsRequest) => {
+    return getPortfolioRiskMetrics(request)
   })
 }

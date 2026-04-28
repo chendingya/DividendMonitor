@@ -61,5 +61,12 @@ export async function handlePortfolioRoute({ pathname, method, body, response }:
     return true
   }
 
+  if (pathname === '/api/portfolio/risk-metrics' && method === 'POST') {
+    const { getPortfolioRiskMetrics } = await import('@main/application/useCases/getPortfolioRiskMetrics')
+    const result = await getPortfolioRiskMetrics(body as Parameters<typeof getPortfolioRiskMetrics>[0])
+    sendJson(response, 200, result)
+    return true
+  }
+
   return false
 }

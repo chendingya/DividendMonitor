@@ -318,6 +318,9 @@ src/main/domain/
     dividendYieldService.ts
     futureYieldEstimator.ts
     dividendReinvestmentBacktestService.ts
+    valuationService.ts
+    riskMetricsService.ts
+    portfolioRiskService.ts
   policies/
     dividendYearPolicy.ts
     reinvestmentPolicy.ts
@@ -405,7 +408,7 @@ src/main/ipc/
 
 ```text
 src/renderer/src/pages/
-  DashboardPage.tsx
+  DashboardPage.tsx              # usePortfolio 钩子 + 5 个子组件 + CorrelationMatrix
   StockSearchPage.tsx
   StockDetailPage.tsx
   ComparisonPage.tsx
@@ -449,6 +452,12 @@ src/renderer/src/pages/
 - `BacktestResultPanel`
 - `WatchlistTable`
 - `YieldMapTreemap`
+- `DashboardHero`
+- `DashboardMetricCards`
+- `PortfolioTable`
+- `DashboardOpportunities`
+- `DashboardTools`
+- `CorrelationMatrix`
 
 规则：
 
@@ -496,6 +505,8 @@ src/renderer/src/hooks/
   useFutureYieldEstimate.ts
   useComparison.ts
   useBacktest.ts
+  usePortfolio.ts
+  usePortfolioRiskMetrics.ts
 ```
 
 规则：
@@ -849,7 +860,7 @@ flowchart LR
 3. `docs/DB-DDL.sql`
 4. `src` 目录脚手架初始化
 
-## 18. 当前实现状态（2026-04-27）
+## 18. 当前实现状态（2026-04-28）
 
 1. Main 侧已落地最小数据库设施与 `watchlistRepository`
 2. Main 侧已落地多资产路由：`AssetProviderRegistry` + Stock / ETF / Fund 三个 Provider
@@ -858,4 +869,8 @@ flowchart LR
 5. 前端能力驱动渲染：`StockDetailPage` 通过 `data.capabilities` 控制模块显隐
 6. ETF/基金完整链路已通：搜索 → 详情 → 历史分配收益率 → 未来分配率估算
 7. `FutureYieldEstimateCard` 区分股票（财务驱动）和基金（分配记录驱动）的估算展示
-8. 架构目标中的”完整缓存层、完整 repository 回源策略、显式 SQLite 第三方依赖”尚未完成
+8. SQLite 资产数据缓存层已落地：`AssetSnapshotRepository` + `AssetCacheSyncService` 启动同步
+9. 领域服务已扩展：`riskMetricsService`（波动率/夏普）、`valuationService`（PE/PB 分位）、`portfolioRiskService`（组合风险/相关性矩阵）
+10. Dashboard 已重构：`usePortfolio` 钩子 + 5 个子组件（Hero / MetricCards / Table / Opportunities / Tools）+ `CorrelationMatrix` 热力图
+11. ROE 指标已落地：从东方财富 push2 API `f173` 提取，展示在详情页估值区和对比表
+12. IPC 通道新增 `portfolio:getRiskMetrics`，HTTP 路由新增 `POST /api/portfolio/risk-metrics`

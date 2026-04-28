@@ -339,6 +339,15 @@ export function StockDetailPage() {
                 <span>70分位 {formatRatioValue(pbWindow?.p70)}</span>
               </div>
             </div>
+            <div className="ledger-valuation-card">
+              <div className="ledger-valuation-head">
+                <div>
+                  <div className="ledger-stat-label">净资产收益率 ROE</div>
+                  <div className="ledger-valuation-primary">{data.roe != null ? `${data.roe.toFixed(2)}%` : '--'}</div>
+                </div>
+              </div>
+              <div className="ledger-valuation-status">加权净资产收益率（归属于母公司股东）</div>
+            </div>
           </div>
           <Typography.Paragraph style={{ margin: '14px 0 0', color: '#66707a' }}>
             分位按所选时间窗内的历史估值序列计算，数值越低通常代表当前估值在历史区间中越靠下。

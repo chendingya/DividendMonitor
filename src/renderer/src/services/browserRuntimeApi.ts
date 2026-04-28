@@ -1072,6 +1072,10 @@ export const browserRuntimeApi: DividendMonitorApi = {
         shares: request.shares,
         avgCost: request.avgCost
       })
+    },
+
+    async getRiskMetrics() {
+      return {}
     }
   }
 }

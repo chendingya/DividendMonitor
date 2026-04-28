@@ -34,7 +34,8 @@ const api: DividendMonitorApi = {
     upsert: (request) => ipcRenderer.invoke('portfolio:upsert', request),
     remove: (id) => ipcRenderer.invoke('portfolio:remove', id),
     removeByAsset: (request) => ipcRenderer.invoke('portfolio:remove-by-asset', request),
-    replaceByAsset: (request) => ipcRenderer.invoke('portfolio:replace-by-asset', request)
+    replaceByAsset: (request) => ipcRenderer.invoke('portfolio:replace-by-asset', request),
+    getRiskMetrics: (request) => ipcRenderer.invoke('portfolio:getRiskMetrics', request)
   }
 }
 

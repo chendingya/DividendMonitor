@@ -10,6 +10,7 @@ import type {
   FutureYieldResponseDto,
   PortfolioPositionReplaceByAssetDto,
   PortfolioPositionUpsertDto,
+  PortfolioRiskMetricsDto,
   StockDetailDto,
   StockSearchItemDto,
   WatchlistAddRequestDto,
@@ -111,6 +112,9 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
     },
     replaceByAsset(request: PortfolioPositionReplaceByAssetDto) {
       return postJson<void>('/api/portfolio/replace-by-asset', request)
+    },
+    getRiskMetrics(request: { items: Array<{ assetKey: string; marketValue: number }> }) {
+      return postJson<PortfolioRiskMetricsDto>('/api/portfolio/risk-metrics', request)
     }
   }
 }

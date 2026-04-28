@@ -9,6 +9,8 @@ export type Stock = {
   peRatio?: number
   // 市净率（Price-to-Book Ratio），单位：倍
   pbRatio?: number
+  // 净资产收益率（Return on Equity），单位：百分比（如 15.23 表示 15.23%）
+  roe?: number
   totalShares?: number
 }
 
