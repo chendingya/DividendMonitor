@@ -1,11 +1,11 @@
 import type { WatchlistEntryDto } from '@shared/contracts/api'
 import { toWatchlistEntryDto } from '@main/application/mappers/stockDtoMappers'
 import { AssetRepository } from '@main/repositories/assetRepository'
-import { WatchlistRepository } from '@main/repositories/watchlistRepository'
+import { getWatchlistRepository } from '@main/repositories/repositoryFactory'
 
 export async function listWatchlist(): Promise<WatchlistEntryDto[]> {
   const assetRepository = new AssetRepository()
-  const watchlistRepository = new WatchlistRepository()
+  const watchlistRepository = getWatchlistRepository()
   const assets = await watchlistRepository.listAssets()
 
   if (assets.length === 0) {

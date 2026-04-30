@@ -1,6 +1,9 @@
 import { getDatabase } from '@main/infrastructure/db/sqlite'
 import type { AssetIdentifierDto, AssetKey, AssetType, MarketCode } from '@shared/contracts/api'
 import { buildAssetKey, buildStockAssetKey, normalizeAssetCode, parseAssetKey } from '@shared/contracts/api'
+import type { IWatchlistRepository, WatchlistAssetRecord } from '@main/repositories/interfaces'
+
+export type { WatchlistAssetRecord } from '@main/repositories/interfaces'
 
 function normalizeSymbol(symbol: string) {
   return normalizeAssetCode(symbol)
@@ -29,15 +32,7 @@ function sanitizeSymbols(symbols: string[]) {
     })
 }
 
-export type WatchlistAssetRecord = {
-  assetKey: AssetKey
-  assetType: AssetType
-  market: MarketCode
-  code: string
-  name?: string
-}
-
-export class WatchlistRepository {
+export class WatchlistRepository implements IWatchlistRepository {
   async listAssets(): Promise<WatchlistAssetRecord[]> {
     const db = getDatabase()
     const rows = db

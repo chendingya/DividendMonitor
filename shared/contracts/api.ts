@@ -432,7 +432,44 @@ export type PortfolioRiskMetricsDto = {
   correlationMatrix?: PortfolioCorrelationMatrixDto
 }
 
+export type AuthSessionDto = {
+  user: { id: string; email?: string }
+  expiresAt: number
+} | null
+
+export type RegisterResultDto = {
+  session: AuthSessionDto
+  needsConfirmation: boolean
+}
+
+export type SyncStatusDto = {
+  status: 'synced' | 'offline-fallback' | 'error'
+  message?: string
+  timestamp: number
+}
+
+export type SyncResultDto = {
+  direction: 'push' | 'pull' | 'bidirectional'
+  watchlistPushed: number
+  watchlistPulled: number
+  portfolioPushed: number
+  portfolioPulled: number
+  errors: string[]
+}
+
 export interface DividendMonitorApi {
+  auth: {
+    login(email: string, password: string): Promise<AuthSessionDto>
+    register(email: string, password: string): Promise<RegisterResultDto>
+    logout(): Promise<void>
+    getSession(): Promise<AuthSessionDto>
+    updatePassword(newPassword: string): Promise<void>
+    onAuthStateChange(callback: (session: AuthSessionDto) => void): () => void
+  }
+  sync: {
+    onStatusChange(callback: (status: SyncStatusDto) => void): () => void
+    syncData(direction: 'push' | 'pull' | 'bidirectional'): Promise<SyncResultDto>
+  }
   asset: {
     search(request: AssetSearchRequestDto): Promise<AssetSearchItemDto[]>
     getDetail(request: AssetQueryDto): Promise<AssetDetailDto>
@@ -465,6 +502,9 @@ export interface DividendMonitorApi {
     removeByAsset(request: AssetQueryDto): Promise<void>
     replaceByAsset(request: PortfolioPositionReplaceByAssetDto): Promise<void>
     getRiskMetrics(request: { items: Array<{ assetKey: string; marketValue: number }> }): Promise<PortfolioRiskMetricsDto>
+  }
+  security: {
+    getLocalNonce(): Promise<string>
   }
 }
 

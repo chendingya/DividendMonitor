@@ -121,6 +121,20 @@ interface DividendMonitorApi {
     removeByAsset(request: AssetQueryDto): Promise<void>
     replaceByAsset(request: PortfolioPositionReplaceByAssetDto): Promise<void>
   }
+  auth: {
+    login(email: string, password: string): Promise<AuthSessionDto>
+    register(email: string, password: string): Promise<RegisterResultDto>
+    logout(): Promise<void>
+    getSession(): Promise<AuthSessionDto>
+    updatePassword(newPassword: string): Promise<void>
+    onAuthStateChange(callback: (session: AuthSessionDto) => void): () => void
+  }
+  sync: {
+    push(): Promise<{ watchlist: number; portfolio: number; errors: string[] }>
+    pull(): Promise<{ watchlist: number; portfolio: number; errors: string[] }>
+    bidirectional(): Promise<{ watchlist: number; portfolio: number; errors: string[] }>
+    getStatus(): Promise<SyncStatusDto>
+  }
 }
 ```
 
@@ -142,6 +156,8 @@ flowchart TB
     API --> Watchlist[watchlist]
     API --> Calculation[calculation]
     API --> Portfolio[portfolio]
+    API --> Auth[auth]
+    API --> Sync[sync]
 
     Asset --> AssetSearch[search]
     Asset --> AssetDetail[getDetail]
@@ -169,6 +185,18 @@ flowchart TB
     Portfolio --> PortfolioRemove[remove]
     Portfolio --> PortfolioRemoveByAsset[removeByAsset]
     Portfolio --> PortfolioReplaceByAsset[replaceByAsset]
+
+    Auth --> AuthLogin[login]
+    Auth --> AuthRegister[register]
+    Auth --> AuthLogout[logout]
+    Auth --> AuthGetSession[getSession]
+    Auth --> AuthUpdatePassword[updatePassword]
+    Auth --> AuthOnAuthStateChange[onAuthStateChange]
+
+    Sync --> SyncPush[push]
+    Sync --> SyncPull[pull]
+    Sync --> SyncBidirectional[bidirectional]
+    Sync --> SyncGetStatus[getStatus]
 ```
 
 ### 4.1 `stock`
@@ -246,6 +274,54 @@ flowchart TB
     - `symbol: string`
     - `buyDate: string`
   - 用例：`runDividendReinvestmentBacktest`
+
+## 5.4 Auth
+
+文件：
+
+- `src/main/ipc/channels/authChannels.ts`
+
+当前 channel：
+
+- `auth:login`
+  - 入参：`{ email: string, password: string }`
+  - 用例：`authService.login`
+- `auth:register`
+  - 入参：`{ email: string, password: string }`
+  - 用例：`authService.register`
+- `auth:logout`
+  - 入参：无
+  - 用例：`authService.logout`
+- `auth:getSession`
+  - 入参：无
+  - 用例：`authService.getSession`
+- `auth:update-password`
+  - 入参：`{ newPassword: string }`
+  - 用例：`authService.updatePassword`
+- `auth:on-auth-state-change`
+  - 入参：callback
+  - 用例：`authService.onAuthStateChange`
+
+## 5.5 Sync
+
+文件：
+
+- `src/main/ipc/channels/syncChannels.ts`
+
+当前 channel：
+
+- `sync:push`
+  - 入参：无
+  - 用例：`dataSyncService.pushLocalToCloud`
+- `sync:pull`
+  - 入参：无
+  - 用例：`dataSyncService.pullCloudToLocal`
+- `sync:bidirectional`
+  - 入参：无
+  - 用例：`dataSyncService.bidirectionalSync`
+- `sync:get-status`
+  - 入参：无
+  - 用例：获取同步状态
 
 ## 6. 渲染层运行时选择
 

@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { message } from 'antd'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { buildAssetSearchPath } from '@renderer/services/routeContext'
+import { useAuth } from '@renderer/contexts/AuthContext'
 
 type AppIconName =
   | 'dashboard'
@@ -10,6 +11,7 @@ type AppIconName =
   | 'watchlist'
   | 'comparison'
   | 'backtest'
+  | 'user'
   | 'search'
   | 'notification'
   | 'message'
@@ -25,7 +27,8 @@ const menuItems = [
   { key: '/stock-detail', label: '股息', icon: 'dividend' as const },
   { key: '/watchlist', label: '自选', icon: 'watchlist' as const },
   { key: '/comparison', label: '数据分析', icon: 'comparison' as const },
-  { key: '/backtest', label: '回测', icon: 'backtest' as const }
+  { key: '/backtest', label: '回测', icon: 'backtest' as const },
+  { key: '/user-center', label: '用户中心', icon: 'user' as const }
 ]
 
 function AppShellIcon({ name, className }: { name: AppIconName; className?: string }) {
@@ -85,6 +88,15 @@ function AppShellIcon({ name, className }: { name: AppIconName; className?: stri
     )
   }
 
+  if (name === 'user') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="8" r="4" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
   if (name === 'notification') {
     return (
       <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -113,6 +125,7 @@ function AppShellIcon({ name, className }: { name: AppIconName; className?: stri
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation()
   const navigate = useNavigate()
+  const { mode, session, logout } = useAuth()
   const [, messageHolder] = message.useMessage()
   const [topbarKeyword, setTopbarKeyword] = useState('')
 
@@ -153,6 +166,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (symbol) {
         items.push({ label: symbol })
       }
+      return items
+    }
+
+    if (location.pathname.startsWith('/user-center')) {
+      items.push({ label: '用户中心' })
       return items
     }
 
@@ -205,19 +223,54 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="ledger-sidebar-footer">
-          <button type="button" className="ledger-upgrade-button">
-            升级至专业版
-          </button>
-          <button type="button" className="ledger-help-link">
-            帮助中心
-          </button>
-          <div className="ledger-user-chip">
-            <div className="ledger-user-avatar" />
-            <div>
-              <div className="ledger-user-name">亚历克斯</div>
-              <div className="ledger-user-tier">免费版</div>
-            </div>
-          </div>
+          {mode === 'online' && session ? (
+            <>
+              <div
+                className="ledger-user-chip is-clickable"
+                onClick={() => navigate('/user-center')}
+              >
+                <div className="ledger-user-avatar is-online">
+                  {(session.user.email ?? '?')[0].toUpperCase()}
+                </div>
+                <div>
+                  <div className="ledger-user-name is-truncated">
+                    {session.user.email ?? '在线用户'}
+                  </div>
+                  <div className="ledger-user-tier is-online">在线 · 已同步</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="ledger-help-link is-logout"
+                onClick={() => { void logout() }}
+              >
+                退出登录
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="ledger-upgrade-button"
+                onClick={() => navigate('/user-center')}
+              >
+                登录 / 注册
+              </button>
+              <button type="button" className="ledger-help-link">
+                帮助中心
+              </button>
+              <div
+                className="ledger-user-chip is-clickable"
+                onClick={() => navigate('/user-center')}
+              >
+                <div className="ledger-user-avatar" />
+                <div>
+                  <div className="ledger-user-name">离线模式</div>
+                  <div className="ledger-user-tier is-offline">数据仅存于本机</div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </aside>
 

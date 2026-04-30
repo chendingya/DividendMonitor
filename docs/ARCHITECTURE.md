@@ -11,7 +11,7 @@
 
 本文档是 `SDD.md` 的补充设计，默认技术栈为 `Electron + React + Ant Design + TypeScript + SQLite`。
 
-当前工程目录已经完成一轮“保留边界、减少跳转”的简化。本文档继续描述稳定的职责边界，不要求为了分层而保留过深目录。
+当前工程目录已经完成一轮"保留边界、减少跳转"的简化。本文档继续描述稳定的职责边界，不要求为了分层而保留过深目录。
 
 ## 2. 架构目标
 
@@ -31,7 +31,7 @@
 
 ## 3. 总体分层
 
-整体建议采用“纵向按运行时拆分，横向按职责分层”的方式。
+整体建议采用"纵向按运行时拆分，横向按职责分层"的方式。
 
 ```text
 +----------------------------------------------------------------+
@@ -210,6 +210,8 @@ src/main/infrastructure/
     migrations/
   http/
     httpClient.ts
+  supabase/
+    authService.ts              # Supabase 认证服务（登录/注册/登出/修改密码）
   logging/
     logger.ts
   config/
@@ -293,7 +295,7 @@ src/main/repositories/
 1. `watchlistRepository.ts` 已落地，并已改为走 SQLite
 2. `stockRepository.ts` 当前负责聚合基础股票数据与估值数据
 3. `valuationRepository.ts` 已落地，负责估值链路的 source priority、15 分钟内存缓存与本地 percentile fallback
-4. “缓存优先再回源”的完整仓库模式仍未全面落地，目前仅估值链路具备最小缓存策略
+4. "缓存优先再回源"的完整仓库模式仍未全面落地，目前仅估值链路具备最小缓存策略
 
 ### 6.4 Domain 层
 
@@ -355,6 +357,9 @@ src/main/application/
     compareStocks.ts
     buildYieldMap.ts
     runDividendReinvestmentBacktest.ts
+  services/
+    dataSyncService.ts          # 本地与云端数据同步（推送/拉取/双向合并）
+    assetCacheSyncService.ts    # 启动时资产快照缓存同步
 ```
 
 用例特征：
@@ -381,6 +386,8 @@ src/main/ipc/
     watchlistChannels.ts
     calculationChannels.ts
     visualizationChannels.ts
+    authChannels.ts              # 认证相关 IPC 通道
+    syncChannels.ts              # 数据同步相关 IPC 通道
   schemas/
     stockSchemas.ts
     calculationSchemas.ts
@@ -388,7 +395,7 @@ src/main/ipc/
 
 ## 7. 渲染进程分层设计
 
-渲染层建议采用“页面层 + 容器层 + 业务组件层 + 纯展示组件层”的结构。
+渲染层建议采用"页面层 + 容器层 + 业务组件层 + 纯展示组件层"的结构。
 
 ### 7.1 页面层 Page
 
@@ -606,7 +613,7 @@ src/renderer/src/services/
 
 ## 9. 建议目录结构
 
-以下目录结构是当前阶段更推荐的“简化后结构”，目标是在保留边界的同时降低跳转成本。
+以下目录结构是当前阶段更推荐的"简化后结构"，目标是在保留边界的同时降低跳转成本。
 
 ```text
 src/
@@ -646,17 +653,17 @@ shared/
 
 针对首期工程，补充以下简化约束：
 
-1. 页面如果只是“拿数据再透传给一个容器”，则优先删除 `Container`
+1. 页面如果只是"拿数据再透传给一个容器"，则优先删除 `Container`
 2. 业务组件允许直接放在 `components/<feature>/`，不强制保留 `features/*/components`
 3. 只有当某个业务模块同时出现组件、局部 hook、mapper、types 时，才重新升格回 `features/<module>/`
 4. `services/api` 这一层级对当前工程偏重，优先收拢为 `services/`
 5. `app/layouts`、`app/router` 这种单一子目录优先拆平
 
-这样做的目的不是否定分层，而是把“分层”保留在职责上，而不是堆到路径深度上。
+这样做的目的不是否定分层，而是把"分层"保留在职责上，而不是堆到路径深度上。
 
 ## 11. 前端模块组织建议
 
-当前前端以“页面 + 业务组件 + hook + runtime service”的轻量组织为主，不再强制引入 `features/` 目录。
+当前前端以"页面 + 业务组件 + hook + runtime service"的轻量组织为主，不再强制引入 `features/` 目录。
 
 推荐结构：
 
@@ -732,7 +739,7 @@ type HistoricalYieldChartViewModel = {
 
 ## 13. 一个完整调用链示例
 
-以“打开股票详情页”场景为例：
+以"打开股票详情页"场景为例：
 
 ```text
 StockDetailPage
@@ -860,12 +867,12 @@ flowchart LR
 3. `docs/DB-DDL.sql`
 4. `src` 目录脚手架初始化
 
-## 18. 当前实现状态（2026-04-28）
+## 18. 当前实现状态（2026-04-30）
 
 1. Main 侧已落地最小数据库设施与 `watchlistRepository`
 2. Main 侧已落地多资产路由：`AssetProviderRegistry` + Stock / ETF / Fund 三个 Provider
 3. Renderer 侧已落地 `desktopApi` 运行时选择器与 `browserRuntimeApi`
-4. 架构目标中的”统一 renderer service 接口、多运行时实现”已开始落地
+4. 架构目标中的"统一 renderer service 接口、多运行时实现"已开始落地
 5. 前端能力驱动渲染：`StockDetailPage` 通过 `data.capabilities` 控制模块显隐
 6. ETF/基金完整链路已通：搜索 → 详情 → 历史分配收益率 → 未来分配率估算
 7. `FutureYieldEstimateCard` 区分股票（财务驱动）和基金（分配记录驱动）的估算展示
@@ -874,3 +881,9 @@ flowchart LR
 10. Dashboard 已重构：`usePortfolio` 钩子 + 5 个子组件（Hero / MetricCards / Table / Opportunities / Tools）+ `CorrelationMatrix` 热力图
 11. ROE 指标已落地：从东方财富 push2 API `f173` 提取，展示在详情页估值区和对比表
 12. IPC 通道新增 `portfolio:getRiskMetrics`，HTTP 路由新增 `POST /api/portfolio/risk-metrics`
+13. 在线版已落地：`authService`（Supabase 认证）+ `dataSyncService`（数据同步）+ `UserCenterPage`
+14. 认证链路完整：登录/注册/登出/修改密码/状态监听，IPC + HTTP 双通道
+15. 注册流程增加确认密码校验
+16. 用户中心新增修改密码功能（IPC: `auth:update-password`）
+17. 数据同步三种策略：推送（覆盖云端）、拉取（覆盖本地）、双向（按 key 合并）
+18. 新增 IPC 通道：`auth:login/register/logout/getSession/update-password`、`sync:push/pull/bidirectional/get-status`

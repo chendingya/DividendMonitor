@@ -1,10 +1,10 @@
 import { createStockAssetQuery } from '@shared/contracts/api'
 import { StockRepository } from '@main/repositories/stockRepository'
-import { WatchlistRepository } from '@main/repositories/watchlistRepository'
+import { getWatchlistRepository } from '@main/repositories/repositoryFactory'
 
 export async function addWatchlistItem(symbol: string): Promise<void> {
   const repository = new StockRepository()
-  const watchlistRepository = new WatchlistRepository()
+  const watchlistRepository = getWatchlistRepository()
 
   // Validate the symbol against the current data source before persisting it locally.
   const detail = await repository.getDetail(symbol)

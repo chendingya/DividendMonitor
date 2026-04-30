@@ -1,7 +1,23 @@
 import { ConfigProvider } from 'antd'
-import { HashRouter } from 'react-router-dom'
+import { HashRouter, useLocation } from 'react-router-dom'
+import { AuthProvider } from '@renderer/contexts/AuthContext'
 import { AppShell } from '@renderer/layouts/AppShell'
 import { AppRouter } from '@renderer/router/AppRouter'
+
+function AppLayout() {
+  const location = useLocation()
+  const isLoginPage = location.pathname === '/login'
+
+  if (isLoginPage) {
+    return <AppRouter />
+  }
+
+  return (
+    <AppShell>
+      <AppRouter />
+    </AppShell>
+  )
+}
 
 export default function App() {
   return (
@@ -32,9 +48,9 @@ export default function App() {
       }}
     >
       <HashRouter>
-        <AppShell>
-          <AppRouter />
-        </AppShell>
+        <AuthProvider>
+          <AppLayout />
+        </AuthProvider>
       </HashRouter>
     </ConfigProvider>
   )

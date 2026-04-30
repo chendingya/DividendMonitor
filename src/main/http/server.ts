@@ -1,10 +1,12 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { LOCAL_HTTP_API_ORIGIN } from '@shared/contracts/api'
 import { handleAssetRoute } from '@main/http/routes/assetRoutes'
+import { handleAuthRoute } from '@main/http/routes/authRoutes'
 import { handleCalculationRoute } from '@main/http/routes/calculationRoutes'
 import { handlePortfolioRoute } from '@main/http/routes/portfolioRoutes'
 import { handleWatchlistRoute } from '@main/http/routes/watchlistRoutes'
 import { HttpError, asHttpError, sendJson } from '@main/http/httpErrors'
+import { getSecurityHeaders } from '@main/security/contentSecurityPolicy'
 
 let httpServer: Server | null = null
 
@@ -39,9 +41,27 @@ async function readJsonBody(request: IncomingMessage): Promise<unknown> {
 }
 
 async function handleRequest(request: IncomingMessage, response: ServerResponse) {
-  response.setHeader('Access-Control-Allow-Origin', '*')
+  // Apply security headers to all responses
+  const isDevelopment = Boolean(process.env['ELECTRON_RENDERER_URL'])
+  const securityHeaders = getSecurityHeaders(isDevelopment)
+  for (const [key, value] of Object.entries(securityHeaders)) {
+    if (value) {
+      response.setHeader(key, value)
+    }
+  }
+
+  const url = new URL(request.url ?? '/', LOCAL_HTTP_API_ORIGIN)
+  const pathname = url.pathname
+  const method = request.method ?? 'GET'
+
+  // Restrict CORS to same-origin only.
+  // /auth/callback is a top-level browser navigation (redirect from email link),
+  // not a cross-origin fetch — CORS headers do not apply to navigations.
+  // /api/auth/confirm is called by the same-origin HTML page served by /auth/callback,
+  // so it is also same-origin and needs no CORS relaxation.
+  response.setHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:3210')
   response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
-  response.setHeader('Access-Control-Allow-Headers', 'Content-Type')
+  response.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Local-Nonce')
 
   if (request.method === 'OPTIONS') {
     response.statusCode = 204
@@ -49,12 +69,10 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
     return
   }
 
-  const url = new URL(request.url ?? '/', LOCAL_HTTP_API_ORIGIN)
-  const pathname = url.pathname
-  const method = request.method ?? 'GET'
   const body = await readJsonBody(request)
 
   const handled =
+    (await handleAuthRoute({ pathname, method, body, response, headers: request.headers })) ||
     (await handleAssetRoute({ pathname, method, body, response })) ||
     (await handleWatchlistRoute({ pathname, method, body, response })) ||
     (await handleCalculationRoute({ pathname, method, body, response })) ||

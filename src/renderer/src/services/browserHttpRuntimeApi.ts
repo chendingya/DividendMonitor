@@ -3,6 +3,7 @@ import type {
   AssetCompareRequestDto,
   AssetQueryDto,
   AssetSearchRequestDto,
+  AuthSessionDto,
   BacktestResultDto,
   ComparisonRowDto,
   DividendMonitorApi,
@@ -13,11 +14,35 @@ import type {
   PortfolioRiskMetricsDto,
   StockDetailDto,
   StockSearchItemDto,
+  SyncStatusDto,
   WatchlistAddRequestDto,
   WatchlistEntryDto
 } from '@shared/contracts/api'
 import { createStockAssetQuery } from '@shared/contracts/api'
 import { requestJson } from '@renderer/services/httpClient'
+
+// Cached local nonce for authenticating HTTP auth requests.
+// Expires after 10 minutes so a nonce rotation (e.g. server restart) is
+// picked up without requiring a full page reload.
+const NONCE_CACHE_MS = 10 * 60 * 1000
+let cachedNonce: string | null = null
+let nonceExpiresAt: number = 0
+
+async function getLocalNonce(): Promise<string> {
+  if (cachedNonce && Date.now() < nonceExpiresAt) return cachedNonce
+  cachedNonce = await window.dividendMonitor.security.getLocalNonce()
+  nonceExpiresAt = Date.now() + NONCE_CACHE_MS
+  return cachedNonce
+}
+
+async function postJsonWithNonce<T>(path: string, body: unknown) {
+  const nonce = await getLocalNonce()
+  return requestJson<T>(path, {
+    method: 'POST',
+    body,
+    headers: { 'X-Local-Nonce': nonce }
+  })
+}
 
 async function postJson<T>(path: string, body: unknown) {
   return requestJson<T>(path, {
@@ -27,6 +52,37 @@ async function postJson<T>(path: string, body: unknown) {
 }
 
 export const browserHttpRuntimeApi: DividendMonitorApi = {
+  auth: {
+    login(email, password) {
+      return postJsonWithNonce<{ session: AuthSessionDto }>('/api/auth/login', { email, password }).then((r) => r.session)
+    },
+    register(email, password) {
+      return postJsonWithNonce<{ session: AuthSessionDto; needsConfirmation: boolean }>('/api/auth/register', { email, password })
+    },
+    logout() {
+      return postJson<void>('/api/auth/logout', {})
+    },
+    getSession() {
+      return requestJson<{ session: AuthSessionDto }>('/api/auth/session').then((r) => r.session)
+    },
+    onAuthStateChange(_callback: (session: AuthSessionDto) => void) {
+      // No-op for browser HTTP runtime; auth state changes are not pushed
+      return () => {}
+    },
+    updatePassword(_newPassword: string) {
+      return postJsonWithNonce<void>('/api/auth/update-password', { newPassword: _newPassword })
+    }
+  },
+  sync: {
+    onStatusChange(_callback: (status: SyncStatusDto) => void) {
+      // No-op for browser HTTP runtime; sync status is not pushed
+      return () => {}
+    },
+    syncData(_direction: 'push' | 'pull' | 'bidirectional') {
+      // Not available in browser HTTP runtime
+      return Promise.resolve({ direction: 'bidirectional', watchlistPushed: 0, watchlistPulled: 0, portfolioPushed: 0, portfolioPulled: 0, errors: ['浏览器模式不支持同步'] })
+    }
+  },
   asset: {
     search(request: AssetSearchRequestDto) {
       return postJson('/api/asset/search', request)
@@ -115,6 +171,11 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
     },
     getRiskMetrics(request: { items: Array<{ assetKey: string; marketValue: number }> }) {
       return postJson<PortfolioRiskMetricsDto>('/api/portfolio/risk-metrics', request)
+    }
+  },
+  security: {
+    getLocalNonce() {
+      return window.dividendMonitor.security.getLocalNonce()
     }
   }
 }
