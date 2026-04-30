@@ -1,6 +1,6 @@
 {
   "name": "shou-xi-lao",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "收息佬（DividendMonitor）桌面版，支持股票、ETF 与基金的收益追踪、估值对比和回测。",
   "author": "chendingya",
