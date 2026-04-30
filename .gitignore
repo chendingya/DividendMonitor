@@ -9,3 +9,5 @@ coverage/
 .trae/
 .claude/
 *.log
+.env
+.codebuddy/
