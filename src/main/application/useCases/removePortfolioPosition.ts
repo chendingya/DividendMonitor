@@ -1,6 +1,6 @@
-import { PortfolioRepository } from '@main/repositories/portfolioRepository'
+import { getPortfolioRepository } from '@main/repositories/repositoryFactory'
 
 export async function removePortfolioPosition(id: string): Promise<void> {
-  const repository = new PortfolioRepository()
+  const repository = getPortfolioRepository()
   await repository.remove(id)
 }

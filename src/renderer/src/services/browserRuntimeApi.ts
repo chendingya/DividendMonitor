@@ -826,6 +826,18 @@ function assetKeyToDetail(assetKey: string) {
 }
 
 export const browserRuntimeApi: DividendMonitorApi = {
+  auth: {
+    async login() { return null },
+    async register() { return { session: null, needsConfirmation: false } },
+    async logout() {},
+    async getSession() { return null },
+    async updatePassword() {},
+    onAuthStateChange() { return () => {} }
+  },
+  sync: {
+    onStatusChange() { return () => {} },
+    async syncData() { return { direction: 'bidirectional', watchlistPushed: 0, watchlistPulled: 0, portfolioPushed: 0, portfolioPulled: 0, errors: [] } }
+  },
   asset: {
     async search(request: AssetSearchRequestDto): Promise<AssetSearchItemDto[]> {
       const normalized = request.keyword.trim().toLowerCase()
@@ -1077,5 +1089,8 @@ export const browserRuntimeApi: DividendMonitorApi = {
     async getRiskMetrics() {
       return {}
     }
+  },
+  security: {
+    async getLocalNonce() { return '' }
   }
 }

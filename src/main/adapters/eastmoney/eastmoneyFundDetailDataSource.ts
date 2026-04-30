@@ -255,7 +255,10 @@ export class EastmoneyFundDetailDataSource implements FundDetailDataSource {
   async getDetail(code: string, assetType: Extract<AssetType, 'ETF' | 'FUND'>): Promise<FundDetailSource> {
     const normalizedCode = code.trim()
     const secId = resolveFundSecId(normalizedCode)
-    const [basicHtml, dividendHtml, quotePayload, klinePayload] = await Promise.all([
+
+    // Fetch all sources in parallel — push2/kline APIs may be unavailable,
+    // so use allSettled to tolerate partial failures.
+    const [basicResult, dividendResult, quoteResult, klineResult] = await Promise.allSettled([
       getText(`https://fund.eastmoney.com/f10/jbgk_${normalizedCode}.html`),
       getText(`https://fund.eastmoney.com/f10/fhsp_${normalizedCode}.html`),
       getJson<FundQuoteResponse>(
@@ -265,6 +268,22 @@ export class EastmoneyFundDetailDataSource implements FundDetailDataSource {
         `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secId}&klt=101&fqt=0&lmt=800&end=20500101&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56`
       )
     ])
+
+    if (basicResult.status === 'rejected') {
+      throw new Error(`Fund basic profile unavailable for ${normalizedCode}: ${basicResult.reason instanceof Error ? basicResult.reason.message : String(basicResult.reason)}`)
+    }
+
+    const basicHtml = basicResult.value
+    const dividendHtml = dividendResult.status === 'fulfilled' ? dividendResult.value : ''
+    const quotePayload = quoteResult.status === 'fulfilled' ? quoteResult.value : ({} as FundQuoteResponse)
+    const klinePayload = klineResult.status === 'fulfilled' ? klineResult.value : ({} as FundKlineResponse)
+
+    if (quoteResult.status === 'rejected') {
+      console.warn(`[EastmoneyFund] Quote API failed for ${normalizedCode}: ${quoteResult.reason instanceof Error ? quoteResult.reason.message : String(quoteResult.reason)}`)
+    }
+    if (klineResult.status === 'rejected') {
+      console.warn(`[EastmoneyFund] Kline API failed for ${normalizedCode}: ${klineResult.reason instanceof Error ? klineResult.reason.message : String(klineResult.reason)}`)
+    }
 
     const basicProfile = parseFundBasicProfile(basicHtml)
     const priceHistory = parseKlines(klinePayload)

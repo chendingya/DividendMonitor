@@ -543,11 +543,25 @@ body {
   gap: 10px;
 }
 
+.ledger-user-chip.is-clickable {
+  cursor: pointer;
+}
+
 .ledger-user-avatar {
   width: 30px;
   height: 30px;
   border-radius: 999px;
   background: linear-gradient(135deg, #d8dce0, #b8c2cc);
+}
+
+.ledger-user-avatar.is-online {
+  background: #0052d0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .ledger-user-name {
@@ -556,9 +570,27 @@ body {
   color: var(--text-main);
 }
 
+.ledger-user-name.is-truncated {
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .ledger-user-tier {
   font-size: 11px;
   color: var(--text-faint);
+}
+
+.ledger-user-tier.is-online {
+  color: #00a854;
+}
+
+.ledger-user-tier.is-offline {
+  color: #8b949e;
+}
+
+.ledger-help-link.is-logout {
+  margin-top: 8px;
 }
 
 .ledger-main {

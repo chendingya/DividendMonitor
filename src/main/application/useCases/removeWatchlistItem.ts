@@ -1,6 +1,6 @@
-import { WatchlistRepository } from '@main/repositories/watchlistRepository'
+import { getWatchlistRepository } from '@main/repositories/repositoryFactory'
 
 export async function removeWatchlistItem(symbol: string): Promise<void> {
-  const watchlistRepository = new WatchlistRepository()
+  const watchlistRepository = getWatchlistRepository()
   await watchlistRepository.removeSymbol(symbol)
 }

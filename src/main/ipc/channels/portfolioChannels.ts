@@ -29,6 +29,11 @@ export function registerPortfolioChannels() {
   })
 
   ipcMain.handle('portfolio:getRiskMetrics', async (_event, request: PortfolioRiskMetricsRequest) => {
-    return getPortfolioRiskMetrics(request)
+    try {
+      return await getPortfolioRiskMetrics(request)
+    } catch {
+      // Network errors (e.g. eastmoney API unreachable) should not crash the UI
+      return {}
+    }
   })
 }

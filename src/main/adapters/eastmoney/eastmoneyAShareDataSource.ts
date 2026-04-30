@@ -237,10 +237,7 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
       `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${qqSymbol},day,,,${TENCENT_KLINE_LIMIT},qfq`
 
     const payload = await getJson<TencentKlineResponse>(url, {
-      headers: {
-        Referer: 'https://gu.qq.com/',
-        'User-Agent': 'Mozilla/5.0 DividendMonitor/0.1.0'
-      }
+      headers: { Referer: 'https://gu.qq.com/' }
     })
 
     return parseTencentMarketSnapshot(symbol, payload)
@@ -346,6 +343,10 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
   }
 
   async compare(symbols: string[]): Promise<CoreStockDetailSource[]> {
-    return Promise.all(symbols.map((symbol) => this.getDetail(symbol)))
+    const results = await Promise.allSettled(symbols.map((symbol) => this.getDetail(symbol)))
+    return results.map((result, i) => {
+      if (result.status === 'fulfilled') return result.value
+      throw result.reason instanceof Error ? result.reason : new Error(`Failed to load ${symbols[i]}`)
+    })
   }
 }

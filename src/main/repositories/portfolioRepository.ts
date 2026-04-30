@@ -7,6 +7,7 @@ import type {
   PortfolioPositionUpsertDto
 } from '@shared/contracts/api'
 import { buildAssetKey, normalizeAssetCode, resolveAssetQuery } from '@shared/contracts/api'
+import type { IPortfolioRepository } from '@main/repositories/interfaces'
 
 type PortfolioPositionRow = {
   id: string
@@ -48,7 +49,7 @@ function toDto(row: PortfolioPositionRow): PortfolioPositionDto {
   }
 }
 
-export class PortfolioRepository {
+export class PortfolioRepository implements IPortfolioRepository {
   async list(): Promise<PortfolioPositionDto[]> {
     const db = getDatabase()
     const rows = db

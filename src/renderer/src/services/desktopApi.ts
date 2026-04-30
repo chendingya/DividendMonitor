@@ -56,6 +56,16 @@ export function getCalculationDesktopApi() {
   return api.calculation
 }
 
+export function getAuthDesktopApi() {
+  const api = getRuntimeApi()
+
+  if (!api.auth) {
+    throw new Error('Runtime API is missing the auth namespace.')
+  }
+
+  return api.auth
+}
+
 export function getPortfolioDesktopApi() {
   const api = getRuntimeApi()
 
@@ -64,4 +74,14 @@ export function getPortfolioDesktopApi() {
   }
 
   return api.portfolio
+}
+
+export function getSyncDesktopApi() {
+  const api = getRuntimeApi()
+
+  if (!api.sync) {
+    throw new Error('Runtime API is missing the sync namespace.')
+  }
+
+  return api.sync
 }

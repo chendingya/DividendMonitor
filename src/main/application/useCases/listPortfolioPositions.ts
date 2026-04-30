@@ -1,7 +1,7 @@
 import type { PortfolioPositionDto } from '@shared/contracts/api'
-import { PortfolioRepository } from '@main/repositories/portfolioRepository'
+import { getPortfolioRepository } from '@main/repositories/repositoryFactory'
 
 export async function listPortfolioPositions(): Promise<PortfolioPositionDto[]> {
-  const repository = new PortfolioRepository()
+  const repository = getPortfolioRepository()
   return repository.list()
 }

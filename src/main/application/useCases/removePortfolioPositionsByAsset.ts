@@ -1,7 +1,7 @@
 import type { AssetQueryDto } from '@shared/contracts/api'
-import { PortfolioRepository } from '@main/repositories/portfolioRepository'
+import { getPortfolioRepository } from '@main/repositories/repositoryFactory'
 
 export async function removePortfolioPositionsByAsset(request: AssetQueryDto): Promise<void> {
-  const repository = new PortfolioRepository()
+  const repository = getPortfolioRepository()
   await repository.removeByAsset(request)
 }

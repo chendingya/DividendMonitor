@@ -155,6 +155,8 @@ DividendMonitor/
 - `settingsService`：管理本地配置
 - `stockDataService`：统一股票、财务、分红数据查询入口
 - `calculationService`：统一股息率、估算值等核心计算逻辑
+- `authService`：Supabase 认证（登录、注册、登出、获取 session、修改密码）
+- `dataSyncService`：本地与云端数据同步（推送/拉取/双向合并）
 - `logService`：错误与运行日志
 
 ### 7.2 渲染进程模块
@@ -164,6 +166,8 @@ DividendMonitor/
 - `watchlist`：自选股管理
 - `stock-detail`：单只股票详情与股息分析
 - `comparison`：多股票对比
+- `login`：登录与注册（注册需确认密码）
+- `user-center`：用户中心（修改密码、数据同步、退出登录）
 - `runtime-adapter`：统一选择 Electron bridge 或浏览器 fallback
 
 当前实现补充：
@@ -772,7 +776,7 @@ window.dividendMonitor = {
 - 数据适配器转换
 - 回测流水重放
 
-## 23. 当前实现对齐状态（2026-04-28）
+## 23. 当前实现对齐状态（2026-04-30）
 
 1. Electron + React + preload + IPC 主链路已可运行
 2. 多资产架构已落地：`AssetProviderRegistry` + `StockAssetProvider` / `EtfAssetProvider` / `FundAssetProvider`
@@ -790,6 +794,10 @@ window.dividendMonitor = {
 14. 组合风险领域服务已实现：`portfolioRiskService.ts` 计算组合波动率、夏普比率、最大回撤、相关性矩阵
 15. Dashboard 已重构：852 行拆分为 `usePortfolio` 钩子 + 5 个子组件 + `CorrelationMatrix` 热力图
 16. IPC 通道新增：`portfolio:getRiskMetrics`，HTTP 路由新增 `POST /api/portfolio/risk-metrics`
+17. 在线版已落地：Supabase 认证（`authService`）+ 数据同步（`dataSyncService`）+ 用户中心
+18. 注册流程增加确认密码校验
+19. 用户中心新增修改密码功能（IPC: `auth:update-password`，HTTP: `POST /api/auth/update-password`）
+20. 数据同步策略：推送 = 覆盖云端、拉取 = 覆盖本地、双向 = 按 key 合并取并集
 
 ### 20.3 E2E 测试
 

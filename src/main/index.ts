@@ -4,6 +4,9 @@ import { fileURLToPath } from 'node:url'
 import { startLocalHttpServer, stopLocalHttpServer } from '@main/http/server'
 import { registerIpcHandlers } from '@main/ipc/channels'
 import { AssetCacheSyncService } from '@main/application/services/assetCacheSyncService'
+import { authService } from '@main/infrastructure/supabase/authService'
+import { migrateLegacySession } from '@main/infrastructure/supabase/sessionStorage'
+import { getCspHeader } from '@main/security/contentSecurityPolicy'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -31,6 +34,16 @@ function createWindow() {
     }
   })
 
+  // Inject CSP headers for renderer pages to prevent XSS attacks
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [getCspHeader(isDevelopment)]
+      }
+    })
+  })
+
   if (process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
@@ -39,11 +52,18 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  // Migrate legacy plaintext session file to encrypted storage
+  migrateLegacySession()
+
   registerIpcHandlers()
   void startLocalHttpServer()
 
+  // Initialize auth session from persistent storage and start auth state listener
+  void authService.initSession()
+
   const cacheSync = new AssetCacheSyncService()
-  void cacheSync.syncFromWatchlist()
+  // Delay initial cache sync to allow network to become available after cold start
+  setTimeout(() => void cacheSync.syncFromWatchlist(), 3000)
 
   if (!isHeadlessRuntime) {
     createWindow()

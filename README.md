@@ -37,6 +37,7 @@ The repository currently targets Windows desktop delivery first, while keeping a
 - 本地优先的数据与持久化链路
 - Electron 桌面端打包与 Windows 安装包输出
 - 浏览器 fallback 运行时与本地 HTTP API 联调
+- 在线版：Supabase 认证、云端数据同步、修改密码
 
 ## 技术栈
 

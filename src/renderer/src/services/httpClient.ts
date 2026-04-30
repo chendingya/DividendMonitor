@@ -1,14 +1,32 @@
 import { LOCAL_HTTP_API_ORIGIN } from '@shared/contracts/api'
 
+/** Allowed custom header keys — extend only when a legitimate need arises */
+const ALLOWED_CUSTOM_HEADERS = new Set(['X-Local-Nonce'])
+
 type RequestOptions = {
   method?: 'GET' | 'POST'
   body?: unknown
+  headers?: Record<string, string>
 }
 
 export async function requestJson<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const customHeaders: Record<string, string> = {}
+  if (options.headers) {
+    for (const [key, value] of Object.entries(options.headers)) {
+      if (ALLOWED_CUSTOM_HEADERS.has(key)) {
+        customHeaders[key] = value
+      }
+    }
+  }
+
+  const headers: Record<string, string> = {
+    ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+    ...customHeaders
+  }
+
   const response = await fetch(`${LOCAL_HTTP_API_ORIGIN}${path}`, {
     method: options.method ?? 'GET',
-    headers: options.body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body)
   })
 
