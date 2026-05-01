@@ -70,4 +70,40 @@ describe('repositoryFactory', () => {
     const second = getWatchlistRepository()
     expect(first).toBe(second)
   })
+
+  describe('getPriceCacheRepository', () => {
+    it('should return SqlitePriceCacheRepository for offline mode', async () => {
+      vi.doMock('@main/infrastructure/supabase/runtimeMode', () => ({
+        getRuntimeMode: () => 'offline' as const,
+        setRuntimeMode: () => {}
+      }))
+
+      const { getPriceCacheRepository } = await import(
+        '@main/repositories/repositoryFactory'
+      )
+      const { SqlitePriceCacheRepository } = await import(
+        '@main/repositories/priceCacheRepository'
+      )
+
+      const repo = getPriceCacheRepository()
+      expect(repo).toBeInstanceOf(SqlitePriceCacheRepository)
+    })
+
+    it('should return SupabasePriceCacheRepository for online mode', async () => {
+      vi.doMock('@main/infrastructure/supabase/runtimeMode', () => ({
+        getRuntimeMode: () => 'online' as const,
+        setRuntimeMode: () => {}
+      }))
+
+      const { getPriceCacheRepository } = await import(
+        '@main/repositories/repositoryFactory'
+      )
+      const { SupabasePriceCacheRepository } = await import(
+        '@main/repositories/supabasePriceCacheRepository'
+      )
+
+      const repo = getPriceCacheRepository()
+      expect(repo).toBeInstanceOf(SupabasePriceCacheRepository)
+    })
+  })
 })

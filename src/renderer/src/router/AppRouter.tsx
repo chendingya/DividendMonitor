@@ -7,6 +7,8 @@ import { LoginPage } from '@renderer/pages/LoginPage'
 import { StockDetailPage } from '@renderer/pages/StockDetailPage'
 import { UserCenterPage } from '@renderer/pages/UserCenterPage'
 import { WatchlistPage } from '@renderer/pages/WatchlistPage'
+import SettingsPage from '@renderer/pages/SettingsPage'
+import IndustryAnalysisPage from '@renderer/pages/IndustryAnalysisPage'
 import { useAuth } from '@renderer/contexts/AuthContext'
 
 function LoadingScreen() {
@@ -58,6 +60,8 @@ export function AppRouter() {
         <Route path="/backtest" element={<BacktestPage />} />
         <Route path="/backtest/:symbol" element={<BacktestPage />} />
         <Route path="/user-center" element={<UserCenterPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/industry-analysis" element={<IndustryAnalysisPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

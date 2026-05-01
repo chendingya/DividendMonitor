@@ -1,8 +1,22 @@
 import { useEffect, useState } from 'react'
-import type { BacktestResultDto } from '@shared/contracts/api'
+import type { AssetBacktestRequestDto, BacktestResultDto } from '@shared/contracts/api'
 import { calculationApi } from '@renderer/services/calculationApi'
 
-export function useAssetBacktest(assetKey: string | null, buyDate: string) {
+export type BacktestParams = {
+  assetKey: string | null
+  buyDate: string
+  initialCapital?: number
+  includeFees?: boolean
+  feeRate?: number
+  stampDutyRate?: number
+  minCommission?: number
+  dcaEnabled?: boolean
+  dcaFrequency?: 'monthly' | 'quarterly' | 'yearly'
+  dcaAmount?: number
+  benchmarkSymbol?: string
+}
+
+export function useAssetBacktest(params: BacktestParams) {
   const [data, setData] = useState<BacktestResultDto | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -14,7 +28,7 @@ export function useAssetBacktest(assetKey: string | null, buyDate: string) {
       setLoading(true)
       setError(null)
 
-      if (!assetKey) {
+      if (!params.assetKey) {
         if (!disposed) {
           setData(null)
           setLoading(false)
@@ -23,10 +37,26 @@ export function useAssetBacktest(assetKey: string | null, buyDate: string) {
       }
 
       try {
-        const result = await calculationApi.runDividendReinvestmentBacktestForAsset({
-          asset: { assetKey },
-          buyDate
-        })
+        const request: AssetBacktestRequestDto = {
+          asset: { assetKey: params.assetKey },
+          buyDate: params.buyDate,
+          initialCapital: params.initialCapital,
+          includeFees: params.includeFees,
+          feeRate: params.feeRate,
+          stampDutyRate: params.stampDutyRate,
+          minCommission: params.minCommission,
+          benchmarkSymbol: params.benchmarkSymbol || undefined
+        }
+
+        if (params.dcaEnabled && params.dcaAmount && params.dcaFrequency) {
+          request.dcaConfig = {
+            enabled: true,
+            frequency: params.dcaFrequency,
+            amount: params.dcaAmount
+          }
+        }
+
+        const result = await calculationApi.runDividendReinvestmentBacktestForAsset(request)
         if (!disposed) {
           setData(result)
         }
@@ -46,7 +76,19 @@ export function useAssetBacktest(assetKey: string | null, buyDate: string) {
     return () => {
       disposed = true
     }
-  }, [assetKey, buyDate])
+  }, [
+    params.assetKey,
+    params.buyDate,
+    params.initialCapital,
+    params.includeFees,
+    params.feeRate,
+    params.stampDutyRate,
+    params.minCommission,
+    params.dcaEnabled,
+    params.dcaFrequency,
+    params.dcaAmount,
+    params.benchmarkSymbol
+  ])
 
   return { data, loading, error }
 }

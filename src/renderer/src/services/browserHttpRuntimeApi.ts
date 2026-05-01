@@ -83,6 +83,25 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
       return Promise.resolve({ direction: 'bidirectional', watchlistPushed: 0, watchlistPulled: 0, portfolioPushed: 0, portfolioPulled: 0, errors: ['浏览器模式不支持同步'] })
     }
   },
+  industry: {
+    getAnalysis(industryName?: string, assetKeys?: string[]) {
+      return postJson('/api/industry/analysis', { industryName, assetKeys })
+    },
+    getDistribution() {
+      return requestJson('/api/industry/distribution')
+    }
+  },
+  settings: {
+    get() {
+      return requestJson('/api/settings')
+    },
+    update(partial: Record<string, unknown>) {
+      return requestJson('/api/settings', { method: 'PUT', body: partial })
+    },
+    reset() {
+      return requestJson('/api/settings', { method: 'DELETE' })
+    }
+  },
   asset: {
     search(request: AssetSearchRequestDto) {
       return postJson('/api/asset/search', request)

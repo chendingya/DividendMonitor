@@ -36,11 +36,12 @@ export type HistoricalPricePoint = {
 }
 
 export type BacktestTransaction = {
-  type: 'BUY' | 'DIVIDEND' | 'REINVEST' | 'BONUS_ADJUSTMENT'
+  type: 'BUY' | 'DIVIDEND' | 'REINVEST' | 'BONUS_ADJUSTMENT' | 'DCA_BUY'
   date: string
   price?: number
   cashAmount?: number
   sharesDelta: number
   sharesAfter: number
+  fee?: number
   note: string
 }

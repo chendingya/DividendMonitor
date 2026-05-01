@@ -174,6 +174,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       return items
     }
 
+    if (location.pathname.startsWith('/settings')) {
+      items.push({ label: '设置' })
+      return items
+    }
+
     return [{ label: '投资组合' }]
   }, [location.pathname, location.search])
 
@@ -301,7 +306,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <button type="button" className="ledger-topbar-action" aria-label="消息">
                 <AppShellIcon name="message" className="ledger-icon-svg" />
               </button>
-              <button type="button" className="ledger-topbar-action" aria-label="设置">
+              <button type="button" className="ledger-topbar-action" aria-label="设置" onClick={() => navigate('/settings')}>
                 <AppShellIcon name="settings" className="ledger-icon-svg" />
               </button>
             </div>

@@ -2,6 +2,8 @@ import type { AssetType } from '@shared/contracts/api'
 import type { FundDetailDataSource, FundDetailSource } from '@main/adapters/contracts'
 import type { DividendEvent, HistoricalPricePoint } from '@main/domain/entities/Stock'
 import { getJson, getText } from '@main/infrastructure/http/httpClient'
+import { fetchSinaDailyKline } from '@main/adapters/sina/sinaKlineDataSource'
+import { getPriceCacheRepository } from '@main/repositories/repositoryFactory'
 
 type FundQuoteResponse = {
   data?: {
@@ -221,6 +223,42 @@ function resolveFundSecId(code: string) {
   throw new Error(`Unsupported A-share fund code: ${code}`)
 }
 
+function toTencentEtfSymbol(code: string) {
+  const normalized = code.trim()
+  if (normalized.startsWith('5')) return `sh${normalized}`
+  if (normalized.startsWith('1')) return `sz${normalized}`
+  return `sh${normalized}`
+}
+
+type TencentKlineResponse = {
+  data?: Record<string, {
+    day?: string[][]
+    qfqday?: string[][]
+  }>
+}
+
+async function fetchTencentEtfKlines(code: string): Promise<HistoricalPricePoint[]> {
+  try {
+    const qqSymbol = toTencentEtfSymbol(code)
+    const url = `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${qqSymbol},day,,,2000,qfq`
+    const response = await fetch(url, {
+      headers: { Referer: 'https://gu.qq.com/' }
+    })
+    const payload = await response.json() as TencentKlineResponse
+    const data = payload.data?.[qqSymbol]
+    const rows = data?.day ?? data?.qfqday
+    if (!rows || rows.length === 0) return []
+    return rows.map((row) => {
+      const date = row[0]?.trim()
+      const close = Number(row[2])
+      if (!date || !Number.isFinite(close)) return null
+      return { date, close }
+    }).filter((p): p is HistoricalPricePoint => p != null)
+  } catch {
+    return []
+  }
+}
+
 function normalizeQuotePrice(value: number | undefined) {
   if (value == null || value <= 0) {
     return undefined
@@ -256,9 +294,30 @@ export class EastmoneyFundDetailDataSource implements FundDetailDataSource {
     const normalizedCode = code.trim()
     const secId = resolveFundSecId(normalizedCode)
 
+    // Check local price cache — historical data is immutable
+    const priceCache = getPriceCacheRepository()
+    let cachedPrices: HistoricalPricePoint[] = []
+    let cacheIsFresh = false
+
+    if (assetType === 'ETF') {
+      cachedPrices = priceCache.getPriceHistory(normalizedCode)
+      const cachedLatest = priceCache.getLatestDate(normalizedCode)
+      const yesterday = new Date()
+      yesterday.setDate(yesterday.getDate() - 1)
+      const yesterdayStr = yesterday.toISOString().slice(0, 10)
+      cacheIsFresh = cachedLatest != null && cachedLatest >= yesterdayStr
+    }
+
     // Fetch all sources in parallel — push2/kline APIs may be unavailable,
     // so use allSettled to tolerate partial failures.
-    const [basicResult, dividendResult, quoteResult, klineResult] = await Promise.allSettled([
+    const fetches: [
+      Promise<string>,
+      Promise<string>,
+      Promise<FundQuoteResponse>,
+      Promise<FundKlineResponse>,
+      Promise<HistoricalPricePoint[]>,
+      Promise<HistoricalPricePoint[]>
+    ] = [
       getText(`https://fund.eastmoney.com/f10/jbgk_${normalizedCode}.html`),
       getText(`https://fund.eastmoney.com/f10/fhsp_${normalizedCode}.html`),
       getJson<FundQuoteResponse>(
@@ -266,8 +325,27 @@ export class EastmoneyFundDetailDataSource implements FundDetailDataSource {
       ),
       getJson<FundKlineResponse>(
         `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secId}&klt=101&fqt=0&lmt=800&end=20500101&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56`
-      )
-    ])
+      ),
+      // ETF only: also try Tencent K-line for longer history
+      assetType === 'ETF' ? fetchTencentEtfKlines(normalizedCode) : Promise.resolve([] as HistoricalPricePoint[]),
+      // Sina K-line: cached if fresh, else fetch enough bars to fill gap
+      assetType === 'ETF'
+        ? (cacheIsFresh
+            ? Promise.resolve(cachedPrices)
+            : (() => {
+                const latest = priceCache.getLatestDate(normalizedCode)
+                const needed = latest
+                  ? Math.max(10, Math.ceil(
+                      (Date.now() - new Date(latest).getTime()) / (1000 * 60 * 60 * 24) * 5 / 7
+                    ) + 10)
+                  : 5000
+                return fetchSinaDailyKline(normalizedCode, needed)
+              })())
+        : Promise.resolve([] as HistoricalPricePoint[])
+    ]
+
+    const [basicResult, dividendResult, quoteResult, klineResult, tencentKlineResult, sinaResult] =
+      await Promise.allSettled(fetches)
 
     if (basicResult.status === 'rejected') {
       throw new Error(`Fund basic profile unavailable for ${normalizedCode}: ${basicResult.reason instanceof Error ? basicResult.reason.message : String(basicResult.reason)}`)
@@ -286,14 +364,34 @@ export class EastmoneyFundDetailDataSource implements FundDetailDataSource {
     }
 
     const basicProfile = parseFundBasicProfile(basicHtml)
-    const priceHistory = parseKlines(klinePayload)
+    const eastmoneyKlines = parseKlines(klinePayload)
+    const tencentKlines = tencentKlineResult.status === 'fulfilled' ? tencentKlineResult.value : []
+
+    // Sina result: merge tail fetch into cache, then read full history
+    const fetchedKlines =
+      sinaResult.status === 'fulfilled' ? sinaResult.value : []
+
+    let sinaKlines = cachedPrices
+    if (assetType === 'ETF' && fetchedKlines.length > 0) {
+      priceCache.savePriceHistory(normalizedCode, fetchedKlines)
+      sinaKlines = priceCache.getPriceHistory(normalizedCode)
+    }
+
     const quotePrice = normalizeQuotePrice(quotePayload.data?.f43)
+
+    // Pick the best price history: Sina (full history, 不复权) > Tencent > Eastmoney.
+    // Off-market fund K-line data is NAV history, not trading prices; use empty for FUND.
+    const bestAltHistory = tencentKlines.length > eastmoneyKlines.length ? tencentKlines : eastmoneyKlines
+    const priceHistory: HistoricalPricePoint[] =
+      assetType === 'FUND'
+        ? []
+        : sinaKlines.length > 0
+          ? sinaKlines
+          : bestAltHistory
+
     const lastKlineClose = priceHistory[priceHistory.length - 1]?.close
     const unitNav = basicProfile.latestNav
 
-    // Off-market funds don't trade on exchanges; quote API may return
-    // accumulated NAV rather than unit NAV. Prefer unit NAV from the
-    // profile page to avoid inflated price display.
     const latestPrice =
       assetType === 'FUND'
         ? (unitNav ?? quotePrice ?? lastKlineClose)
@@ -303,11 +401,7 @@ export class EastmoneyFundDetailDataSource implements FundDetailDataSource {
       throw new Error(`Fund latest price / NAV is unavailable: ${normalizedCode}`)
     }
 
-    // Off-market fund K-line data represents NAV history, not trading
-    // prices. For yield calculations, always use unit NAV as the
-    // reference close price.
-    const effectivePriceHistory = assetType === 'FUND' ? [] : priceHistory
-    const dividendEvents = parseFundDividendEvents(dividendHtml, effectivePriceHistory, latestPrice)
+    const dividendEvents = parseFundDividendEvents(dividendHtml, priceHistory, latestPrice)
 
     return {
       assetType,

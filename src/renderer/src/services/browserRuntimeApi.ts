@@ -27,6 +27,32 @@ import {
 
 const WATCHLIST_STORAGE_KEY = 'dm:web-watchlist'
 
+type SettingsDto = {
+  defaultYearRange: [number, number]
+  defaultSortMetric: string
+  refreshStrategy: 'manual' | 'onLaunch' | 'interval'
+  refreshIntervalMinutes: number
+  backtestInitialCapital: number
+  backtestIncludeFees: boolean
+  backtestFeeRate: number
+  backtestStampDutyRate: number
+  backtestMinCommission: number
+}
+
+const defaultMockSettings: SettingsDto = {
+  defaultYearRange: [2020, 2025],
+  defaultSortMetric: 'estimatedFutureYield',
+  refreshStrategy: 'manual',
+  refreshIntervalMinutes: 30,
+  backtestInitialCapital: 100000,
+  backtestIncludeFees: false,
+  backtestFeeRate: 0.0003,
+  backtestStampDutyRate: 0.0005,
+  backtestMinCommission: 5
+}
+
+let mockSettingsStore: SettingsDto = { ...defaultMockSettings }
+
 function buildMockValuation(
   peRatio: number | undefined,
   pbRatio: number | undefined,
@@ -665,12 +691,15 @@ const mockBacktests: Record<string, BacktestResultDto> = {
     finalDate: '2025-04-25',
     buyPrice: 1680,
     initialCost: 168000,
+    initialShares: 100,
     finalShares: 102.116,
     totalDividendsReceived: 3150,
     reinvestCount: 1,
+    dcaCount: 0,
     finalMarketValue: 172325,
     totalReturn: 0.0257,
     annualizedReturn: 0.0191,
+    totalFees: 0,
     assumptions: [
       '浏览器预览模式使用内置 mock 回测数据，便于页面联调。',
       '买入价格按起始日收盘价。',
@@ -679,16 +708,15 @@ const mockBacktests: Record<string, BacktestResultDto> = {
     ],
     transactions: [
       {
-        type: 'BUY',
+        type: 'BUY' as const,
         date: '2024-01-02',
         price: 1680,
-        cashAmount: -168000,
         sharesDelta: 100,
         sharesAfter: 100,
         note: '起始日一次性建仓'
       },
       {
-        type: 'DIVIDEND',
+        type: 'DIVIDEND' as const,
         date: '2024-06-14',
         cashAmount: 3087.6,
         sharesDelta: 0,
@@ -696,10 +724,9 @@ const mockBacktests: Record<string, BacktestResultDto> = {
         note: '收到年度现金分红'
       },
       {
-        type: 'REINVEST',
+        type: 'REINVEST' as const,
         date: '2024-06-17',
         price: 1456,
-        cashAmount: -3087.6,
         sharesDelta: 2.116,
         sharesAfter: 102.116,
         note: '按到账后首个交易日价格复投'
@@ -1012,19 +1039,21 @@ export const browserRuntimeApi: DividendMonitorApi = {
         finalDate: '2026-04-24',
         buyPrice: detail.latestPrice,
         initialCost: detail.latestPrice * 10000,
+        initialShares: 10000,
         finalShares: 10000,
         totalDividendsReceived: detail.dividendEvents.reduce((sum, item) => sum + item.dividendPerShare * 10000, 0),
         reinvestCount: detail.dividendEvents.length,
+        dcaCount: 0,
         finalMarketValue: detail.latestPrice * 10000,
         totalReturn: 0.041,
         annualizedReturn: 0.017,
+        totalFees: 0,
         assumptions: ['浏览器预览模式下，ETF/FUND 回测使用简化 mock 结果。'],
         transactions: [
           {
-            type: 'BUY',
+            type: 'BUY' as const,
             date: request.buyDate,
             price: detail.latestPrice,
-            cashAmount: -(detail.latestPrice * 10000),
             sharesDelta: 10000,
             sharesAfter: 10000,
             note: '使用 mock 数据生成的初始建仓'
@@ -1088,6 +1117,53 @@ export const browserRuntimeApi: DividendMonitorApi = {
 
     async getRiskMetrics() {
       return {}
+    }
+  },
+  industry: {
+    async getAnalysis() {
+      return [
+        {
+          industryName: '白酒',
+          stocks: [
+            { assetKey: 'STOCK:A_SHARE:600519', symbol: '600519', name: '贵州茅台', dividendYield: 0.015, peRatio: 28, roe: 30, marketCap: 2100000000000, percentileInIndustry: 0.5 }
+          ],
+          summary: { industryName: '白酒', avgDividendYield: 0.015, avgPeRatio: 28, avgRoe: 30, totalMarketCap: 2100000000000, stockCount: 1 }
+        },
+        {
+          industryName: '家电',
+          stocks: [
+            { assetKey: 'STOCK:A_SHARE:000333', symbol: '000333', name: '美的集团', dividendYield: 0.032, peRatio: 14, roe: 22, marketCap: 480000000000, percentileInIndustry: 0.5 }
+          ],
+          summary: { industryName: '家电', avgDividendYield: 0.032, avgPeRatio: 14, avgRoe: 22, totalMarketCap: 480000000000, stockCount: 1 }
+        },
+        {
+          industryName: '保险',
+          stocks: [
+            { assetKey: 'STOCK:A_SHARE:601318', symbol: '601318', name: '中国平安', dividendYield: 0.043, peRatio: 9, roe: 13, marketCap: 860000000000, percentileInIndustry: 0.5 }
+          ],
+          summary: { industryName: '保险', avgDividendYield: 0.043, avgPeRatio: 9, avgRoe: 13, totalMarketCap: 860000000000, stockCount: 1 }
+        }
+      ]
+    },
+    async getDistribution() {
+      return [
+        { industryName: '白酒', totalValue: 100000, percentage: 0.40, stockCount: 1 },
+        { industryName: '家电', totalValue: 80000, percentage: 0.32, stockCount: 1 },
+        { industryName: '保险', totalValue: 70000, percentage: 0.28, stockCount: 1 }
+      ]
+    }
+  },
+  settings: {
+    async get(): Promise<SettingsDto> {
+      return mockSettingsStore
+    },
+    async update(partial: Record<string, unknown>): Promise<SettingsDto> {
+      mockSettingsStore = { ...mockSettingsStore, ...partial as Partial<SettingsDto> }
+      return mockSettingsStore
+    },
+    async reset(): Promise<SettingsDto> {
+      mockSettingsStore = defaultMockSettings
+      return mockSettingsStore
     }
   },
   security: {

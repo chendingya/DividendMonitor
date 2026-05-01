@@ -4,7 +4,7 @@ import { LOCAL_HTTP_API_ORIGIN } from '@shared/contracts/api'
 const ALLOWED_CUSTOM_HEADERS = new Set(['X-Local-Nonce'])
 
 type RequestOptions = {
-  method?: 'GET' | 'POST'
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE'
   body?: unknown
   headers?: Record<string, string>
 }
