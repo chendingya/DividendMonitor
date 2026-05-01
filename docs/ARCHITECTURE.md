@@ -246,16 +246,18 @@ src/main/adapters/
     eastmoneyFundDetailDataSource.ts    # 基金/ETF 详情 + 分红 HTML 解析
     eastmoneyValuationAdapter.ts        # PE/PB 估值快照与趋势
     eastmoneyUtils.ts                   # 共享工具函数
+  sina/
+    sinaKlineDataSource.ts              # 新浪财经全量日 K 线（不复权）
 ```
 
 说明：
 
 1. 当前体量下，`contracts.ts` 统一承载 adapter 契约，减少碎文件
-2. `eastmoneyAShareDataSource.ts` 负责股票搜索、行情、分红等基础接入
-3. `eastmoneyFundDetailDataSource.ts` 负责基金/ETF 的详情 HTML 抓取、分红记录解析、K 线数据获取（`fqt=0` 未复权）
+2. `eastmoneyAShareDataSource.ts` 负责股票搜索、行情、分红等基础接入，K 线优先使用新浪
+3. `eastmoneyFundDetailDataSource.ts` 负责基金/ETF 的详情 HTML 抓取、分红记录解析，K 线优先使用新浪
 4. `eastmoneyFundCatalogAdapter.ts` 负责基金/ETF 的搜索与类型识别
 5. `eastmoneyValuationAdapter.ts` 负责估值快照和趋势接入
-6. 当后续出现第二个以上外部源或 adapter 数量明显增长时，再细分为 `quote/dividend/finance` 子适配器
+6. `sinaKlineDataSource.ts` 负责从新浪财经获取全量历史日 K 线（上市至今，不复权），回测直接使用不复权价格确保买入股数计算正确
 
 规则：
 

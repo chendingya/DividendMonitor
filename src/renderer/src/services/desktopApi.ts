@@ -76,6 +76,26 @@ export function getPortfolioDesktopApi() {
   return api.portfolio
 }
 
+export function getIndustryDesktopApi() {
+  const api = getRuntimeApi()
+
+  if (!api.industry) {
+    throw new Error('Runtime API is missing the industry namespace.')
+  }
+
+  return api.industry
+}
+
+export function getSettingsDesktopApi() {
+  const api = getRuntimeApi()
+
+  if (!api.settings) {
+    throw new Error('Runtime API is missing the settings namespace.')
+  }
+
+  return api.settings
+}
+
 export function getSyncDesktopApi() {
   const api = getRuntimeApi()
 

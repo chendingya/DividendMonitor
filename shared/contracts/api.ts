@@ -34,6 +34,13 @@ export type WatchlistAddRequestDto = AssetQueryDto & {
 export type AssetBacktestRequestDto = {
   asset: AssetQueryDto
   buyDate: string
+  initialCapital?: number
+  includeFees?: boolean
+  feeRate?: number
+  stampDutyRate?: number
+  minCommission?: number
+  dcaConfig?: DcaConfigDto
+  benchmarkSymbol?: string
 }
 
 export type PortfolioDirectionDto = 'BUY' | 'SELL'
@@ -222,12 +229,13 @@ export type DividendEventDto = {
 }
 
 export type BacktestTransactionDto = {
-  type: 'BUY' | 'DIVIDEND' | 'REINVEST' | 'BONUS_ADJUSTMENT'
+  type: 'BUY' | 'DIVIDEND' | 'REINVEST' | 'BONUS_ADJUSTMENT' | 'DCA_BUY'
   date: string
   price?: number
   cashAmount?: number
   sharesDelta: number
   sharesAfter: number
+  fee?: number
   note: string
 }
 
@@ -372,6 +380,12 @@ export type FutureYieldResponseDto = {
   estimates: FutureYieldEstimateDto[]
 }
 
+export type DcaConfigDto = {
+  enabled: boolean
+  frequency: 'monthly' | 'quarterly' | 'yearly'
+  amount: number
+}
+
 export type BacktestResultDto = {
   assetKey?: AssetKey
   assetType?: AssetType
@@ -382,12 +396,19 @@ export type BacktestResultDto = {
   finalDate: string
   buyPrice: number
   initialCost: number
+  initialShares: number
   finalShares: number
   totalDividendsReceived: number
   reinvestCount: number
+  dcaCount: number
   finalMarketValue: number
   totalReturn: number
   annualizedReturn: number
+  totalFees: number
+  benchmarkReturn?: number
+  benchmarkAnnualizedReturn?: number
+  benchmarkSymbol?: string
+  benchmarkTimeline?: Array<{ date: string; cumulativeReturn: number }>
   assumptions: string[]
   transactions: BacktestTransactionDto[]
 }
@@ -457,6 +478,51 @@ export type SyncResultDto = {
   errors: string[]
 }
 
+export type SettingsDto = {
+  defaultYearRange: [number, number]
+  defaultSortMetric: string
+  refreshStrategy: 'manual' | 'onLaunch' | 'interval'
+  refreshIntervalMinutes: number
+  backtestInitialCapital: number
+  backtestIncludeFees: boolean
+  backtestFeeRate: number
+  backtestStampDutyRate: number
+  backtestMinCommission: number
+}
+
+export type IndustrySummaryDto = {
+  industryName: string
+  avgDividendYield: number
+  avgPeRatio: number
+  avgRoe: number
+  totalMarketCap: number
+  stockCount: number
+}
+
+export type IndustryStockEntryDto = {
+  assetKey: string
+  symbol: string
+  name: string
+  dividendYield: number
+  peRatio: number
+  roe: number
+  marketCap: number
+  percentileInIndustry: number
+}
+
+export type IndustryAnalysisDto = {
+  industryName: string
+  stocks: IndustryStockEntryDto[]
+  summary: IndustrySummaryDto
+}
+
+export type IndustryDistributionItemDto = {
+  industryName: string
+  totalValue: number
+  percentage: number
+  stockCount: number
+}
+
 export interface DividendMonitorApi {
   auth: {
     login(email: string, password: string): Promise<AuthSessionDto>
@@ -502,6 +568,15 @@ export interface DividendMonitorApi {
     removeByAsset(request: AssetQueryDto): Promise<void>
     replaceByAsset(request: PortfolioPositionReplaceByAssetDto): Promise<void>
     getRiskMetrics(request: { items: Array<{ assetKey: string; marketValue: number }> }): Promise<PortfolioRiskMetricsDto>
+  }
+  settings: {
+    get(): Promise<SettingsDto>
+    update(partial: Record<string, unknown>): Promise<SettingsDto>
+    reset(): Promise<SettingsDto>
+  }
+  industry: {
+    getAnalysis(industryName?: string, assetKeys?: string[]): Promise<IndustryAnalysisDto[]>
+    getDistribution(): Promise<IndustryDistributionItemDto[]>
   }
   security: {
     getLocalNonce(): Promise<string>

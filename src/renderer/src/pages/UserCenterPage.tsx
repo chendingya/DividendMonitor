@@ -153,6 +153,13 @@ export function UserCenterPage() {
             <button
               type="button"
               className="ledger-secondary-button"
+              onClick={() => navigate('/settings')}
+            >
+              应用设置
+            </button>
+            <button
+              type="button"
+              className="ledger-secondary-button"
               onClick={() => navigate('/')}
             >
               返回首页
@@ -414,6 +421,27 @@ export function UserCenterPage() {
               </div>
             </div>
           )}
+
+          <div className="ledger-toolbar-divider" />
+
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '16px 0'
+          }}>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700 }}>应用设置</div>
+              <div style={{ fontSize: 13, color: 'var(--text-faint)', marginTop: 4 }}>
+                默认参数、回测偏好、数据刷新策略
+              </div>
+            </div>
+            <button
+              type="button"
+              className="ledger-secondary-button"
+              onClick={() => navigate('/settings')}
+            >
+              前往设置
+            </button>
+          </div>
 
           <div className="ledger-toolbar-divider" />
 

@@ -77,6 +77,16 @@ const api = {
     replaceByAsset: (request: PortfolioPositionReplaceByAssetDto) => ipcRenderer.invoke('portfolio:replace-by-asset', request),
     getRiskMetrics: (request: { items: Array<{ assetKey: string; marketValue: number }> }) => ipcRenderer.invoke('portfolio:getRiskMetrics', request)
   },
+  industry: {
+    getAnalysis: (industryName?: string, assetKeys?: string[]) =>
+      ipcRenderer.invoke('industry:analysis', industryName, assetKeys),
+    getDistribution: () => ipcRenderer.invoke('industry:distribution')
+  },
+  settings: {
+    get: () => ipcRenderer.invoke('settings:get'),
+    update: (partial: Record<string, unknown>) => ipcRenderer.invoke('settings:update', partial),
+    reset: () => ipcRenderer.invoke('settings:reset')
+  },
   security: {
     getLocalNonce: () => ipcRenderer.invoke('security:getLocalNonce')
   }

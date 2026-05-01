@@ -3,7 +3,9 @@ import { LOCAL_HTTP_API_ORIGIN } from '@shared/contracts/api'
 import { handleAssetRoute } from '@main/http/routes/assetRoutes'
 import { handleAuthRoute } from '@main/http/routes/authRoutes'
 import { handleCalculationRoute } from '@main/http/routes/calculationRoutes'
+import { handleIndustryRoute } from '@main/http/routes/industryRoutes'
 import { handlePortfolioRoute } from '@main/http/routes/portfolioRoutes'
+import { handleSettingsRoute } from '@main/http/routes/settingsRoutes'
 import { handleWatchlistRoute } from '@main/http/routes/watchlistRoutes'
 import { HttpError, asHttpError, sendJson } from '@main/http/httpErrors'
 import { getSecurityHeaders } from '@main/security/contentSecurityPolicy'
@@ -74,6 +76,8 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
   const handled =
     (await handleAuthRoute({ pathname, method, body, response, headers: request.headers })) ||
     (await handleAssetRoute({ pathname, method, body, response })) ||
+    (await handleIndustryRoute({ pathname, method, body, response })) ||
+    (await handleSettingsRoute({ pathname, method, body, response })) ||
     (await handleWatchlistRoute({ pathname, method, body, response })) ||
     (await handleCalculationRoute({ pathname, method, body, response })) ||
     (await handlePortfolioRoute({ pathname, method, body, response }))

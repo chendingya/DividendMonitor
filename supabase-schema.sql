@@ -71,7 +71,25 @@ CREATE POLICY "Users can update own portfolio" ON portfolio_positions
 CREATE POLICY "Users can delete own portfolio" ON portfolio_positions
   FOR DELETE USING (auth.uid() = user_id);
 
--- 6. 自动更新 updated_at 的触发器
+-- 6. 价格缓存表（公共市场数据，所有用户共享，无需 user_id）
+CREATE TABLE IF NOT EXISTS price_cache (
+  code TEXT NOT NULL,
+  date TEXT NOT NULL,
+  close REAL NOT NULL,
+  PRIMARY KEY (code, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_price_cache_code ON price_cache(code);
+
+ALTER TABLE price_cache ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Authenticated users can read price cache" ON price_cache
+  FOR SELECT USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Authenticated users can insert price cache" ON price_cache
+  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+
+-- 7. 自动更新 updated_at 的触发器
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN

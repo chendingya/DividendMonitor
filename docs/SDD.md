@@ -182,8 +182,8 @@ DividendMonitor/
 
 已接入数据源：
 
-1. 股票（A 股）：东方财富公开接口（搜索 + 分红记录）+ 腾讯行情接口（K 线、实时行情）
-2. ETF / 场外基金：东方财富公开接口（行情、K 线、基本档案 HTML 解析、分红记录 HTML 解析）
+1. 股票（A 股）：东方财富公开接口（搜索 + 分红记录）+ 腾讯行情接口（实时行情）+ 新浪财经接口（全量历史 K 线）
+2. ETF / 场外基金：东方财富公开接口（行情、基本档案 HTML 解析、分红记录 HTML 解析）+ 新浪财经接口（ETF 全量历史 K 线）
 3. 估值分位：东方财富接口（PE / PB 历史序列 + 当前快照）
 4. 本地缓存：自选已落 SQLite；估值链路已补 15 分钟内存缓存
 
@@ -192,19 +192,24 @@ DividendMonitor/
 ```
 src/main/adapters/
 ├── contracts.ts                          # 数据源接口定义
+├── index.ts
 ├── eastmoney/
 │   ├── eastmoneyAShareDataSource.ts      # A 股搜索 + 行情 + 分红
 │   ├── eastmoneyFundCatalogAdapter.ts    # 基金/ETF 搜索
 │   ├── eastmoneyFundDetailDataSource.ts  # 基金/ETF 详情 + 分红 HTML 解析
 │   ├── eastmoneyValuationAdapter.ts      # PE/PB 估值数据
 │   └── eastmoneyUtils.ts                 # 共享工具函数
+└── sina/
+    └── sinaKlineDataSource.ts            # 新浪财经全量日 K 线（不复权）
 ```
 
 基金 HTML 解析（`eastmoneyFundDetailDataSource.ts`）：
 - `parseFundBasicProfile()` — 从基金档案页提取名称、类型、管理人、跟踪标的、单位净值、规模
 - `parseFundDividendEvents()` — 从分红记录页解析分配事件
 - `extractFieldText()` — 通用 HTML 字段提取，支持括号日期格式（如 `单位净值（04-27）：<b>1.2949</b>`）
-- 基金 K 线使用 `fqt=0`（未复权），与股票腾讯接口的 `day` 原始行情保持一致
+- K 线数据优先级：新浪财经（全量历史，不复权）> 东财 push2his > 腾讯 qfqday
+- 回测直接使用不复权价格——买入/分红再投均按实际成交价计算，期末市值正确
+- 除权日价格下跌与分红到账现金增加天然对冲，收益率曲线无显著失真
 
 ## 8. 核心数据模型
 

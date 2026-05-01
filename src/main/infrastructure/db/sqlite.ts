@@ -71,6 +71,28 @@ function createBaseSchema(db: DatabaseSync) {
 
     CREATE INDEX IF NOT EXISTS idx_portfolio_risk_snapshots_fetched_at
       ON portfolio_risk_snapshots(fetched_at DESC);
+
+    CREATE TABLE IF NOT EXISTS price_cache (
+      code TEXT NOT NULL,
+      date TEXT NOT NULL,
+      close REAL NOT NULL,
+      PRIMARY KEY (code, date)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_price_cache_code ON price_cache(code);
+
+    CREATE TABLE IF NOT EXISTS backtest_results (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL DEFAULT '',
+      asset_key TEXT NOT NULL,
+      buy_date TEXT NOT NULL,
+      dca_config TEXT,
+      result_json TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_backtest_results_created_at
+      ON backtest_results(created_at DESC);
   `)
 }
 

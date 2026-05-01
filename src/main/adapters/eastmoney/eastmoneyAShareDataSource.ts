@@ -2,6 +2,8 @@ import type { AShareDataSource, CoreStockDetailSource } from '@main/adapters/con
 import { getJson } from '@main/infrastructure/http/httpClient'
 import { extractYear, toIsoDate, toNumber } from '@main/adapters/eastmoney/eastmoneyUtils'
 import type { HistoricalPricePoint } from '@main/domain/entities/Stock'
+import { fetchSinaDailyKline } from '@main/adapters/sina/sinaKlineDataSource'
+import { getPriceCacheRepository } from '@main/repositories/repositoryFactory'
 
 type EastmoneySuggestResponse = {
   Quotations?: EastmoneySuggestItem[]
@@ -56,7 +58,14 @@ type TencentKlineResponse = {
 type EastmoneyPush2Response = {
   data?: {
     f43?: number
+    f100?: string
     f173?: number
+  }
+}
+
+type EastmoneyKlineResponse = {
+  data?: {
+    klines?: string[]
   }
 }
 
@@ -71,7 +80,17 @@ type TencentMarketSnapshot = {
 }
 
 const SEARCH_TOKEN = 'D43BF722C8E33BDC906FB84D85E326E8'
-const TENCENT_KLINE_LIMIT = 2000
+
+function parseEastmoneyKlines(payload: EastmoneyKlineResponse): HistoricalPricePoint[] {
+  return (payload.data?.klines ?? [])
+    .map((item) => item.split(','))
+    .flatMap((parts) => {
+      const date = parts[0]?.trim()
+      const close = toNumber(parts[2])
+      if (!date || close == null) return []
+      return [{ date: toIsoDate(date) ?? date, close }]
+    })
+}
 
 function isAShareSymbol(symbol: string) {
   // A-share stock codes: 6xxxxx (Shanghai), 000xxx-004xxx (Shenzhen main/SME), 300xxx-301xxx (ChiNext)
@@ -103,31 +122,30 @@ function parseTencentPriceHistory(rows?: string[][]): HistoricalPricePoint[] {
     .filter((point): point is HistoricalPricePoint => point != null)
 }
 
-function parseTencentMarketSnapshot(symbol: string, payload: TencentKlineResponse): TencentMarketSnapshot {
+function parseTencentMarketSnapshot(symbol: string, payload: TencentKlineResponse): TencentMarketSnapshot | null {
   const key = toTencentSymbol(symbol)
   const data = payload.data?.[key]
   const quoteFields = data?.qt?.[key]
-  // Backtest and event replay use raw day-line first to avoid double-counting when dividends are reinvested explicitly.
   const priceHistory = parseTencentPriceHistory(data?.day ?? data?.qfqday)
 
-  if (!quoteFields || quoteFields.length < 58) {
-    throw new Error(`Tencent market data is incomplete for ${symbol}`)
+  // qt may be incomplete under load; degrade gracefully
+  const latestPrice = quoteFields && quoteFields.length >= 4 ? toNumber(quoteFields[3]) : undefined
+  if (latestPrice == null && priceHistory.length === 0) {
+    return null
   }
 
-  const latestPrice = toNumber(quoteFields[3])
-  if (latestPrice == null) {
-    throw new Error(`Tencent latest price is missing for ${symbol}`)
-  }
-
-  const marketCapInYi = toNumber(quoteFields[44])
-  const peRatio = toNumber(quoteFields[39])
-  // qt[73] is total shares, while qt[72]/qt[76] are float-share variants for many A-shares.
-  const totalSharesRaw = toNumber(quoteFields[73]) ?? toNumber(quoteFields[72]) ?? toNumber(quoteFields[76])
+  const name = quoteFields?.[1] || symbol
+  const displaySymbol = quoteFields?.[2] || symbol
+  const marketCapInYi = quoteFields && quoteFields.length > 44 ? toNumber(quoteFields[44]) : undefined
+  const peRatio = quoteFields && quoteFields.length > 39 ? toNumber(quoteFields[39]) : undefined
+  const totalSharesRaw = quoteFields && quoteFields.length > 73
+    ? (toNumber(quoteFields[73]) ?? toNumber(quoteFields[72]) ?? toNumber(quoteFields[76]))
+    : undefined
 
   return {
-    name: quoteFields[1] || symbol,
-    symbol: quoteFields[2] || symbol,
-    latestPrice,
+    name,
+    symbol: displaySymbol,
+    latestPrice: latestPrice ?? priceHistory[priceHistory.length - 1]?.close ?? 0,
     marketCap: marketCapInYi == null ? undefined : marketCapInYi * 100000000,
     peRatio: peRatio == null || peRatio <= 0 ? undefined : peRatio,
     totalShares: totalSharesRaw == null || totalSharesRaw <= 0 ? undefined : totalSharesRaw,
@@ -231,16 +249,20 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
       }))
   }
 
-  private async getTencentMarketSnapshot(symbol: string): Promise<TencentMarketSnapshot> {
-    const qqSymbol = toTencentSymbol(symbol)
-    const url =
-      `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${qqSymbol},day,,,${TENCENT_KLINE_LIMIT},qfq`
+  private async getTencentMarketSnapshot(symbol: string): Promise<TencentMarketSnapshot | null> {
+    try {
+      const qqSymbol = toTencentSymbol(symbol)
+      const url =
+        `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${qqSymbol},day,,,2000,qfq`
 
-    const payload = await getJson<TencentKlineResponse>(url, {
-      headers: { Referer: 'https://gu.qq.com/' }
-    })
+      const payload = await getJson<TencentKlineResponse>(url, {
+        headers: { Referer: 'https://gu.qq.com/' }
+      })
 
-    return parseTencentMarketSnapshot(symbol, payload)
+      return parseTencentMarketSnapshot(symbol, payload)
+    } catch {
+      return null
+    }
   }
 
   private async getDividendRecords(symbol: string): Promise<EastmoneyDividendRecord[]> {
@@ -252,12 +274,21 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
     return payload.result?.data ?? []
   }
 
-  private async getPush2Roe(symbol: string): Promise<number | undefined> {
+  private async getPush2Snapshot(symbol: string): Promise<{ roe?: number; industry?: string }> {
     const secid = toPush2Secid(symbol)
-    const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=f43,f173`
+    const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=f43,f100,f173`
     const payload = await getJson<EastmoneyPush2Response>(url)
-    const roe = payload.data?.f173
-    return roe != null && roe !== 0 ? roe : undefined
+    const roe = payload.data?.f173 != null && payload.data?.f173 !== 0 ? payload.data?.f173 : undefined
+    const industry = payload.data?.f100?.trim() || undefined
+    return { roe, industry }
+  }
+
+  private async getEastmoneyKline(symbol: string): Promise<HistoricalPricePoint[]> {
+    const secid = toPush2Secid(symbol)
+    const url =
+      `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secid}&klt=101&fqt=1&lmt=2000&end=20500101&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56`
+    const payload = await getJson<EastmoneyKlineResponse>(url)
+    return parseEastmoneyKlines(payload)
   }
 
   async getDetail(symbol: string): Promise<CoreStockDetailSource> {
@@ -265,21 +296,68 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
       throw new Error(`Only A-share 6-digit symbols are supported: ${symbol}`)
     }
 
-    const [marketResult, dividendResult, roeResult] = await Promise.allSettled([
+    // Check local price cache first — historical data is immutable,
+    // only the last few trading days need refreshing.
+    const priceCache = getPriceCacheRepository()
+    const cachedPrices = priceCache.getPriceHistory(symbol)
+    const cachedLatest = priceCache.getLatestDate(symbol)
+
+    const yesterday = new Date()
+    yesterday.setDate(yesterday.getDate() - 1)
+    const yesterdayStr = yesterday.toISOString().slice(0, 10)
+    const cacheIsFresh = cachedLatest != null && cachedLatest >= yesterdayStr
+
+    // Calculate how many bars we need to fill the gap since last cached date.
+    // If cache is empty, fetch full history (5000 bars ≈ all time).
+    const neededBars = cachedLatest
+      ? Math.max(10, Math.ceil(
+          (Date.now() - new Date(cachedLatest).getTime()) / (1000 * 60 * 60 * 24) * 5 / 7
+        ) + 10)
+      : 5000
+
+    const [marketResult, dividendResult, snapshotResult, klineResult, sinaResult] = await Promise.allSettled([
       this.getTencentMarketSnapshot(symbol),
       this.getDividendRecords(symbol),
-      this.getPush2Roe(symbol)
+      this.getPush2Snapshot(symbol),
+      this.getEastmoneyKline(symbol),
+      // Cache miss → full fetch. Cache stale → fetch enough bars to fill gap.
+      cacheIsFresh
+        ? Promise.resolve(cachedPrices)
+        : fetchSinaDailyKline(symbol, neededBars)
     ])
 
-    if (marketResult.status !== 'fulfilled') {
-      throw marketResult.reason instanceof Error
-        ? marketResult.reason
-        : new Error(`Failed to load market data for ${symbol}`)
+    if (marketResult.status !== 'fulfilled' || !marketResult.value) {
+      throw marketResult.status === 'fulfilled'
+        ? new Error(`No market data available for ${symbol}`)
+        : marketResult.reason instanceof Error
+          ? marketResult.reason
+          : new Error(`Failed to load market data for ${symbol}`)
     }
 
     const market = marketResult.value
-    const priceHistory = market.priceHistory
+    const eastmoneyKlines = klineResult.status === 'fulfilled' ? klineResult.value : []
+
+    // Sina result: when cache was fresh we resolved with cached data;
+    // when stale we fetched the tail from API. On API failure, fall back to cache.
+    const fetchedKlines =
+      sinaResult.status === 'fulfilled' ? sinaResult.value : []
+
+    // Merge fetched tail into cache, then read full history from cache
+    let sinaKlines = cachedPrices
+    if (fetchedKlines.length > 0) {
+      priceCache.savePriceHistory(symbol, fetchedKlines)
+      sinaKlines = priceCache.getPriceHistory(symbol)
+    }
+
     const dividendRecords = dividendResult.status === 'fulfilled' ? dividendResult.value : []
+
+    // Pick the best price history: Sina (full history, 不复权) > Eastmoney > Tencent
+    const priceHistory =
+      sinaKlines.length > 0
+        ? sinaKlines
+        : eastmoneyKlines.length >= market.priceHistory.length
+          ? eastmoneyKlines
+          : market.priceHistory
 
     const dividendEvents = dividendRecords
       .filter((record) => (record.ASSIGN_PROGRESS ?? '').includes('实施'))
@@ -319,17 +397,18 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
       .sort((a, b) => (a.exDate ?? '').localeCompare(b.exDate ?? ''))
 
     const fiscalYearSummary = buildLatestFiscalYearSummary(dividendRecords)
-    const roe = roeResult.status === 'fulfilled' ? roeResult.value : undefined
+    const snapshot = snapshotResult.status === 'fulfilled' ? snapshotResult.value : {}
 
     return {
       stock: {
         symbol: market.symbol,
         name: dividendRecords[0]?.SECURITY_NAME_ABBR ?? market.name,
         market: 'A_SHARE',
+        industry: snapshot.industry,
         latestPrice: market.latestPrice,
         marketCap: market.marketCap,
         peRatio: market.peRatio,
-        roe,
+        roe: snapshot.roe,
         totalShares: market.totalShares ?? fiscalYearSummary.latestAnnualTotalShares
       },
       dividendEvents,
