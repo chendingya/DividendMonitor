@@ -36,6 +36,7 @@ export type BacktestOutput = {
   totalReturn: number
   annualizedReturn: number
   totalFees: number
+  maxDrawdown: number
   benchmarkReturn?: number
   benchmarkAnnualizedReturn?: number
   benchmarkSymbol?: string
@@ -182,6 +183,20 @@ export function runDividendReinvestmentBacktest(input: BacktestInput): BacktestO
     }
   ]
 
+  // Max drawdown tracking
+  let cash = 0
+  let lastPrice = buyPoint.close
+  let peakValue = initialShares * lastPrice
+  let maxDrawdown = 0
+
+  function updateDrawdown(currentPrice: number) {
+    lastPrice = currentPrice
+    const currentValue = shares * lastPrice + cash
+    if (currentValue > peakValue) peakValue = currentValue
+    const drawdown = peakValue > 0 ? (peakValue - currentValue) / peakValue : 0
+    if (drawdown > maxDrawdown) maxDrawdown = drawdown
+  }
+
   const dividendEvents = [...input.dividendEvents]
     .filter((event) => {
       const eventAnchor = event.payDate ?? event.exDate
@@ -261,6 +276,7 @@ export function runDividendReinvestmentBacktest(input: BacktestInput): BacktestO
           ? `定投买入 ${result.shares.toFixed(2)} 股，佣金 ${result.fee.toFixed(2)}`
           : `定投买入 ${result.shares.toFixed(2)} 股`
       })
+      updateDrawdown(dcaPoint.close)
       continue
     }
 
@@ -283,6 +299,11 @@ export function runDividendReinvestmentBacktest(input: BacktestInput): BacktestO
         sharesAfter: shares,
         note: `送转股调整，比例 ${(shareRatio * 100).toFixed(2)}%`
       })
+      // Price unchanged but shares increased
+      const bonusValue = shares * lastPrice + cash
+      if (bonusValue > peakValue) peakValue = bonusValue
+      const bonusDrawdown = peakValue > 0 ? (peakValue - bonusValue) / peakValue : 0
+      if (bonusDrawdown > maxDrawdown) maxDrawdown = bonusDrawdown
     }
 
     if (!(event.dividendPerShare > 0) || !event.payDate) continue
@@ -290,6 +311,8 @@ export function runDividendReinvestmentBacktest(input: BacktestInput): BacktestO
     const dividendDate = normalizeDate(event.payDate)
     const cashAmount = entitledShares * event.dividendPerShare
     totalDividendsReceived += cashAmount
+
+    cash += cashAmount
 
     transactions.push({
       type: 'DIVIDEND',
@@ -303,27 +326,39 @@ export function runDividendReinvestmentBacktest(input: BacktestInput): BacktestO
     const reinvestPoint = findFirstPriceOnOrAfter(priceHistory, dividendDate)
     if (!reinvestPoint || !(reinvestPoint.close > 0)) continue
 
-    const result = calcShares(cashAmount, reinvestPoint.close, feeRate, minCommission, includeFees)
+    const result = calcShares(cash, reinvestPoint.close, feeRate, minCommission, includeFees, true)
+    if (result.shares <= 0) continue
+
     shares += result.shares
     totalFees += result.fee
     reinvestCount += 1
+
+    cash -= result.cost
 
     transactions.push({
       type: 'REINVEST',
       date: reinvestPoint.date,
       price: reinvestPoint.close,
-      cashAmount,
+      cashAmount: result.cost,
       sharesDelta: result.shares,
       sharesAfter: shares,
       fee: result.fee > 0 ? result.fee : undefined,
       note: includeFees
-        ? `股息复投 ${result.shares.toFixed(2)} 股，佣金 ${result.fee.toFixed(2)}`
-        : `股息复投 ${result.shares.toFixed(2)} 股`
+        ? `股息复投 ${result.shares.toFixed(0)} 股，投入 ${result.cost.toFixed(2)}，佣金 ${result.fee.toFixed(2)}`
+        : `股息复投 ${result.shares.toFixed(0)} 股，投入 ${result.cost.toFixed(2)}`
     })
+
+    updateDrawdown(reinvestPoint.close)
   }
 
   const finalMarketValue = shares * finalPoint.close
   const { totalReturn, annualizedReturn } = calculateReturn(initialCost, finalMarketValue, buyPoint.date, finalPoint.date)
+
+  // Final drawdown check
+  const finalTotalValue = shares * finalPoint.close + cash
+  if (finalTotalValue > peakValue) peakValue = finalTotalValue
+  const finalDrawdown = peakValue > 0 ? (peakValue - finalTotalValue) / peakValue : 0
+  if (finalDrawdown > maxDrawdown) maxDrawdown = finalDrawdown
 
   // Benchmark comparison
   let benchmarkReturn: number | undefined
@@ -368,6 +403,7 @@ export function runDividendReinvestmentBacktest(input: BacktestInput): BacktestO
     totalReturn,
     annualizedReturn,
     totalFees,
+    maxDrawdown,
     benchmarkReturn,
     benchmarkAnnualizedReturn,
     benchmarkSymbol: input.benchmarkSymbol,

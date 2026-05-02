@@ -80,12 +80,18 @@ const api = {
   industry: {
     getAnalysis: (industryName?: string, assetKeys?: string[]) =>
       ipcRenderer.invoke('industry:analysis', industryName, assetKeys),
-    getDistribution: () => ipcRenderer.invoke('industry:distribution')
+    getDistribution: () => ipcRenderer.invoke('industry:distribution'),
+    getBenchmark: (industryName: string) => ipcRenderer.invoke('industry:benchmark', industryName)
   },
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
     update: (partial: Record<string, unknown>) => ipcRenderer.invoke('settings:update', partial),
     reset: () => ipcRenderer.invoke('settings:reset')
+  },
+  backtest: {
+    historyList: () => ipcRenderer.invoke('backtest:history-list'),
+    historySave: (result: unknown, name?: string, dcaConfig?: string) => ipcRenderer.invoke('backtest:history-save', result, name, dcaConfig),
+    historyDelete: (id: string) => ipcRenderer.invoke('backtest:history-delete', id)
   },
   security: {
     getLocalNonce: () => ipcRenderer.invoke('security:getLocalNonce')

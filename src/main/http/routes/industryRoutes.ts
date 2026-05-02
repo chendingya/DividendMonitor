@@ -1,5 +1,5 @@
 import type { ServerResponse } from 'node:http'
-import { getIndustryAnalysis, getIndustryDistribution } from '@main/application/useCases/getIndustryAnalysis'
+import { getIndustryAnalysis, getIndustryDistribution, getIndustryBenchmark } from '@main/application/useCases/getIndustryAnalysis'
 import { HttpError, sendJson } from '@main/http/httpErrors'
 
 type RouteContext = {
@@ -22,6 +22,16 @@ export async function handleIndustryRoute({ pathname, method, body, response }: 
 
   if (pathname === '/api/industry/distribution' && method === 'GET') {
     const result = await getIndustryDistribution()
+    sendJson(response, 200, result)
+    return true
+  }
+
+  if (pathname === '/api/industry/benchmark' && method === 'POST') {
+    if (!body || typeof body !== 'object' || !('industryName' in body)) {
+      throw new HttpError('行业名称不能为空', 400)
+    }
+    const { industryName } = body as { industryName: string }
+    const result = await getIndustryBenchmark(industryName)
     sendJson(response, 200, result)
     return true
   }

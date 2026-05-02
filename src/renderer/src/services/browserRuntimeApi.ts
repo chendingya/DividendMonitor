@@ -700,6 +700,7 @@ const mockBacktests: Record<string, BacktestResultDto> = {
     totalReturn: 0.0257,
     annualizedReturn: 0.0191,
     totalFees: 0,
+    maxDrawdown: 0.05,
     assumptions: [
       '浏览器预览模式使用内置 mock 回测数据，便于页面联调。',
       '买入价格按起始日收盘价。',
@@ -811,6 +812,7 @@ function toComparisonRow(detail: AssetDetailDto): AssetComparisonRowDto {
     code: detail.code,
     symbol: detail.symbol,
     name: detail.name,
+    industry: detail.industry,
     latestPrice: detail.latestPrice,
     marketCap: detail.marketCap,
     peRatio: detail.peRatio,
@@ -1048,6 +1050,7 @@ export const browserRuntimeApi: DividendMonitorApi = {
         totalReturn: 0.041,
         annualizedReturn: 0.017,
         totalFees: 0,
+        maxDrawdown: 0.03,
         assumptions: ['浏览器预览模式下，ETF/FUND 回测使用简化 mock 结果。'],
         transactions: [
           {
@@ -1151,6 +1154,11 @@ export const browserRuntimeApi: DividendMonitorApi = {
         { industryName: '家电', totalValue: 80000, percentage: 0.32, stockCount: 1 },
         { industryName: '保险', totalValue: 70000, percentage: 0.28, stockCount: 1 }
       ]
+    },
+    async getBenchmark(industryName: string) {
+      const all = await browserRuntimeApi.industry.getAnalysis()
+      const match = all.find((item) => item.summary.industryName === industryName)
+      return match ? match.summary : null
     }
   },
   settings: {
@@ -1168,5 +1176,18 @@ export const browserRuntimeApi: DividendMonitorApi = {
   },
   security: {
     async getLocalNonce() { return '' }
+  },
+  backtest: {
+    async historyList() {
+      return [] as Array<{ id: string; name: string; assetKey: string; buyDate: string; dcaConfig: string | null; result: BacktestResultDto; createdAt: string }>
+    },
+    async historySave(_result: BacktestResultDto) {
+      const id = crypto.randomUUID()
+      const now = new Date().toISOString()
+      return { id, name: '', assetKey: _result.assetKey ?? '', buyDate: _result.buyDate, dcaConfig: null, result: _result, createdAt: now }
+    },
+    async historyDelete(_id: string) {
+      return true
+    }
   }
 }

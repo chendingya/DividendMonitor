@@ -1,13 +1,16 @@
-import { Alert, Skeleton } from 'antd'
+import { Alert, Skeleton, message } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { PageStateBlock } from '@renderer/components/app/PageStateBlock'
 import { BacktestSummaryCard } from '@renderer/components/backtest/BacktestSummaryCard'
 import { BacktestNavChart } from '@renderer/components/backtest/BacktestNavChart'
+import { BacktestMultiCompare } from '@renderer/components/backtest/BacktestMultiCompare'
 import { DEFAULT_BACKTEST_BUY_DATE, DEFAULT_STOCK_SYMBOL } from '@renderer/defaults'
 import { useSettings } from '@renderer/hooks/useSettings'
 import { useAssetBacktest, type BacktestParams } from '@renderer/hooks/useAssetBacktest'
 import { buildStockAssetKey } from '@shared/contracts/api'
+import type { BacktestResultDto } from '@shared/contracts/api'
+import { getCalculationDesktopApi, getBacktestDesktopApi } from '@renderer/services/desktopApi'
 import {
   buildAssetDetailPath,
   getRememberedLastAssetKey,
@@ -27,14 +30,28 @@ export function BacktestPage() {
   const navigate = useNavigate()
   const { symbol: routeSymbol } = useParams<{ symbol?: string }>()
   const [searchParams] = useSearchParams()
-  const assetKey = useMemo(() => {
+
+  // Parse multi symbols from URL (comma-separated)
+  const assetKeys = useMemo(() => {
+    const symbolsParam = searchParams.get('symbols')
+    if (symbolsParam) {
+      return symbolsParam.split(',').map((s) => s.trim()).filter(Boolean).map((s) => {
+        if (s.includes(':')) return s
+        return buildStockAssetKey(s)
+      })
+    }
     const byAssetKey = parseAssetKeyFromSearch(searchParams)
-    if (byAssetKey) return byAssetKey
+    if (byAssetKey) return [byAssetKey]
     const bySearch = parseSymbolFromSearch(searchParams)
-    if (bySearch) return buildStockAssetKey(bySearch)
-    if (routeSymbol) return buildStockAssetKey(routeSymbol)
-    return getRememberedLastAssetKey() ?? buildStockAssetKey(DEFAULT_STOCK_SYMBOL)
+    if (bySearch) return [buildStockAssetKey(bySearch)]
+    if (routeSymbol) return [buildStockAssetKey(routeSymbol)]
+    const remembered = getRememberedLastAssetKey()
+    if (remembered) return [remembered]
+    return [buildStockAssetKey(DEFAULT_STOCK_SYMBOL)]
   }, [routeSymbol, searchParams])
+
+  const primaryAssetKey = assetKeys[0] ?? ''
+  const isMulti = assetKeys.length > 1
 
   const { settings } = useSettings()
   const [buyDate, setBuyDate] = useState(DEFAULT_BACKTEST_BUY_DATE)
@@ -50,7 +67,11 @@ export function BacktestPage() {
   const [dcaAmount, setDcaAmount] = useState(10000)
   const [showAdvanced, setShowAdvanced] = useState(false)
 
-  // Apply settings as initial values once loaded
+  // Multi-stock results
+  const [multiResults, setMultiResults] = useState<BacktestResultDto[]>([])
+  const [multiLoading, setMultiLoading] = useState(false)
+  const [multiError, setMultiError] = useState<string | null>(null)
+
   useEffect(() => {
     if (settings && !capitalReady) {
       setInitialCapital(settings.backtestInitialCapital)
@@ -58,12 +79,14 @@ export function BacktestPage() {
       setFeeRate(settings.backtestFeeRate)
       setStampDutyRate(settings.backtestStampDutyRate)
       setMinCommission(settings.backtestMinCommission)
+      setBuyDate(`${settings.defaultYearRange[0]}-01-01`)
       setCapitalReady(true)
     }
   }, [settings, capitalReady])
 
-  const backtestParams: BacktestParams = useMemo(() => ({
-    assetKey,
+  // Single stock mode: use existing hook
+  const singleParams: BacktestParams = useMemo(() => ({
+    assetKey: isMulti ? null : primaryAssetKey,
     buyDate,
     initialCapital,
     includeFees,
@@ -74,20 +97,83 @@ export function BacktestPage() {
     dcaEnabled,
     dcaFrequency: dcaEnabled ? dcaFrequency : undefined,
     dcaAmount: dcaEnabled ? dcaAmount : undefined
-  }), [assetKey, buyDate, initialCapital, includeFees, feeRate, stampDutyRate, minCommission, benchmarkSymbol, dcaEnabled, dcaFrequency, dcaAmount])
+  }), [isMulti, primaryAssetKey, buyDate, initialCapital, includeFees, feeRate, stampDutyRate, minCommission, benchmarkSymbol, dcaEnabled, dcaFrequency, dcaAmount])
 
-  const { data, loading, error } = useAssetBacktest(backtestParams)
+  const { data: singleData, loading: singleLoading, error: singleError } = useAssetBacktest(singleParams)
+
+  // Multi stock mode: fetch in parallel
+  useEffect(() => {
+    if (!isMulti) {
+      setMultiResults([])
+      return
+    }
+
+    let disposed = false
+    setMultiLoading(true)
+    setMultiError(null)
+
+    const api = getCalculationDesktopApi()
+    const dcaConfig = dcaEnabled ? { enabled: true, frequency: dcaFrequency, amount: dcaAmount } : undefined
+
+    Promise.allSettled(
+      assetKeys.map((key) =>
+        api.runDividendReinvestmentBacktestForAsset({
+          asset: { assetKey: key },
+          buyDate,
+          initialCapital,
+          includeFees,
+          feeRate,
+          stampDutyRate,
+          minCommission,
+          benchmarkSymbol: benchmarkSymbol || undefined,
+          dcaConfig
+        })
+      )
+    ).then((settled) => {
+      if (disposed) return
+      const results: BacktestResultDto[] = []
+      const errors: string[] = []
+      for (const r of settled) {
+        if (r.status === 'fulfilled') {
+          results.push(r.value)
+        } else {
+          errors.push(r.reason instanceof Error ? r.reason.message : String(r.reason))
+        }
+      }
+      setMultiResults(results)
+      if (errors.length > 0 && results.length === 0) {
+        setMultiError(errors.join('; '))
+      }
+      setMultiLoading(false)
+    }).catch((err) => {
+      if (!disposed) {
+        setMultiError(err instanceof Error ? err.message : '回测失败')
+        setMultiLoading(false)
+      }
+    })
+
+    return () => { disposed = true }
+  }, [isMulti, assetKeys, buyDate, initialCapital, includeFees, feeRate, stampDutyRate, minCommission, benchmarkSymbol, dcaEnabled, dcaFrequency, dcaAmount])
 
   useEffect(() => {
-    rememberLastAssetKey(assetKey)
-  }, [assetKey])
+    rememberLastAssetKey(primaryAssetKey)
+  }, [primaryAssetKey])
+
+  // Unified data/loading/error for rendering
+  const data = isMulti ? (multiResults.length > 0 ? multiResults[0] : null) : singleData
+  const loading = isMulti ? multiLoading : singleLoading
+  const error = isMulti ? multiError : singleError
 
   return (
     <div className="ledger-page">
       <section className="ledger-watchlist-header">
         <div className="ledger-watchlist-copy">
           <h1 className="ledger-hero-title" style={{ fontSize: 34 }}>分红复投回测</h1>
-          <p className="ledger-hero-subtitle">选择回测参数，系统按真实历史行情与分红事件计算复投结果。</p>
+          <p className="ledger-hero-subtitle">
+            {isMulti
+              ? `对比 ${assetKeys.length} 只股票：${assetKeys.map((k) => k.split(':').pop()).join(', ')}`
+              : '选择回测参数，系统按真实历史行情与分红事件计算复投结果。'}
+          </p>
         </div>
         <div className="ledger-hero-actions">
           <input
@@ -96,7 +182,7 @@ export function BacktestPage() {
             value={buyDate}
             onChange={(event) => setBuyDate(event.target.value)}
           />
-          <button type="button" className="ledger-secondary-button" onClick={() => navigate(buildAssetDetailPath(assetKey))}>
+          <button type="button" className="ledger-secondary-button" onClick={() => navigate(buildAssetDetailPath(primaryAssetKey))}>
             返回详情
           </button>
         </div>
@@ -127,7 +213,7 @@ export function BacktestPage() {
             value={initialCapital}
             onChange={(e) => setInitialCapital(parseInt(e.target.value, 10) || 100000)}
           />
-          <span style={{ color: '#66707a', fontSize: 13, fontWeight: 600 }}>元</span>
+          <span style={{ color: '#66707a', fontSize: 13, fontWeight: 600 }}>元/只</span>
         </div>
 
         <div className="ledger-filter-bar">
@@ -246,33 +332,72 @@ export function BacktestPage() {
 
       {loading ? <Skeleton active paragraph={{ rows: 8 }} /> : null}
       {!loading && error ? <Alert type="error" message={error} /> : null}
-      {!loading && !error && !assetKey.trim() ? (
+      {!loading && !error && !primaryAssetKey.trim() ? (
         <PageStateBlock
           kind="empty"
           title="还没有选择回测标的"
           description="请先进入某个资产详情页，再发起回测。"
         />
       ) : null}
-      {!loading && !error && assetKey.trim() && !data ? (
+      {!loading && !error && primaryAssetKey.trim() && !data ? (
         <PageStateBlock
           kind="no-data"
           title="当前条件暂无回测结果"
           description="系统未返回可展示的回测数据，请调整条件后重试。"
         />
       ) : null}
-      {!loading && !error && data && data.transactions.length === 0 ? (
+
+      {/* Multi compare */}
+      {!loading && !error && isMulti && multiResults.length >= 2 ? (
+        <BacktestMultiCompare results={multiResults} />
+      ) : null}
+
+      {/* Individual results */}
+      {!loading && !error && isMulti && multiResults.length > 0 ? (
+        multiResults.map((r) => (
+          <div key={r.symbol} style={{ marginTop: 16 }}>
+            <BacktestSummaryCard result={r} />
+            <BacktestNavChart result={r} />
+          </div>
+        ))
+      ) : null}
+
+      {/* Single result */}
+      {!loading && !error && !isMulti && data && data.transactions.length === 0 ? (
         <PageStateBlock
           kind="no-data"
           title="当前区间暂无可回测流水"
           description="该股票在所选买入日期后缺少交易或分红事件，暂无法生成流水。"
         />
       ) : null}
-      {!loading && !error && data && data.transactions.length > 0 ? (
+      {!loading && !error && !isMulti && data && data.transactions.length > 0 ? (
         <>
+          <div className="ledger-hero-actions" style={{ marginBottom: 16 }}>
+            <button
+              type="button"
+              className="ledger-primary-button"
+              onClick={async () => {
+                try {
+                  const api = getBacktestDesktopApi()
+                  await api.historySave(data, undefined, undefined)
+                  void message.success('回测结果已保存')
+                } catch {
+                  void message.error('保存失败')
+                }
+              }}
+            >
+              保存结果
+            </button>
+            <button
+              type="button"
+              className="ledger-secondary-button"
+              onClick={() => navigate('/backtest-history')}
+            >
+              历史记录
+            </button>
+          </div>
           <BacktestSummaryCard result={data} />
-          {data.benchmarkReturn != null && (
-            <BacktestNavChart result={data} />
-          )}
+          <BacktestNavChart result={data} />
         </>
       ) : null}
     </div>

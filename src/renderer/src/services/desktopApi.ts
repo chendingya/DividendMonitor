@@ -105,3 +105,13 @@ export function getSyncDesktopApi() {
 
   return api.sync
 }
+
+export function getBacktestDesktopApi() {
+  const api = getRuntimeApi()
+
+  if (!api.backtest) {
+    throw new Error('Runtime API is missing the backtest namespace.')
+  }
+
+  return api.backtest
+}

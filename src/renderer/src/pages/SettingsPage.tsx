@@ -107,6 +107,39 @@ function SettingsPage() {
         {activeTab === 'general' && (
           <div className="ledger-section" style={{ gap: 22 }}>
             <div>
+              <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>默认年份范围</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <select
+                  value={local.defaultYearRange[0]}
+                  onChange={(e) => merge('defaultYearRange', [parseInt(e.target.value, 10), local.defaultYearRange[1]])}
+                  style={{
+                    height: 40, padding: '0 14px', borderRadius: 999,
+                    border: '1px solid rgba(211,217,224,0.92)',
+                    background: 'rgba(243,245,247,0.92)', fontWeight: 600, fontSize: 13
+                  }}
+                >
+                  {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+                <span style={{ color: '#66707a', fontSize: 13, fontWeight: 600 }}>—</span>
+                <select
+                  value={local.defaultYearRange[1]}
+                  onChange={(e) => merge('defaultYearRange', [local.defaultYearRange[0], parseInt(e.target.value, 10)])}
+                  style={{
+                    height: 40, padding: '0 14px', borderRadius: 999,
+                    border: '1px solid rgba(211,217,224,0.92)',
+                    background: 'rgba(243,245,247,0.92)', fontWeight: 600, fontSize: 13
+                  }}
+                >
+                  {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
               <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>默认排序指标</label>
               <select
                 value={local.defaultSortMetric}

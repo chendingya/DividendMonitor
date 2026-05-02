@@ -1,9 +1,8 @@
-import { useEffect, useRef } from 'react'
 import { Skeleton, Alert, Table, Tag, Card, Row, Col } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import * as echarts from 'echarts'
 import { useIndustryAnalysis } from '@renderer/hooks/useIndustryAnalysis'
 import type { IndustryStockEntryDto } from '@shared/contracts/api'
+import { IndustryDistributionPie } from '@renderer/components/industry/IndustryDistributionPie'
 
 const percentFormatter = new Intl.NumberFormat('zh-CN', { style: 'percent', minimumFractionDigits: 1 })
 
@@ -22,36 +21,6 @@ const stockColumns: ColumnsType<IndustryStockEntryDto> = [
   }
 ]
 
-function IndustryPieChart({ distribution }: { distribution: Array<{ industryName: string; totalValue: number }> }) {
-  const chartRef = useRef<HTMLDivElement>(null)
-  const instanceRef = useRef<echarts.ECharts | null>(null)
-
-  useEffect(() => {
-    if (!chartRef.current) return
-
-    if (!instanceRef.current) {
-      instanceRef.current = echarts.init(chartRef.current)
-    }
-
-    instanceRef.current.setOption({
-      tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
-      legend: { bottom: 0 },
-      series: [{
-        type: 'pie',
-        radius: ['35%', '65%'],
-        data: distribution.map((d) => ({ name: d.industryName, value: Math.round(d.totalValue) }))
-      }]
-    })
-
-    return () => {
-      instanceRef.current?.dispose()
-      instanceRef.current = null
-    }
-  }, [distribution])
-
-  return <div ref={chartRef} style={{ width: '100%', height: 300 }} />
-}
-
 export function IndustryAnalysisPage() {
   const { data, distribution, loading, error } = useIndustryAnalysis()
 
@@ -66,7 +35,7 @@ export function IndustryAnalysisPage() {
         <Row gutter={[20, 20]} style={{ marginBottom: 32 }}>
           <Col xs={24} md={10}>
             <Card title="持仓行业分布" size="small">
-              <IndustryPieChart distribution={distribution} />
+              <IndustryDistributionPie distribution={distribution} />
             </Card>
           </Col>
           <Col xs={24} md={14}>
