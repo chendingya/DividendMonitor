@@ -21,9 +21,10 @@ type EastmoneyValuationStatusRecord = {
   VALATION_STATUS?: string
 }
 
-type EastmoneyValuationTrendRecord = {
+type EastmoneyValuationDailyRecord = {
   TRADE_DATE?: string
-  INDICATOR_VALUE?: number
+  PE_TTM?: number
+  PB_MRQ?: number
 }
 
 const EASTMONEY_DATA_CENTER_BASE_URL = 'https://datacenter.eastmoney.com/securities/api/data/get'
@@ -35,13 +36,16 @@ function buildHeaders() {
   }
 }
 
-async function fetchTrendPage(symbol: string, indicatorType: ValuationIndicatorType, page: number, pageSize: number) {
+// RPT_VALUEANALYSIS_DET provides daily PE_TTM / PB_MRQ from ~2018 to present
+// (2,000+ trading days), replacing the short-range RPT_CUSTOM_DMSK_TREND.
+async function fetchDailyValuationPage(symbol: string, page: number, pageSize: number) {
   const url =
-    `${EASTMONEY_DATA_CENTER_BASE_URL}?type=RPT_CUSTOM_DMSK_TREND` +
-    `&sr=-1&st=TRADE_DATE&p=${page}&ps=${pageSize}&var=source=DataCenter&client=WAP` +
-    `&filter=${encodeURIComponent(`(SECURITY_CODE="${symbol}")(INDICATORTYPE=${indicatorType})(DATETYPE=2)`)}`
+    `${EASTMONEY_DATA_CENTER_BASE_URL}?type=RPT_VALUEANALYSIS_DET` +
+    `&sty=PE_TTM,PB_MRQ,TRADE_DATE&sr=-1&st=TRADE_DATE&p=${page}&ps=${pageSize}` +
+    `&var=source=DataCenter&client=WAP` +
+    `&filter=${encodeURIComponent(`(SECURITY_CODE="${symbol}")`)}`
 
-  return getJson<EastmoneyDataCenterResponse<EastmoneyValuationTrendRecord>>(url, {
+  return getJson<EastmoneyDataCenterResponse<EastmoneyValuationDailyRecord>>(url, {
     headers: buildHeaders()
   })
 }
@@ -75,22 +79,22 @@ export class EastmoneyValuationAdapter implements ValuationDataSource {
   }
 
   async getTrend(symbol: string, indicatorType: ValuationIndicatorType): Promise<ValuationTrendPoint[]> {
-    const pageSize = 2000
+    const pageSize = 500
 
     try {
-      const firstPage = await fetchTrendPage(symbol, indicatorType, 1, pageSize)
+      const firstPage = await fetchDailyValuationPage(symbol, 1, pageSize)
       const pages = Math.max(1, firstPage.result?.pages ?? 1)
       const payloads = [firstPage]
 
       for (let page = 2; page <= pages; page += 1) {
-        payloads.push(await fetchTrendPage(symbol, indicatorType, page, pageSize))
+        payloads.push(await fetchDailyValuationPage(symbol, page, pageSize))
       }
 
       return payloads
         .flatMap((payload) => payload.result?.data ?? [])
         .map((record) => {
           const date = toIsoDate(record.TRADE_DATE)
-          const value = toNumber(record.INDICATOR_VALUE)
+          const value = toNumber(indicatorType === 1 ? record.PE_TTM : record.PB_MRQ)
           if (!date || value == null || value <= 0) {
             return null
           }

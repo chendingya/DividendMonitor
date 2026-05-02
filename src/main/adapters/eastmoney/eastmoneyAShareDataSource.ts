@@ -44,15 +44,16 @@ type EastmoneyDividendRecord = {
   ASSIGN_PROGRESS?: string
 }
 
-type TencentKlineResponse = {
-  data?: Record<
-    string,
-    {
-      qfqday?: string[][]
-      day?: string[][]
-      qt?: Record<string, string[]>
-    }
-  >
+type TencentQuoteResponse = string
+
+type TencentMarketSnapshot = {
+  name: string
+  symbol: string
+  latestPrice: number
+  marketCap?: number
+  peRatio?: number
+  pbRatio?: number
+  totalShares?: number
 }
 
 type EastmoneyPush2Response = {
@@ -63,20 +64,17 @@ type EastmoneyPush2Response = {
   }
 }
 
+type F10CompanySurveyResponse = {
+  jbzl?: {
+    sshy?: string
+    sszjhhy?: string
+  }
+}
+
 type EastmoneyKlineResponse = {
   data?: {
     klines?: string[]
   }
-}
-
-type TencentMarketSnapshot = {
-  name: string
-  symbol: string
-  latestPrice: number
-  marketCap?: number
-  peRatio?: number
-  totalShares?: number
-  priceHistory: HistoricalPricePoint[]
 }
 
 const SEARCH_TOKEN = 'D43BF722C8E33BDC906FB84D85E326E8'
@@ -105,51 +103,26 @@ function toPush2Secid(symbol: string) {
   return symbol.startsWith('6') ? `1.${symbol}` : `0.${symbol}`
 }
 
-function parseTencentPriceHistory(rows?: string[][]): HistoricalPricePoint[] {
-  return (rows ?? [])
-    .map((row) => {
-      const [date, _open, close] = row
-      const closePrice = toNumber(close)
-      if (!date || closePrice == null) {
-        return null
-      }
-
-      return {
-        date: toIsoDate(date) ?? date,
-        close: closePrice
-      }
-    })
-    .filter((point): point is HistoricalPricePoint => point != null)
+function deriveRoe(peRatio?: number, pbRatio?: number): number | undefined {
+  if (peRatio == null || pbRatio == null || peRatio <= 0 || pbRatio <= 0) return undefined
+  return (pbRatio / peRatio) * 100
 }
 
-function parseTencentMarketSnapshot(symbol: string, payload: TencentKlineResponse): TencentMarketSnapshot | null {
-  const key = toTencentSymbol(symbol)
-  const data = payload.data?.[key]
-  const quoteFields = data?.qt?.[key]
-  const priceHistory = parseTencentPriceHistory(data?.day ?? data?.qfqday)
-
-  // qt may be incomplete under load; degrade gracefully
-  const latestPrice = quoteFields && quoteFields.length >= 4 ? toNumber(quoteFields[3]) : undefined
-  if (latestPrice == null && priceHistory.length === 0) {
-    return null
-  }
-
-  const name = quoteFields?.[1] || symbol
-  const displaySymbol = quoteFields?.[2] || symbol
-  const marketCapInYi = quoteFields && quoteFields.length > 44 ? toNumber(quoteFields[44]) : undefined
-  const peRatio = quoteFields && quoteFields.length > 39 ? toNumber(quoteFields[39]) : undefined
-  const totalSharesRaw = quoteFields && quoteFields.length > 73
-    ? (toNumber(quoteFields[73]) ?? toNumber(quoteFields[72]) ?? toNumber(quoteFields[76]))
-    : undefined
+function parseTencentQuote(raw: string, symbol: string): TencentMarketSnapshot | null {
+  const match = raw.match(/"([^"]+)"/)
+  if (!match) return null
+  const fields = match[1].split('~')
+  const latestPrice = toNumber(fields[3])
+  if (latestPrice == null || latestPrice <= 0) return null
 
   return {
-    name,
-    symbol: displaySymbol,
-    latestPrice: latestPrice ?? priceHistory[priceHistory.length - 1]?.close ?? 0,
-    marketCap: marketCapInYi == null ? undefined : marketCapInYi * 100000000,
-    peRatio: peRatio == null || peRatio <= 0 ? undefined : peRatio,
-    totalShares: totalSharesRaw == null || totalSharesRaw <= 0 ? undefined : totalSharesRaw,
-    priceHistory
+    name: fields[1] || symbol,
+    symbol: fields[2] || symbol,
+    latestPrice,
+    marketCap: (toNumber(fields[44]) ?? 0) > 0 ? (toNumber(fields[44]) ?? 0) * 100000000 : undefined,
+    peRatio: toNumber(fields[39]) ?? undefined,
+    pbRatio: toNumber(fields[46]) ?? undefined,
+    totalShares: toNumber(fields[73]) ?? toNumber(fields[72]) ?? toNumber(fields[76]) ?? undefined
   }
 }
 
@@ -252,14 +225,13 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
   private async getTencentMarketSnapshot(symbol: string): Promise<TencentMarketSnapshot | null> {
     try {
       const qqSymbol = toTencentSymbol(symbol)
-      const url =
-        `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${qqSymbol},day,,,2000,qfq`
+      const url = `https://qt.gtimg.cn/q=${qqSymbol}`
 
-      const payload = await getJson<TencentKlineResponse>(url, {
+      const payload = await getJson<TencentQuoteResponse>(url, {
         headers: { Referer: 'https://gu.qq.com/' }
       })
 
-      return parseTencentMarketSnapshot(symbol, payload)
+      return parseTencentQuote(payload, symbol)
     } catch {
       return null
     }
@@ -275,12 +247,27 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
   }
 
   private async getPush2Snapshot(symbol: string): Promise<{ roe?: number; industry?: string }> {
-    const secid = toPush2Secid(symbol)
-    const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=f43,f100,f173`
-    const payload = await getJson<EastmoneyPush2Response>(url)
-    const roe = payload.data?.f173 != null && payload.data?.f173 !== 0 ? payload.data?.f173 : undefined
-    const industry = payload.data?.f100?.trim() || undefined
-    return { roe, industry }
+    try {
+      const secid = toPush2Secid(symbol)
+      const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=f43,f100,f173`
+      const payload = await getJson<EastmoneyPush2Response>(url)
+      const roe = payload.data?.f173 != null && payload.data?.f173 !== 0 ? payload.data?.f173 : undefined
+      const industry = payload.data?.f100?.trim() || undefined
+      return { roe, industry }
+    } catch {
+      try {
+        return { industry: await this.getIndustryFromF10(symbol) }
+      } catch {
+        return {}
+      }
+    }
+  }
+
+  private async getIndustryFromF10(symbol: string): Promise<string | undefined> {
+    const f10Code = symbol.startsWith('6') ? `SH${symbol}` : `SZ${symbol}`
+    const url = `https://emweb.securities.eastmoney.com/PC_HSF10/CompanySurvey/CompanySurveyAjax?code=${f10Code}`
+    const payload = await getJson<F10CompanySurveyResponse>(url)
+    return payload.jbzl?.sshy?.trim() || undefined
   }
 
   private async getEastmoneyKline(symbol: string): Promise<HistoricalPricePoint[]> {
@@ -342,22 +329,21 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
     const fetchedKlines =
       sinaResult.status === 'fulfilled' ? sinaResult.value : []
 
-    // Merge fetched tail into cache, then read full history from cache
+    // Only merge into cache when we actually fetched new data (cache miss/stale).
+    // When cache is fresh, fetchedKlines === cachedPrices — skip to avoid redundant writes + Supabase pushes.
     let sinaKlines = cachedPrices
-    if (fetchedKlines.length > 0) {
+    if (!cacheIsFresh && fetchedKlines.length > 0) {
       priceCache.savePriceHistory(symbol, fetchedKlines)
       sinaKlines = priceCache.getPriceHistory(symbol)
     }
 
     const dividendRecords = dividendResult.status === 'fulfilled' ? dividendResult.value : []
 
-    // Pick the best price history: Sina (full history, 不复权) > Eastmoney > Tencent
+    // Pick the best price history: Sina (full history, 不复权) > Eastmoney
     const priceHistory =
       sinaKlines.length > 0
         ? sinaKlines
-        : eastmoneyKlines.length >= market.priceHistory.length
-          ? eastmoneyKlines
-          : market.priceHistory
+        : eastmoneyKlines
 
     const dividendEvents = dividendRecords
       .filter((record) => (record.ASSIGN_PROGRESS ?? '').includes('实施'))
@@ -408,7 +394,8 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
         latestPrice: market.latestPrice,
         marketCap: market.marketCap,
         peRatio: market.peRatio,
-        roe: snapshot.roe,
+        pbRatio: market.pbRatio,
+        roe: snapshot.roe ?? deriveRoe(market.peRatio, market.pbRatio),
         totalShares: market.totalShares ?? fiscalYearSummary.latestAnnualTotalShares
       },
       dividendEvents,

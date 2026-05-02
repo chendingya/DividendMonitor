@@ -1,4 +1,14 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios'
+import { EventEmitter } from 'node:events'
+import http from 'node:http'
+import https from 'node:https'
+
+// AssetCacheSyncService runs 3 concurrent getDetail() calls, each making
+// 5+ parallel HTTP requests (~15 sockets). The default maxListeners of 10
+// triggers warnings on TLSSocket when all fire at once.
+EventEmitter.defaultMaxListeners = 20
+http.globalAgent.maxSockets = 30
+https.globalAgent.maxSockets = 30
 
 const httpClient = axios.create({
   timeout: 10000,

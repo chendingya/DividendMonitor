@@ -16,13 +16,15 @@ export class AssetRepository {
     return groups.flat()
   }
 
-  async getDetail(query: AssetQueryDto): Promise<AssetDetailSource> {
+  async getDetail(query: AssetQueryDto, skipCache = false): Promise<AssetDetailSource> {
     const identifier = resolveAssetQuery(query)
     const assetKey = buildAssetKey(identifier.assetType, identifier.market, identifier.code)
 
-    const cached = this.snapshotRepo.findFreshByKey<AssetDetailSource>(assetKey, identifier.assetType)
-    if (cached) {
-      return cached
+    if (!skipCache) {
+      const cached = this.snapshotRepo.findFreshByKey<AssetDetailSource>(assetKey, identifier.assetType)
+      if (cached) {
+        return cached
+      }
     }
 
     const provider = this.registry.getProvider(identifier)

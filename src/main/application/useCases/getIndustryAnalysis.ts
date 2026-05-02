@@ -95,20 +95,38 @@ export async function getIndustryDistribution(): Promise<IndustryDistributionIte
 
   const positions: Array<{ industry: string; marketValue: number }> = []
 
-  for (const item of portfolioItems) {
-    try {
-      const detail = await repository.getDetail({
-        assetType: item.assetType,
-        market: item.market,
-        code: item.code
-      })
-      const industry = detail.kind === 'STOCK' ? detail.stock.industry : undefined
-      const marketValue = (item.shares ?? 0) * (detail.kind === 'STOCK' ? detail.stock.latestPrice : 0)
-      positions.push({ industry: industry ?? '未分类', marketValue })
-    } catch {
-      positions.push({ industry: '未分类', marketValue: 0 })
+  const BATCH_SIZE = 5
+  for (let i = 0; i < portfolioItems.length; i += BATCH_SIZE) {
+    const batch = portfolioItems.slice(i, i + BATCH_SIZE)
+    const results = await Promise.allSettled(
+      batch.map((item) =>
+        repository.getDetail({
+          assetType: item.assetType,
+          market: item.market,
+          code: item.code
+        }, true)
+      )
+    )
+    for (let j = 0; j < batch.length; j++) {
+      const r = results[j]
+      const item = batch[j]
+      if (r.status === 'fulfilled') {
+        const detail = r.value
+        const industry = detail.kind === 'STOCK' ? detail.stock.industry : detail.kind
+        const price = detail.kind === 'STOCK' ? detail.stock.latestPrice : detail.latestPrice
+        const marketValue = (item.shares ?? 0) * price
+        positions.push({ industry: industry ?? '未分类', marketValue })
+      } else {
+        positions.push({ industry: item.assetType, marketValue: 0 })
+      }
     }
   }
 
   return calculateIndustryDistribution(positions)
+}
+
+export async function getIndustryBenchmark(industryName: string): Promise<IndustryAnalysis['summary'] | null> {
+  if (!industryName) return null
+  const results = await getIndustryAnalysis(industryName)
+  return results.length > 0 ? results[0].summary : null
 }
