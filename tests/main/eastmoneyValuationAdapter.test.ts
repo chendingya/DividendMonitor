@@ -1,49 +1,83 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { getJsonMock } = vi.hoisted(() => ({
-  getJsonMock: vi.fn()
+const { requestMock } = vi.hoisted(() => ({
+  requestMock: vi.fn()
 }))
 
-vi.mock('@main/infrastructure/http/httpClient', () => ({
-  getJson: getJsonMock
+vi.mock('@main/infrastructure/dataSources/gateway/sourceGateway', () => ({
+  getDefaultSourceGateway: () => ({
+    request: requestMock
+  })
 }))
 
 import { EastmoneyValuationAdapter } from '@main/adapters/eastmoney/eastmoneyValuationAdapter'
 
 describe('EastmoneyValuationAdapter', () => {
   beforeEach(() => {
-    getJsonMock.mockReset()
+    requestMock.mockReset()
   })
 
-  it('fetches all valuation trend pages instead of only the first page', async () => {
-    getJsonMock
-      .mockResolvedValueOnce({
-        result: {
-          pages: 3,
-          data: [{ TRADE_DATE: '2026-04-01', INDICATOR_VALUE: 10 }]
-        }
-      })
-      .mockResolvedValueOnce({
-        result: {
-          pages: 3,
-          data: [{ TRADE_DATE: '2020-04-01', INDICATOR_VALUE: 20 }]
-        }
-      })
-      .mockResolvedValueOnce({
-        result: {
-          pages: 3,
-          data: [{ TRADE_DATE: '2010-04-01', INDICATOR_VALUE: 30 }]
-        }
-      })
+  it('fetches valuation percentile snapshot', async () => {
+    requestMock.mockResolvedValueOnce({
+      data: {
+        currentValue: 15.5,
+        currentPercentile: 45.2,
+        status: '合理'
+      }
+    })
+
+    const adapter = new EastmoneyValuationAdapter()
+    const result = await adapter.getSnapshot('600519', 1)
+
+    expect(requestMock).toHaveBeenCalledWith({
+      capability: 'valuation.percentile',
+      input: { code: '600519', indicatorType: 1 }
+    })
+    expect(result).toEqual({
+      currentValue: 15.5,
+      currentPercentile: 45.2,
+      status: '合理'
+    })
+  })
+
+  it('fetches valuation trend data', async () => {
+    requestMock.mockResolvedValueOnce({
+      data: [
+        { date: '2026-04-01', value: 10 },
+        { date: '2020-04-01', value: 20 },
+        { date: '2010-04-01', value: 30 }
+      ]
+    })
 
     const adapter = new EastmoneyValuationAdapter()
     const result = await adapter.getTrend('600519', 1)
 
-    expect(getJsonMock).toHaveBeenCalledTimes(3)
+    expect(requestMock).toHaveBeenCalledWith({
+      capability: 'valuation.trend',
+      input: { code: '600519', indicatorType: 1 }
+    })
     expect(result).toEqual([
       { date: '2026-04-01', value: 10 },
       { date: '2020-04-01', value: 20 },
       { date: '2010-04-01', value: 30 }
     ])
+  })
+
+  it('returns undefined when snapshot fails', async () => {
+    requestMock.mockRejectedValueOnce(new Error('Network error'))
+
+    const adapter = new EastmoneyValuationAdapter()
+    const result = await adapter.getSnapshot('600519', 1)
+
+    expect(result).toBeUndefined()
+  })
+
+  it('returns empty array when trend fails', async () => {
+    requestMock.mockRejectedValueOnce(new Error('Network error'))
+
+    const adapter = new EastmoneyValuationAdapter()
+    const result = await adapter.getTrend('600519', 1)
+
+    expect(result).toEqual([])
   })
 })

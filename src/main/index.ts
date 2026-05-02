@@ -62,8 +62,9 @@ app.whenReady().then(() => {
   void authService.initSession()
 
   const cacheSync = new AssetCacheSyncService()
-  // Delay initial cache sync to allow network to become available after cold start
-  setTimeout(() => void cacheSync.syncFromWatchlist(), 3000)
+  // Delay initial cache sync so the UI and user-initiated requests take priority.
+  // This also avoids competing with the startup connection burst to push2.
+  setTimeout(() => void cacheSync.syncFromWatchlist(), 15_000)
 
   if (!isHeadlessRuntime) {
     createWindow()

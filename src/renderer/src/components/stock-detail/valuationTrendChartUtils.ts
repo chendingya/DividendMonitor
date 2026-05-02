@@ -16,7 +16,13 @@ function sortHistoryAscending(history?: ValuationTrendPointDto[]) {
 }
 
 function subtractYears(date: string, years: number) {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return date
+  }
   const anchor = new Date(`${date}T00:00:00Z`)
+  if (Number.isNaN(anchor.getTime())) {
+    return date
+  }
   anchor.setUTCFullYear(anchor.getUTCFullYear() - years)
   return anchor.toISOString().slice(0, 10)
 }
@@ -96,7 +102,16 @@ export function filterTrendDatesByRange(dates: string[], range: ValuationTrendRa
   }
 
   const latestDate = dates[dates.length - 1]
+  // Guard against invalid date strings
+  if (!latestDate || !/^\d{4}-\d{2}-\d{2}$/.test(latestDate)) {
+    return dates
+  }
+
   const anchor = new Date(`${latestDate}T00:00:00Z`)
+  if (Number.isNaN(anchor.getTime())) {
+    return dates
+  }
+
   anchor.setUTCFullYear(anchor.getUTCFullYear() - (range === '5Y' ? 5 : 10))
   const lowerBound = anchor.toISOString().slice(0, 10)
   return dates.filter((date) => date >= lowerBound)

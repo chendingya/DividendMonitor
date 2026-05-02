@@ -40,6 +40,7 @@ export class ValuationRepository {
       return cached.value
     }
 
+    // SourceGateway handles provider-level concurrency, so Promise.all here is safe.
     const [pe, pb] = await Promise.all([this.resolveMetric(symbol, 1), this.resolveMetric(symbol, 2)])
     const valuation =
       pe || pb
@@ -49,17 +50,19 @@ export class ValuationRepository {
           }
         : undefined
 
-    valuationCache.set(symbol, {
-      expiresAt: Date.now() + VALUATION_CACHE_TTL_MS,
-      value: valuation
-    })
+    // Only cache successful results. Caching undefined would block retries
+    // for the full TTL duration after a transient failure.
+    if (valuation) {
+      valuationCache.set(symbol, {
+        expiresAt: Date.now() + VALUATION_CACHE_TTL_MS,
+        value: valuation
+      })
+    }
 
     return valuation
   }
 
   private async resolveMetric(symbol: string, indicatorType: ValuationIndicatorType): Promise<ValuationMetric | undefined> {
-    // Source priority: prefer Eastmoney's direct percentile snapshot, then fall back to trend history
-    // so the local percentile calculator can still build 10Y/20Y windows when snapshot data is absent.
     const [snapshotResult, trendResult] = await Promise.allSettled([
       this.dataSource.getSnapshot(symbol, indicatorType),
       this.dataSource.getTrend(symbol, indicatorType)
