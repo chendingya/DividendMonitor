@@ -48,24 +48,12 @@ export function getAssetSnapshotRepository(): AssetSnapshotRepository {
   return assetSnapshotInstance ?? (assetSnapshotInstance = new AssetSnapshotRepository())
 }
 
-let syncInProgress = false
-
 export function getPriceCacheRepository(mode?: AppRuntimeMode): IPriceCacheRepository {
   const runtimeMode = mode ?? getRuntimeMode()
   if (runtimeMode === 'online') {
     if (!(priceCacheInstance instanceof SupabasePriceCacheRepository)) {
       console.log('[PriceCache] Switching to SupabasePriceCacheRepository (online mode)')
       priceCacheInstance = new SupabasePriceCacheRepository()
-    }
-    // Try to sync every time the repo is accessed (idempotent — skips if already in Supabase)
-    if (!syncInProgress) {
-      syncInProgress = true
-      ;(priceCacheInstance as SupabasePriceCacheRepository)
-        .syncAllLocalCacheToSupabase()
-        .finally(() => { syncInProgress = false })
-        .catch((err) => {
-          console.warn('[PriceCache] Sync attempt failed:', err instanceof Error ? err.message : String(err))
-        })
     }
     return priceCacheInstance
   }
