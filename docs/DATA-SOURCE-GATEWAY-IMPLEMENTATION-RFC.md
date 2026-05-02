@@ -4,7 +4,7 @@
 
 - RFC 名称：统一数据源网关实施 RFC
 - RFC ID：`RFC-data-source-gateway-v1`
-- 状态：Draft
+- 状态：Completed（全部 Phase 1-5 已实施，2026-05）
 - 适用仓库：`DividendMonitor`
 - 目标读者：核心开发者、后续接手实现者、代码审查者
 - 关联文档：
@@ -159,8 +159,9 @@ RFC 落地后，所有第三方请求都必须满足：
 4. `asset.dividend`
 5. `asset.kline`
 6. `valuation.snapshot`
-7. `valuation.trend`
-8. `benchmark.kline`
+7. `valuation.percentile`
+8. `valuation.trend`
+9. `benchmark.kline`
 
 ### 6.3 Endpoint
 
@@ -169,8 +170,12 @@ RFC 落地后，所有第三方请求都必须满足：
 1. `eastmoney.search.suggest`
 2. `eastmoney.push2.quote`
 3. `eastmoney.push2his.kline`
-4. `tencent.kline.index`
-5. `sina.kline.daily`
+4. `eastmoney.valuation.percentile`
+5. `eastmoney.valuation.trend`
+6. `tencent.quote.snapshot`
+7. `tencent.kline.index`
+8. `tencent.kline.asset`
+9. `sina.kline.daily`
 
 ### 6.4 Policy
 
@@ -991,14 +996,26 @@ logger.info('source_request_done', {
 
 ## 22. 实施完成判定
 
-当满足以下条件时，可认为本 RFC 第一轮落地完成：
+当前状态：**所有条件已满足**（2026-05）。
 
-1. 所有第三方 URL 定义集中到 registry
-2. 所有外部请求统一通过 `SourceGateway`
-3. use case 中不再存在直接 `fetch`
-4. 搜索、benchmark、行情、K 线、分红、估值至少主链路已迁移
-5. 新增测试覆盖路由、策略、fallback 和错误分类
-6. 文档与代码结构保持一致
+1. ✅ 所有第三方 URL 定义集中到 registry（`eastmoneyEndpoints.ts` / `tencentEndpoints.ts` / `sinaEndpoints.ts`）
+2. ✅ 所有外部请求统一通过 `SourceGateway`（`getDefaultSourceGateway().request()`）
+3. ✅ use case 中不再存在直接 `fetch`（`runDividendReinvestmentBacktestForAsset.ts` 已迁移）
+4. ✅ 搜索、benchmark、行情、K 线、分红、估值全部主链路已迁移
+5. ✅ 新增测试覆盖路由、策略、fallback 和错误分类（`sourceGateway.test.ts` / `circuitBreaker.test.ts` / `rateLimiter.test.ts`）
+6. ✅ 文档与代码结构保持一致
+
+### 实际实施与 RFC 的主要差异
+
+| RFC 约定 | 实际实现 | 原因 |
+|----------|---------|------|
+| 目录名 `data-sources/` | `dataSources/` | 本项目统一使用 camelCase 目录名 |
+| `ParserKind = 'json' \| 'text'` | `'json' \| 'text' \| 'gbk'` | 腾讯行情需要 GBK 编码 |
+| `EndpointDefinition.mapperId` | `EndpointDefinition.mapResponse` | 将 mapper 内联到 endpoint 定义中，减少跳转 |
+| mapper 独立子目录 `adapters/mappers/` | mapper 逻辑保留在 `endpoint.mapResponse` 中 | 实际复杂度不需要额外的 mapper 文件 |
+| `ConcurrencyLimiter` max 按 provider 和 capability 分级 | 统一 `maxPerProvider = 4` | 简化配置 |
+| `RateLimiter` 每秒 2-5 请求 | token bucket: 初始 5, 每秒补充 5 | token bucket 更简洁 |
+| `CircuitBreaker` 默认启用 | 策略表中所有能力 `useCircuitBreaker: false` | 当前网络环境下误熔断风险大于收益 |
 
 ## 23. 附录：建议实施顺序
 
