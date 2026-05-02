@@ -205,17 +205,43 @@ Repository -> React Hook
 
 ```text
 src/main/infrastructure/
+  dataSources/                  # 统一数据源网关
+    gateway/
+      sourceGateway.ts          #   网关入口：统一请求调度
+    registry/
+      endpointRegistry.ts       #   端点注册表
+      eastmoneyEndpoints.ts     #   东方财富所有端点定义
+      tencentEndpoints.ts       #   腾讯行情所有端点定义
+      sinaEndpoints.ts          #   新浪 K 线端点定义
+    router/
+      capabilityRouter.ts       #   能力路由（capability→provider 链）
+    policy/
+      policyEngine.ts           #   策略引擎（降级/缓存/重试策略）
+    guards/
+      rateLimiter.ts            #   限流器（token bucket）
+      circuitBreaker.ts         #   熔断器（closed/open/half-open）
+      concurrencyLimiter.ts     #   并发控制器（per-provider）
+    cache/
+      requestCache.ts           #   请求缓存（TTL + stale + in-flight 去重）
+    transport/
+      httpTransport.ts          #   HTTP 传输（统一重试 + 错误分类）
+    health/
+      sourceHealthRegistry.ts   #   健康状态注册表
+    types/
+      sourceTypes.ts            #   统一类型定义
+      sourceErrors.ts           #   统一错误模型
   db/
     sqlite.ts
     migrations/
   http/
     httpClient.ts
   supabase/
-    authService.ts              # Supabase 认证服务（登录/注册/登出/修改密码）
+    authService.ts
   logging/
     logger.ts
   config/
     env.ts
+    assetCacheConfig.ts
   time/
     tradingCalendar.ts
 ```
@@ -250,18 +276,19 @@ src/main/adapters/
     sinaKlineDataSource.ts              # 新浪财经全量日 K 线（不复权）
 ```
 
-说明：
+当前实现说明：
 
-1. 当前体量下，`contracts.ts` 统一承载 adapter 契约，减少碎文件
-2. `eastmoneyAShareDataSource.ts` 负责股票搜索、行情、分红等基础接入，K 线优先使用新浪
-3. `eastmoneyFundDetailDataSource.ts` 负责基金/ETF 的详情 HTML 抓取、分红记录解析，K 线优先使用新浪
-4. `eastmoneyFundCatalogAdapter.ts` 负责基金/ETF 的搜索与类型识别
-5. `eastmoneyValuationAdapter.ts` 负责估值快照和趋势接入
-6. `sinaKlineDataSource.ts` 负责从新浪财经获取全量历史日 K 线（上市至今，不复权），回测直接使用不复权价格确保买入股数计算正确
+1. 所有 adapter 已接入 `SourceGateway`，不再直接拼装 URL 或调用 `getJson()`/`getText()`
+2. adapter 通过 `getDefaultSourceGateway().request({ capability, input })` 声明"要什么能力"，网关负责 URL 构造、路由、降级和保护
+3. `eastmoneyAShareDataSource.ts` 负责股票搜索、行情、分红、K 线等基础接入
+4. `eastmoneyFundDetailDataSource.ts` 负责基金/ETF 的详情 HTML 抓取、分红记录解析
+5. `eastmoneyFundCatalogAdapter.ts` 负责基金/ETF 的搜索与类型识别
+6. `eastmoneyValuationAdapter.ts` 通过 `valuation.percentile` / `valuation.trend` 能力接入估值数据
+7. `sinaKlineDataSource.ts` 通过 `asset.kline` 能力从新浪财经获取日 K 线（不复权），回测直接使用不复权价格确保买入股数计算正确
 
 规则：
 
-1. adapter 只负责接入和映射，不承载业务决策
+1. adapter 只负责"声明能力需求"和"聚合结果"，不承载 URL 拼接、源选择、降级决策
 2. adapter 输出统一 DTO，不直接输出给前端页面
 
 ### 6.3 Repository 层
@@ -888,4 +915,9 @@ flowchart LR
 15. 数据同步三种策略：推送（覆盖云端）、拉取（覆盖本地）、双向（按 key 合并）
 16. 回测增强：最大回撤指标、多股对比回测（`BacktestMultiCompare`）、回测历史保存/查看/删除
 17. 行业分析：行业分布饼图（可复用组件，Dashboard 和行业分析页共用）、行业基准对比（`getIndustryBenchmark`）
-18. 价格缓存同步：在线模式通过 `savePriceHistory` 逐条推送至 Supabase，离线模式仅本地 SQLite
+18. 价格缓存同步：在线模式通过 `savePriceHistory` 推送至 Supabase（60s 冷却防重复），离线模式仅本地 SQLite
+19. **统一数据源网关已落地**：`src/main/infrastructure/dataSources/` 包含 endpoint 注册（eastmoney/tencent/sina 全部端点）、
+    能力路由（CapabilityRouter）、策略引擎（PolicyEngine）、守卫层（限流/熔断/并发控制/缓存）、HTTP 传输（HttpTransport）、
+    健康状态（SourceHealthRegistry）和统一错误模型（SourceError）
+20. 所有 adapter 已完成网关迁移：搜索/行情/分红/K线/估值/回测 benchmark 全部通过 `getDefaultSourceGateway().request()` 统一接入
+21. 断路器/速率限制器按策略开关控制（useCircuitBreaker/useRateLimit），策略表中当前所有能力均设为关闭，仅保留并发控制和缓存保护

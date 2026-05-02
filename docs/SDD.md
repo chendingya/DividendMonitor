@@ -106,6 +106,7 @@
    - Electron 桌面端：`renderer service -> preload bridge -> IPC -> main`
    - 浏览器预览端：`renderer service -> browser fallback adapter`
 3. 浏览器预览端的 fallback 目前只用于前端联调，不代表正式生产数据链路。
+4. 外部数据接入已统一为 `SourceGateway` 网关模式（参见 `DATA-SOURCE-GATEWAY-ARCHITECTURE.md`），adapter 通过"能力声明"（capability）请求数据，不再直接拼接 URL 或管理降级逻辑。
 
 ## 6. 目录建议
 
