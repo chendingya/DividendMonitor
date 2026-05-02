@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   parseChineseAmountToNumber,
   parseFundBasicProfile,
-  parseFundDividendEvents,
-  resolveFundDisplayName
-} from '@main/adapters/eastmoney/eastmoneyFundDetailDataSource'
+  parseFundDividendEvents
+} from '@main/infrastructure/dataSources/registry/eastmoneyEndpoints'
+import { resolveFundDisplayName } from '@main/adapters/eastmoney/eastmoneyFundDetailDataSource'
 
 describe('eastmoney fund detail parsers', () => {
   it('parses chinese amount units', () => {

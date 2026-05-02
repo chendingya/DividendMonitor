@@ -1,22 +1,6 @@
 import type { FundCatalogDataSource, FundSearchSource } from '@main/adapters/contracts'
-import { getJson } from '@main/infrastructure/http/httpClient'
-
-type EastmoneySuggestResponse = {
-  Quotations?: EastmoneySuggestItem[]
-  QuotationCodeTable?: {
-    Data?: EastmoneySuggestItem[]
-  }
-}
-
-type EastmoneySuggestItem = {
-  Code?: string
-  Name?: string
-  SecurityTypeName?: string
-  SecurityType?: string
-  Classify?: string
-}
-
-const SEARCH_TOKEN = 'D43BF722C8E33BDC906FB84D85E326E8'
+import { getDefaultSourceGateway } from '@main/infrastructure/dataSources/gateway/sourceGateway'
+import type { EastmoneySuggestItem } from '@main/infrastructure/dataSources/registry/eastmoneyEndpoints'
 
 function isSixDigitFundCode(code: string) {
   return /^\d{6}$/.test(code)
@@ -64,16 +48,18 @@ export class EastmoneyFundCatalogAdapter implements FundCatalogDataSource {
       return []
     }
 
-    const url =
-      `https://searchapi.eastmoney.com/api/suggest/get?input=${encodeURIComponent(normalized)}` +
-      `&type=14&token=${SEARCH_TOKEN}&count=20`
-    const payload = await getJson<EastmoneySuggestResponse>(url)
-    const quotations = payload.Quotations ?? payload.QuotationCodeTable?.Data ?? []
+    const quotations = await getDefaultSourceGateway().request<{ keyword: string; count: number }, EastmoneySuggestItem[]>({
+      capability: 'asset.search',
+      input: {
+        keyword: normalized,
+        count: 20
+      }
+    })
 
     const seen = new Set<string>()
     const results: FundSearchSource[] = []
 
-    for (const item of quotations) {
+    for (const item of quotations.data) {
       const code = item.Code?.trim() ?? ''
       const name = item.Name?.trim() ?? ''
       if (!code || !name || !isSixDigitFundCode(code)) {

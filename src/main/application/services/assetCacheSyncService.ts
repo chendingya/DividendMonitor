@@ -5,10 +5,10 @@ import { parseAssetKey } from '@shared/contracts/api'
 
 const MAX_RETRY_ATTEMPTS = 2
 const RETRY_DELAY_MS = 2000
-// Max concurrent asset refreshes. Each getDetail() makes up to 4 parallel
-// HTTP requests, so 3 concurrent assets ≈ 12 sockets — within the default
-// EventEmitter maxListeners limit of 10 per socket (with some headroom).
-const MAX_CONCURRENCY = 3
+// getDetail() fires requests serially with 300ms stagger, so external
+// delays are no longer needed. Process one asset at a time, minimal gap.
+const MAX_CONCURRENCY = 1
+const INTER_ASSET_DELAY_MS = 300
 
 function isNetworkError(err: unknown): boolean {
   return err instanceof Error && err.message.startsWith('NETWORK')
@@ -30,10 +30,11 @@ async function retryNetworkOp<T>(fn: () => Promise<T>, label: string): Promise<T
   throw new Error('unreachable')
 }
 
-/** Run async tasks with bounded concurrency (no external deps needed). */
+/** Run async tasks with bounded concurrency and inter-task delay (no external deps needed). */
 async function runWithConcurrency<T>(
   tasks: (() => Promise<T>)[],
-  concurrency: number
+  concurrency: number,
+  delayBetweenMs = 0
 ): Promise<PromiseSettledResult<T>[]> {
   const results: PromiseSettledResult<T>[] = new Array(tasks.length)
   let nextIndex = 0
@@ -46,6 +47,9 @@ async function runWithConcurrency<T>(
         results[index] = { status: 'fulfilled', value }
       } catch (reason) {
         results[index] = { status: 'rejected', reason }
+      }
+      if (delayBetweenMs > 0 && nextIndex < tasks.length) {
+        await new Promise((resolve) => setTimeout(resolve, delayBetweenMs))
       }
     }
   }
@@ -111,7 +115,8 @@ export class AssetCacheSyncService {
         staleKeys.map((assetKey) => () =>
           retryNetworkOp(() => this.assetRepository.getDetail({ assetKey }), assetKey)
         ),
-        MAX_CONCURRENCY
+        MAX_CONCURRENCY,
+        INTER_ASSET_DELAY_MS
       )
 
       let succeeded = 0

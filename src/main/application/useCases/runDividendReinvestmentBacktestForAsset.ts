@@ -3,14 +3,7 @@ import { buildAssetKey, resolveAssetQuery } from '@shared/contracts/api'
 import { runDividendReinvestmentBacktest as runBacktest } from '@main/domain/services/dividendReinvestmentBacktestService'
 import { AssetRepository } from '@main/repositories/assetRepository'
 import type { HistoricalPricePoint } from '@main/domain/entities/Stock'
-
-function parseBenchmarkCode(symbol: string): string {
-  // 东方财富指数代码格式：1.000300，腾讯格式：sh000300
-  const code = symbol.replace(/^1\./, '')
-  if (code.startsWith('000')) return `sh${code}`
-  if (code.startsWith('399')) return `sz${code}`
-  return `sh${code}`
-}
+import { getDefaultSourceGateway } from '@main/infrastructure/dataSources/gateway/sourceGateway'
 
 function findPriceOnOrAfter(history: HistoricalPricePoint[], targetDate: string): HistoricalPricePoint | undefined {
   return history.find((p) => p.date >= targetDate)
@@ -27,19 +20,11 @@ function findPriceOnOrBefore(history: HistoricalPricePoint[], targetDate: string
 
 async function fetchBenchmarkPriceHistory(benchmarkSymbol: string): Promise<HistoricalPricePoint[] | undefined> {
   try {
-    const qqSymbol = parseBenchmarkCode(benchmarkSymbol)
-    const url = `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${qqSymbol},day,,,2000,qfq`
-    const response = await fetch(url)
-    const json = await response.json() as Record<string, unknown>
-    const data = json?.data as Record<string, unknown> | undefined
-    const symbolData = data?.[qqSymbol] as Record<string, unknown> | undefined
-    const lines = (symbolData?.['day'] ?? symbolData?.['qfqday']) as Array<[string, string, string, string, string, string]> | undefined
-    if (!lines || lines.length === 0) return undefined
-
-    return lines.map((row) => ({
-      date: row[0],
-      close: parseFloat(row[2])
-    }))
+    const response = await getDefaultSourceGateway().request<{ benchmarkSymbol: string }, HistoricalPricePoint[]>({
+      capability: 'benchmark.kline',
+      input: { benchmarkSymbol }
+    })
+    return response.data
   } catch {
     return undefined
   }

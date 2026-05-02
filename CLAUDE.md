@@ -25,7 +25,7 @@ npm run test:watch           # 监听模式运行测试
 - **路由**: HashRouter（兼容 Electron `file://` 协议）
 - **数据存储**: SQLite（Node 内建 `node:sqlite`，无 ORM）
 - **测试**: Vitest
-- **数据源**: 东方财富免费接口（通过 axios 请求）
+- **数据源**: 东方财富 / 腾讯 / 新浪免费接口，通过统一网关（SourceGateway）调度
 
 ## 路径别名
 
@@ -58,7 +58,11 @@ src/main/
 │   └── mappers/      #   DTO 转换（领域模型 ↔ API 合约）
 ├── repositories/     # 数据访问层（聚合缓存、本地库、远端接口）
 ├── adapters/         # 外部数据源适配器（东方财富接口封装，策略模式可切换）
-├── infrastructure/   # 基础设施（SQLite、HTTP client、配置、日志）
+├── infrastructure/   # 基础设施
+│   ├── dataSources/  #   统一数据源网关（endpoint注册/路由/策略/限流/熔断/缓存/传输）
+│   ├── http/         #   HTTP 客户端（axios 封装）
+│   ├── supabase/     #   Supabase 云同步客户端
+│   └── config/       #   配置（缓存TTL、固定资产池等）
 ├── ipc/channels/     # IPC 通道注册（按功能域分文件）
 └── http/routes/      # 本地 HTTP API（浏览器预览模式用）
 ```

@@ -19,9 +19,22 @@ type PriceCacheRow = {
  */
 export class SupabasePriceCacheRepository implements IPriceCacheRepository {
   private readonly sqlite = new SqlitePriceCacheRepository()
+  private readonly savingCodes = new Set<string>()
+  private readonly lastPushedAt = new Map<string, number>()
+  private readonly PUSH_COOLDOWN_MS = 60_000
 
   getPriceHistory(code: string): HistoricalPricePoint[] {
-    return this.sqlite.getPriceHistory(code)
+    const local = this.sqlite.getPriceHistory(code)
+    if (local.length > 0) return local
+
+    // Local is empty — pull from Supabase cross-device shared cache.
+    // Fire-and-forget: if it fails we just return empty; next fetch
+    // from Sina/Tencent will rebuild locally.
+    this.pullFromSupabase(code).catch((err) => {
+      console.warn(`[PriceCache] Supabase pull failed for ${code}:`, err instanceof Error ? err.message : String(err))
+    })
+
+    return local
   }
 
   getLatestDate(code: string): string | undefined {
@@ -33,15 +46,39 @@ export class SupabasePriceCacheRepository implements IPriceCacheRepository {
   }
 
   savePriceHistory(code: string, prices: HistoricalPricePoint[]): void {
+    // Always persist to local SQLite immediately — never drop new data.
     this.sqlite.savePriceHistory(code, prices)
-    this.pushToSupabase(code, prices)
+
+    // Throttle Supabase pushes:
+    // 1. Skip if a push for this code is already in flight.
+    // 2. Skip if a push completed less than PUSH_COOLDOWN_MS ago.
+    if (this.savingCodes.has(code)) {
+      return
+    }
+    const lastPush = this.lastPushedAt.get(code)
+    if (lastPush && Date.now() - lastPush < this.PUSH_COOLDOWN_MS) {
+      return
+    }
+
+    this.savingCodes.add(code)
+
+    // Push ALL local rows for this code to Supabase, not just the new batch.
+    // This ensures that when switching from offline to online, the full
+    // history accumulated locally is synced in one shot. upsert with
+    // ignoreDuplicates handles dedup — existing rows are skipped.
+    const allRows = this.sqlite.getPriceHistory(code)
+    this.pushToSupabase(code, allRows)
       .then((count) => {
         if (count > 0) {
           console.log(`[PriceCache] Synced ${count} rows to Supabase for ${code}`)
+          this.lastPushedAt.set(code, Date.now())
         }
       })
       .catch((err) => {
         console.warn(`[PriceCache] Supabase push failed for ${code}:`, err instanceof Error ? err.message : String(err))
+      })
+      .finally(() => {
+        this.savingCodes.delete(code)
       })
   }
 
@@ -71,5 +108,25 @@ export class SupabasePriceCacheRepository implements IPriceCacheRepository {
     }
 
     return rows.length
+  }
+
+  /**
+   * Pull price history from Supabase shared cache and write to local SQLite.
+   */
+  private async pullFromSupabase(code: string): Promise<void> {
+    const supabase = getSupabaseClient()
+    if (!supabase) return
+
+    const { data, error } = await supabase
+      .from('price_cache')
+      .select('date, close')
+      .eq('code', code)
+      .order('date', { ascending: true })
+
+    if (error || !data || data.length === 0) return
+
+    const rows = data as Array<{ date: string; close: number }>
+    this.sqlite.savePriceHistory(code, rows)
+    console.log(`[PriceCache] Pulled ${rows.length} rows from Supabase for ${code}`)
   }
 }

@@ -1,5 +1,10 @@
 # 统一数据源网关架构设计
 
+> **实施状态**: 已完成 Phase 1-3。`src/main/infrastructure/dataSources/` 目录包含完整实现：
+> endpoint 注册、能力路由、策略引擎、限流/熔断/并发控制/缓存守卫、HTTP 传输、错误模型。
+> 所有 adapter 已对接 `SourceGateway`，use case 中直连 `fetch` 已移除。
+> 相关测试：`tests/main/sourceGateway.test.ts`, `tests/main/circuitBreaker.test.ts`, `tests/main/rateLimiter.test.ts`。
+
 ## 1. 文档目标
 
 本文档用于为 DividendMonitor 设计一套统一的外部数据接入架构，解决当前多数据源场景下：

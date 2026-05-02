@@ -1,271 +1,35 @@
 import type { AssetType } from '@shared/contracts/api'
 import type { FundDetailDataSource, FundDetailSource } from '@main/adapters/contracts'
 import type { DividendEvent, HistoricalPricePoint } from '@main/domain/entities/Stock'
-import { getJson, getText } from '@main/infrastructure/http/httpClient'
+import { getDefaultSourceGateway } from '@main/infrastructure/dataSources/gateway/sourceGateway'
+import type { EastmoneyFundQuotePayload } from '@main/infrastructure/dataSources/registry/eastmoneyEndpoints'
+import type { TencentEtfKlineData } from '@main/infrastructure/dataSources/registry/tencentEndpoints'
+import type {
+  AssetProfileInput,
+  AssetProfileOutput,
+  AssetDividendInput,
+  AssetDividendOutput
+} from '@main/infrastructure/dataSources/types/sourceTypes'
 import { fetchSinaDailyKline } from '@main/adapters/sina/sinaKlineDataSource'
 import { getPriceCacheRepository } from '@main/repositories/repositoryFactory'
 
-type FundQuoteResponse = {
-  data?: {
-    f43?: number
-    f57?: string
-    f58?: string
-  }
-}
-
-type FundKlineResponse = {
-  data?: {
-    klines?: string[]
-  }
-}
-
-type ParsedFundBasicProfile = {
-  name?: string
-  category?: string
-  manager?: string
-  trackingIndex?: string
-  benchmark?: string
-  latestNav?: number
-  fundScale?: number
-}
-
-function decodeHtmlEntities(value: string) {
-  return value
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-}
-
-function stripTags(value: string) {
-  return decodeHtmlEntities(value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim())
-}
-
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
-
-function normalizeDate(value: string | undefined) {
-  const normalized = value?.trim()
-  return normalized && /^\d{4}-\d{2}-\d{2}$/.test(normalized) ? normalized : undefined
-}
-
-function normalizeOptionalText(value: string | undefined) {
-  const normalized = value?.trim()
-  return normalized ? normalized : undefined
-}
-
-export function parseChineseAmountToNumber(value: string | undefined) {
-  if (!value) {
-    return undefined
-  }
-
-  const normalized = value.replace(/,/g, '').trim()
-  const matched = normalized.match(/([0-9]+(?:\.[0-9]+)?)(亿|万)?/)
-  if (!matched) {
-    return undefined
-  }
-
-  const base = Number(matched[1])
-  if (!Number.isFinite(base)) {
-    return undefined
-  }
-
-  if (matched[2] === '亿') {
-    return base * 100_000_000
-  }
-
-  if (matched[2] === '万') {
-    return base * 10_000
-  }
-
-  return base
-}
-
-function extractFieldText(html: string, label: string) {
-  const blockMatch = html.match(
-    new RegExp(`<[^>]*>\\s*${escapeRegExp(label)}\\s*<\\/[^>]*>\\s*<[^>]*>([\\s\\S]{0,200}?)<\\/[^>]*>`, 'i')
-  )
-  if (blockMatch) {
-    return normalizeOptionalText(stripTags(blockMatch[1]))
-  }
-
-  // Label followed by optional date in parentheses, colon, then value in a tag.
-  // e.g. 单位净值（04-27）：<b>1.2949</b>
-  const labeledTagMatch = html.match(
-    new RegExp(
-      `${escapeRegExp(label)}(?:[(（][^)）]*[)）])?[：:]?\\s*<[^>]*>([\\s\\S]{0,200}?)<\\/[^>]*>`,
-      'i'
-    )
-  )
-  if (labeledTagMatch) {
-    return normalizeOptionalText(stripTags(labeledTagMatch[1]))
-  }
-
-  // Label followed by optional date in parentheses, colon, then inline text.
-  const inlineMatch = html.match(
-    new RegExp(`${escapeRegExp(label)}(?:[(（][^)）]*[)）])?[：:]?([\\s\\S]{0,200}?)<`, 'i')
-  )
-  if (inlineMatch) {
-    return normalizeOptionalText(stripTags(inlineMatch[1]))
-  }
-
-  return undefined
-}
-
-function extractFundNameFromTitle(html: string) {
-  const title = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1]
-  const cleaned = normalizeOptionalText(stripTags(title ?? ''))
-  if (!cleaned) {
-    return undefined
-  }
-
-  const normalized = cleaned
-    .replace(/\s+/g, ' ')
-    .replace(/基金基本概况.*$/i, '')
-    .replace(/基金档案.*$/i, '')
-    .replace(/_.*$/i, '')
-    .replace(/\(.*$/, '')
-    .trim()
-
-  return normalized || undefined
-}
-
-export function parseFundBasicProfile(html: string): ParsedFundBasicProfile {
-  return {
-    name:
-      extractFieldText(html, '基金简称') ??
-      extractFieldText(html, '基金全称') ??
-      extractFieldText(html, '基金名称') ??
-      extractFundNameFromTitle(html),
-    category: extractFieldText(html, '基金类型') ?? extractFieldText(html, '类型'),
-    manager: extractFieldText(html, '基金管理人') ?? extractFieldText(html, '管理人'),
-    trackingIndex: extractFieldText(html, '跟踪标的'),
-    benchmark: extractFieldText(html, '业绩比较基准'),
-    latestNav: parseChineseAmountToNumber(extractFieldText(html, '单位净值')),
-    fundScale: parseChineseAmountToNumber(extractFieldText(html, '净资产规模'))
-  }
-}
-
-function toReferenceClosePrice(date: string | undefined, priceHistory: HistoricalPricePoint[], fallbackPrice?: number) {
-  if (!date) {
-    return 0
-  }
-
-  const matched = priceHistory.find((item) => item.date === date)
-  if (matched) {
-    return matched.close
-  }
-
-  const previous = [...priceHistory].reverse().find((item) => item.date < date)
-  return previous?.close ?? fallbackPrice ?? 0
-}
-
-export function parseFundDividendEvents(html: string, priceHistory: HistoricalPricePoint[], fallbackPrice?: number): DividendEvent[] {
-  const rows = html.match(/<tr[\s\S]*?<\/tr>/g) ?? []
-  const events: DividendEvent[] = []
-
-  for (const row of rows) {
-    const cells = [...row.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/g)].map((match) => stripTags(match[1]))
-    if (cells.length < 5) {
-      continue
-    }
-
-    const yearMatch = cells[0].match(/^(\d{4})年$/)
-    const distributionMatch = cells[3].match(/每份派现金([0-9.]+)元/)
-    if (!yearMatch || !distributionMatch) {
-      continue
-    }
-
-    const year = Number(yearMatch[1])
-    const recordDate = normalizeDate(cells[1])
-    const exDate = normalizeDate(cells[2])
-    const payDate = normalizeDate(cells[4])
-    const dividendPerShare = Number(distributionMatch[1])
-    if (!Number.isFinite(dividendPerShare)) {
-      continue
-    }
-
-    events.push({
-      year,
-      recordDate,
-      exDate,
-      payDate,
-      dividendPerShare,
-      referenceClosePrice: toReferenceClosePrice(recordDate ?? exDate, priceHistory, fallbackPrice),
-      source: 'eastmoney-fund'
-    })
-  }
-
-  return events.sort((left, right) => {
-    const leftDate = left.exDate ?? left.payDate ?? left.recordDate ?? `${left.year}-01-01`
-    const rightDate = right.exDate ?? right.payDate ?? right.recordDate ?? `${right.year}-01-01`
-    return leftDate.localeCompare(rightDate)
-  })
-}
-
-function resolveFundSecId(code: string) {
-  const normalized = code.trim()
-  if (/^[56]\d{5}$/.test(normalized)) {
-    return `1.${normalized}`
-  }
-
-  if (/^[013]\d{5}$/.test(normalized)) {
-    return `0.${normalized}`
-  }
-
-  if (/^[12]\d{5}$/.test(normalized)) {
-    return `0.${normalized}`
-  }
-
-  throw new Error(`Unsupported A-share fund code: ${code}`)
-}
-
-function toTencentEtfSymbol(code: string) {
-  const normalized = code.trim()
-  if (normalized.startsWith('5')) return `sh${normalized}`
-  if (normalized.startsWith('1')) return `sz${normalized}`
-  return `sh${normalized}`
-}
-
-type TencentEtfKlineResponse = {
-  code?: number
-  data?: Record<string, {
-    day?: string[][]
-    qfqday?: string[][]
-    qt?: string[]
-  }>
-}
-
-async function fetchTencentEtfKlines(code: string): Promise<{ klines: HistoricalPricePoint[]; name?: string; latestPrice?: number }> {
+async function fetchTencentEtfKlines(code: string): Promise<TencentEtfData> {
   try {
-    const qqSymbol = toTencentEtfSymbol(code)
-    const url = `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${qqSymbol},day,,,2000,qfq`
-    const response = await fetch(url, {
-      headers: { Referer: 'https://gu.qq.com/' }
+    const response = await getDefaultSourceGateway().request<{ code: string }, TencentEtfKlineData>({
+      capability: 'asset.kline',
+      providerHint: 'tencent',
+      routeContext: {
+        assetType: 'ETF',
+        market: 'A_SHARE',
+        code
+      },
+      input: {
+        code
+      }
     })
-    const payload = await response.json() as TencentEtfKlineResponse
-    const data = payload.data?.[qqSymbol]
-    const rows = data?.day ?? data?.qfqday
-    if (!rows || rows.length === 0) return { klines: [] }
-
-    const klines: HistoricalPricePoint[] = rows.map((row) => {
-      const date = row[0]?.trim()
-      const close = Number(row[2])
-      if (!date || !Number.isFinite(close)) return null
-      return { date, close }
-    }).filter((p): p is HistoricalPricePoint => p != null)
-
-    // qt array: [flag, name, code, price, ...]
-    const qtArray = data?.qt
-    const name = qtArray?.[1]?.trim() || undefined
-    const latestPrice = qtArray?.[3] ? Number(qtArray[3]) : klines[klines.length - 1]?.close
-
-    return { klines, name, latestPrice }
+    return response.data
   } catch {
-    return { klines: [] }
+    return EMPTY_TENCENT_DATA
   }
 }
 
@@ -278,17 +42,9 @@ function normalizeQuotePrice(value: number | undefined) {
   return Number.isFinite(price) && price > 0 ? price : undefined
 }
 
-function parseKlines(payload: FundKlineResponse): HistoricalPricePoint[] {
-  return (payload.data?.klines ?? [])
-    .map((item) => item.split(','))
-    .flatMap((parts) => {
-      const date = parts[0]?.trim()
-      const close = Number(parts[2])
-      if (!date || !Number.isFinite(close)) {
-        return []
-      }
-      return [{ date, close }]
-    })
+function normalizeOptionalText(value: string | undefined) {
+  const normalized = value?.trim()
+  return normalized ? normalized : undefined
 }
 
 export function resolveFundDisplayName(input: {
@@ -306,10 +62,11 @@ type TencentEtfData = {
   latestPrice?: number
 }
 
+const EMPTY_TENCENT_DATA: TencentEtfData = { klines: [] }
+
 export class EastmoneyFundDetailDataSource implements FundDetailDataSource {
   async getDetail(code: string, assetType: Extract<AssetType, 'ETF' | 'FUND'>): Promise<FundDetailSource> {
     const normalizedCode = code.trim()
-    const secId = resolveFundSecId(normalizedCode)
 
     // Check local price cache — historical data is immutable
     const priceCache = getPriceCacheRepository()
@@ -325,27 +82,27 @@ export class EastmoneyFundDetailDataSource implements FundDetailDataSource {
       cacheIsFresh = cachedLatest != null && cachedLatest >= yesterdayStr
     }
 
-    // Fetch all sources in parallel — push2/kline APIs may be unavailable,
-    // so use allSettled to tolerate partial failures.
-    const fetches: [
-      Promise<string>,
-      Promise<string>,
-      Promise<FundQuoteResponse>,
-      Promise<FundKlineResponse>,
-      Promise<TencentEtfData>,
-      Promise<HistoricalPricePoint[]>
-    ] = [
-      getText(`https://fund.eastmoney.com/f10/jbgk_${normalizedCode}.html`),
-      getText(`https://fund.eastmoney.com/f10/fhsp_${normalizedCode}.html`),
-      getJson<FundQuoteResponse>(
-        `https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&fields=f43,f57,f58&secid=${secId}`
-      ),
-      getJson<FundKlineResponse>(
-        `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secId}&klt=101&fqt=0&lmt=800&end=20500101&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56`
-      ),
-      // ETF only: also try Tencent K-line for longer history + name + price
-      assetType === 'ETF' ? fetchTencentEtfKlines(normalizedCode) : Promise.resolve({ klines: [] }),
-      // Sina K-line: cached if fresh, else fetch enough bars to fill gap
+    // SourceGateway's ConcurrencyLimiter ensures no more than 1 concurrent
+    // request per provider, so Promise.allSettled is safe here.
+    const [profileResult, quoteResult, klineResult, tencentResult, sinaResult] = await Promise.allSettled([
+      getDefaultSourceGateway().request<AssetProfileInput, AssetProfileOutput>({
+        capability: 'asset.profile',
+        routeContext: { assetType, market: 'A_SHARE', code: normalizedCode },
+        input: { code: normalizedCode }
+      }),
+      getDefaultSourceGateway().request<{ code: string }, EastmoneyFundQuotePayload>({
+        capability: 'asset.quote',
+        providerHint: 'eastmoney',
+        routeContext: { assetType, market: 'A_SHARE', code: normalizedCode },
+        input: { code: normalizedCode }
+      }).then((response) => response.data),
+      getDefaultSourceGateway().request<{ code: string; fqt: 0 | 1; lmt: number }, HistoricalPricePoint[]>({
+        capability: 'asset.kline',
+        providerHint: 'eastmoney',
+        routeContext: { assetType, market: 'A_SHARE', code: normalizedCode },
+        input: { code: normalizedCode, fqt: 0, lmt: 800 }
+      }).then((response) => response.data),
+      assetType === 'ETF' ? fetchTencentEtfKlines(normalizedCode) : Promise.resolve(EMPTY_TENCENT_DATA),
       assetType === 'ETF'
         ? (cacheIsFresh
             ? Promise.resolve(cachedPrices)
@@ -359,14 +116,11 @@ export class EastmoneyFundDetailDataSource implements FundDetailDataSource {
                 return fetchSinaDailyKline(normalizedCode, needed)
               })())
         : Promise.resolve([] as HistoricalPricePoint[])
-    ]
-
-    const [basicResult, dividendResult, quoteResult, klineResult, tencentResult, sinaResult] =
-      await Promise.allSettled(fetches)
+    ])
 
     // Log failures for debugging
-    if (basicResult.status === 'rejected') {
-      console.warn(`[EastmoneyFund] Basic profile failed for ${normalizedCode}: ${basicResult.reason instanceof Error ? basicResult.reason.message : String(basicResult.reason)}`)
+    if (profileResult.status === 'rejected') {
+      console.warn(`[EastmoneyFund] Profile failed for ${normalizedCode}: ${profileResult.reason instanceof Error ? profileResult.reason.message : String(profileResult.reason)}`)
     }
     if (quoteResult.status === 'rejected') {
       console.warn(`[EastmoneyFund] Quote API failed for ${normalizedCode}: ${quoteResult.reason instanceof Error ? quoteResult.reason.message : String(quoteResult.reason)}`)
@@ -375,41 +129,35 @@ export class EastmoneyFundDetailDataSource implements FundDetailDataSource {
       console.warn(`[EastmoneyFund] Kline API failed for ${normalizedCode}: ${klineResult.reason instanceof Error ? klineResult.reason.message : String(klineResult.reason)}`)
     }
 
-    const basicHtml = basicResult.status === 'fulfilled' ? basicResult.value : ''
-    const dividendHtml = dividendResult.status === 'fulfilled' ? dividendResult.value : ''
-    const quotePayload = quoteResult.status === 'fulfilled' ? quoteResult.value : ({} as FundQuoteResponse)
-    const klinePayload = klineResult.status === 'fulfilled' ? klineResult.value : ({} as FundKlineResponse)
-    const tencentData = tencentResult.status === 'fulfilled' ? tencentResult.value : { klines: [] }
+    const basicProfile = profileResult.status === 'fulfilled' ? profileResult.value.data : {}
+    const quotePayload = quoteResult.status === 'fulfilled' ? quoteResult.value : ({} as EastmoneyFundQuotePayload)
+    const eastmoneyKlines = klineResult.status === 'fulfilled' ? klineResult.value : []
+    const tencentData = tencentResult.status === 'fulfilled' ? tencentResult.value : EMPTY_TENCENT_DATA
 
-    // For FUND type, require fund.eastmoney.com to be available
-    if (assetType === 'FUND' && !basicHtml) {
+    // For FUND type, require profile to be available
+    if (assetType === 'FUND' && profileResult.status !== 'fulfilled') {
       throw new Error(`Fund basic profile unavailable for ${normalizedCode} (fund.eastmoney.com unreachable)`)
     }
 
     // For ETF type, allow fallback to Tencent data when fund.eastmoney.com fails
-    if (assetType === 'ETF' && !basicHtml && tencentData.klines.length === 0) {
+    if (assetType === 'ETF' && profileResult.status !== 'fulfilled' && tencentData.klines.length === 0) {
       throw new Error(`ETF data unavailable for ${normalizedCode}: both fund.eastmoney.com and Tencent API failed`)
     }
 
-    const basicProfile = basicHtml ? parseFundBasicProfile(basicHtml) : {}
-    const eastmoneyKlines = parseKlines(klinePayload)
     const tencentKlines = tencentData.klines
 
-    const fetchedKlines =
-      sinaResult.status === 'fulfilled' ? sinaResult.value : []
+    const fetchedKlines = sinaResult.status === 'fulfilled' ? sinaResult.value : []
 
     // Only merge into cache when we actually fetched new data (cache miss/stale).
-    // When cache is fresh, fetchedKlines === cachedPrices — skip to avoid redundant writes + Supabase pushes.
     let sinaKlines = cachedPrices
     if (assetType === 'ETF' && !cacheIsFresh && fetchedKlines.length > 0) {
       priceCache.savePriceHistory(normalizedCode, fetchedKlines)
       sinaKlines = priceCache.getPriceHistory(normalizedCode)
     }
 
-    const quotePrice = normalizeQuotePrice(quotePayload.data?.f43)
+    const quotePrice = normalizeQuotePrice(quotePayload?.f43)
 
     // Pick the best price history: Sina (full history, 不复权) > Tencent > Eastmoney.
-    // Off-market fund K-line data is NAV history, not trading prices; use empty for FUND.
     const bestAltHistory = tencentKlines.length > eastmoneyKlines.length ? tencentKlines : eastmoneyKlines
     const priceHistory: HistoricalPricePoint[] =
       assetType === 'FUND'
@@ -430,14 +178,27 @@ export class EastmoneyFundDetailDataSource implements FundDetailDataSource {
       throw new Error(`Fund latest price / NAV is unavailable: ${normalizedCode}`)
     }
 
-    const dividendEvents = basicHtml ? parseFundDividendEvents(dividendHtml, priceHistory, latestPrice) : []
+    // Phase 2: Fetch dividend events with price context
+    let dividendEvents: DividendEvent[] = []
+    if (profileResult.status === 'fulfilled') {
+      try {
+        const dividendResponse = await getDefaultSourceGateway().request<AssetDividendInput, AssetDividendOutput>({
+          capability: 'asset.dividend',
+          routeContext: { assetType, market: 'A_SHARE', code: normalizedCode },
+          input: { code: normalizedCode, priceHistory, fallbackPrice: latestPrice }
+        })
+        dividendEvents = dividendResponse.data.events
+      } catch {
+        // Dividend data is optional
+      }
+    }
 
     return {
       assetType,
       code: normalizedCode,
       name: resolveFundDisplayName({
         basicProfileName: basicProfile.name,
-        quoteName: quotePayload.data?.f58,
+        quoteName: quotePayload?.f58,
         tencentName: tencentData.name,
         code: normalizedCode
       }),

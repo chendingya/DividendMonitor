@@ -1,106 +1,24 @@
 import type { AShareDataSource, CoreStockDetailSource } from '@main/adapters/contracts'
-import { getJson } from '@main/infrastructure/http/httpClient'
+import { getDefaultSourceGateway } from '@main/infrastructure/dataSources/gateway/sourceGateway'
+import type { EastmoneySuggestItem } from '@main/infrastructure/dataSources/registry/eastmoneyEndpoints'
+import type { TencentMarketSnapshot } from '@main/infrastructure/dataSources/registry/tencentEndpoints'
+import type {
+  AssetDividendInput,
+  AssetDividendOutput,
+  AssetProfileInput,
+  AssetProfileOutput,
+  ValuationSnapshotInput,
+  ValuationSnapshotOutput,
+  StockDividendRecord
+} from '@main/infrastructure/dataSources/types/sourceTypes'
 import { extractYear, toIsoDate, toNumber } from '@main/adapters/eastmoney/eastmoneyUtils'
 import type { HistoricalPricePoint } from '@main/domain/entities/Stock'
 import { fetchSinaDailyKline } from '@main/adapters/sina/sinaKlineDataSource'
 import { getPriceCacheRepository } from '@main/repositories/repositoryFactory'
 
-type EastmoneySuggestResponse = {
-  Quotations?: EastmoneySuggestItem[]
-  QuotationCodeTable?: {
-    Data?: EastmoneySuggestItem[]
-  }
-}
-
-type EastmoneySuggestItem = {
-  Code?: string
-  Name?: string
-  SecurityTypeName?: string
-  SecurityType?: string
-  Classify?: string
-  MktNum?: string
-}
-
-type EastmoneyDividendResponse = {
-  result?: {
-    data?: EastmoneyDividendRecord[]
-  }
-}
-
-type EastmoneyDividendRecord = {
-  SECURITY_CODE?: string
-  SECURITY_NAME_ABBR?: string
-  REPORT_DATE?: string
-  PLAN_NOTICE_DATE?: string
-  EQUITY_RECORD_DATE?: string
-  EX_DIVIDEND_DATE?: string
-  NOTICE_DATE?: string
-  PRETAX_BONUS_RMB?: number
-  TOTAL_SHARES?: number
-  BASIC_EPS?: number
-  BONUS_RATIO?: number
-  BONUS_IT_RATIO?: number
-  DIVIDENT_RATIO?: number
-  ASSIGN_PROGRESS?: string
-}
-
-type TencentQuoteResponse = string
-
-type TencentMarketSnapshot = {
-  name: string
-  symbol: string
-  latestPrice: number
-  marketCap?: number
-  peRatio?: number
-  pbRatio?: number
-  totalShares?: number
-}
-
-type EastmoneyPush2Response = {
-  data?: {
-    f43?: number
-    f100?: string
-    f173?: number
-  }
-}
-
-type F10CompanySurveyResponse = {
-  jbzl?: {
-    sshy?: string
-    sszjhhy?: string
-  }
-}
-
-type EastmoneyKlineResponse = {
-  data?: {
-    klines?: string[]
-  }
-}
-
-const SEARCH_TOKEN = 'D43BF722C8E33BDC906FB84D85E326E8'
-
-function parseEastmoneyKlines(payload: EastmoneyKlineResponse): HistoricalPricePoint[] {
-  return (payload.data?.klines ?? [])
-    .map((item) => item.split(','))
-    .flatMap((parts) => {
-      const date = parts[0]?.trim()
-      const close = toNumber(parts[2])
-      if (!date || close == null) return []
-      return [{ date: toIsoDate(date) ?? date, close }]
-    })
-}
-
 function isAShareSymbol(symbol: string) {
   // A-share stock codes: 6xxxxx (Shanghai), 000xxx-004xxx (Shenzhen main/SME), 300xxx-301xxx (ChiNext)
   return /^(6\d{5}|00[0-4]\d{3}|30[0-1]\d{3})$/.test(symbol.trim())
-}
-
-function toTencentSymbol(symbol: string) {
-  return symbol.startsWith('6') ? `sh${symbol}` : `sz${symbol}`
-}
-
-function toPush2Secid(symbol: string) {
-  return symbol.startsWith('6') ? `1.${symbol}` : `0.${symbol}`
 }
 
 function deriveRoe(peRatio?: number, pbRatio?: number): number | undefined {
@@ -108,23 +26,6 @@ function deriveRoe(peRatio?: number, pbRatio?: number): number | undefined {
   return (pbRatio / peRatio) * 100
 }
 
-function parseTencentQuote(raw: string, symbol: string): TencentMarketSnapshot | null {
-  const match = raw.match(/"([^"]+)"/)
-  if (!match) return null
-  const fields = match[1].split('~')
-  const latestPrice = toNumber(fields[3])
-  if (latestPrice == null || latestPrice <= 0) return null
-
-  return {
-    name: fields[1] || symbol,
-    symbol: fields[2] || symbol,
-    latestPrice,
-    marketCap: (toNumber(fields[44]) ?? 0) > 0 ? (toNumber(fields[44]) ?? 0) * 100000000 : undefined,
-    peRatio: toNumber(fields[39]) ?? undefined,
-    pbRatio: toNumber(fields[46]) ?? undefined,
-    totalShares: toNumber(fields[73]) ?? toNumber(fields[72]) ?? toNumber(fields[76]) ?? undefined
-  }
-}
 
 function findReferenceClosePrice(priceHistory: HistoricalPricePoint[], anchorDate?: string) {
   if (!anchorDate) {
@@ -143,19 +44,19 @@ function findReferenceClosePrice(priceHistory: HistoricalPricePoint[], anchorDat
   return priceHistory.find((point) => point.date === normalized)?.close
 }
 
-function pickLatestAnnualDividendRecord(records: EastmoneyDividendRecord[]) {
+function pickLatestAnnualDividendRecord(records: StockDividendRecord[]) {
   return [...records]
     .filter((record) => toIsoDate(record.REPORT_DATE)?.endsWith('-12-31'))
     .sort((a, b) => (toIsoDate(b.REPORT_DATE) ?? '').localeCompare(toIsoDate(a.REPORT_DATE) ?? ''))[0]
 }
 
-function calculateDividendAmount(record: EastmoneyDividendRecord) {
+function calculateDividendAmount(record: StockDividendRecord) {
   const dividendPerShare = (toNumber(record.PRETAX_BONUS_RMB) ?? 0) / 10
   const totalShares = toNumber(record.TOTAL_SHARES)
   return dividendPerShare > 0 && totalShares != null ? dividendPerShare * totalShares : undefined
 }
 
-function buildLatestFiscalYearSummary(records: EastmoneyDividendRecord[]) {
+function buildLatestFiscalYearSummary(records: StockDividendRecord[]) {
   const latestAnnualRecord = pickLatestAnnualDividendRecord(records)
   const fiscalYear = extractYear(latestAnnualRecord?.REPORT_DATE)
 
@@ -197,13 +98,15 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
       return []
     }
 
-    const url =
-      `https://searchapi.eastmoney.com/api/suggest/get?input=${encodeURIComponent(normalized)}` +
-      `&type=14&token=${SEARCH_TOKEN}&count=10`
-    const payload = await getJson<EastmoneySuggestResponse>(url)
-    const quotations = payload.Quotations ?? payload.QuotationCodeTable?.Data ?? []
+    const quotations = await getDefaultSourceGateway().request<{ keyword: string; count: number }, EastmoneySuggestItem[]>({
+      capability: 'asset.search',
+      input: {
+        keyword: normalized,
+        count: 10
+      }
+    })
 
-    return quotations
+    return quotations.data
       .filter((item) => item.Code && item.Name)
       .filter((item) => {
         const classify = (item.Classify ?? '').toLowerCase()
@@ -224,58 +127,76 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
 
   private async getTencentMarketSnapshot(symbol: string): Promise<TencentMarketSnapshot | null> {
     try {
-      const qqSymbol = toTencentSymbol(symbol)
-      const url = `https://qt.gtimg.cn/q=${qqSymbol}`
-
-      const payload = await getJson<TencentQuoteResponse>(url, {
-        headers: { Referer: 'https://gu.qq.com/' }
+      const payload = await getDefaultSourceGateway().request<{ code: string }, TencentMarketSnapshot | null>({
+        capability: 'asset.quote',
+        providerHint: 'tencent',
+        routeContext: {
+          assetType: 'STOCK',
+          market: 'A_SHARE',
+          code: symbol
+        },
+        input: {
+          code: symbol
+        }
       })
-
-      return parseTencentQuote(payload, symbol)
+      return payload.data
     } catch {
       return null
     }
   }
 
-  private async getDividendRecords(symbol: string): Promise<EastmoneyDividendRecord[]> {
-    const url =
-      'https://datacenter-web.eastmoney.com/api/data/v1/get' +
-      `?reportName=RPT_SHAREBONUS_DET&columns=ALL&filter=${encodeURIComponent(`(SECURITY_CODE="${symbol}")`)}` +
-      '&pageNumber=1&pageSize=200&sortColumns=EX_DIVIDEND_DATE&sortTypes=-1&source=WEB&client=WEB'
-    const payload = await getJson<EastmoneyDividendResponse>(url)
-    return payload.result?.data ?? []
+  private async getDividendRecords(symbol: string): Promise<StockDividendRecord[]> {
+    try {
+      const response = await getDefaultSourceGateway().request<AssetDividendInput, AssetDividendOutput>({
+        capability: 'asset.dividend',
+        routeContext: { assetType: 'STOCK', market: 'A_SHARE', code: symbol },
+        input: { code: symbol }
+      })
+      return response.data.records
+    } catch {
+      return []
+    }
   }
 
-  private async getPush2Snapshot(symbol: string): Promise<{ roe?: number; industry?: string }> {
+  private async getValuationSnapshot(symbol: string): Promise<{ roe?: number; industry?: string }> {
     try {
-      const secid = toPush2Secid(symbol)
-      const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${secid}&fields=f43,f100,f173`
-      const payload = await getJson<EastmoneyPush2Response>(url)
-      const roe = payload.data?.f173 != null && payload.data?.f173 !== 0 ? payload.data?.f173 : undefined
-      const industry = payload.data?.f100?.trim() || undefined
-      return { roe, industry }
+      const response = await getDefaultSourceGateway().request<ValuationSnapshotInput, ValuationSnapshotOutput>({
+        capability: 'valuation.snapshot',
+        routeContext: { assetType: 'STOCK', market: 'A_SHARE', code: symbol },
+        input: { code: symbol }
+      })
+      return { roe: response.data.roe, industry: response.data.industry }
     } catch {
+      // Fallback to F10 profile endpoint for industry info
       try {
-        return { industry: await this.getIndustryFromF10(symbol) }
+        const profile = await getDefaultSourceGateway().request<AssetProfileInput, AssetProfileOutput>({
+          capability: 'asset.profile',
+          routeContext: { assetType: 'STOCK', market: 'A_SHARE', code: symbol },
+          input: { code: symbol }
+        })
+        return { industry: profile.data.industry }
       } catch {
         return {}
       }
     }
   }
 
-  private async getIndustryFromF10(symbol: string): Promise<string | undefined> {
-    const f10Code = symbol.startsWith('6') ? `SH${symbol}` : `SZ${symbol}`
-    const url = `https://emweb.securities.eastmoney.com/PC_HSF10/CompanySurvey/CompanySurveyAjax?code=${f10Code}`
-    const payload = await getJson<F10CompanySurveyResponse>(url)
-    return payload.jbzl?.sshy?.trim() || undefined
-  }
-
   private async getEastmoneyKline(symbol: string): Promise<HistoricalPricePoint[]> {
-    const secid = toPush2Secid(symbol)
-    const url =
-      `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${secid}&klt=101&fqt=1&lmt=2000&end=20500101&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56`
-    const payload = await getJson<EastmoneyKlineResponse>(url)
-    return parseEastmoneyKlines(payload)
+    const response = await getDefaultSourceGateway().request<{ code: string; fqt: 0 | 1; lmt: number }, HistoricalPricePoint[]>({
+      capability: 'asset.kline',
+      providerHint: 'eastmoney',
+      routeContext: {
+        assetType: 'STOCK',
+        market: 'A_SHARE',
+        code: symbol
+      },
+      input: {
+        code: symbol,
+        fqt: 1,
+        lmt: 2000
+      }
+    })
+    return response.data
   }
 
   async getDetail(symbol: string): Promise<CoreStockDetailSource> {
@@ -302,12 +223,13 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
         ) + 10)
       : 5000
 
+    // SourceGateway's ConcurrencyLimiter caps concurrent requests per provider,
+    // so Promise.allSettled is safe here — excess requests naturally queue.
     const [marketResult, dividendResult, snapshotResult, klineResult, sinaResult] = await Promise.allSettled([
       this.getTencentMarketSnapshot(symbol),
       this.getDividendRecords(symbol),
-      this.getPush2Snapshot(symbol),
+      this.getValuationSnapshot(symbol),
       this.getEastmoneyKline(symbol),
-      // Cache miss → full fetch. Cache stale → fetch enough bars to fill gap.
       cacheIsFresh
         ? Promise.resolve(cachedPrices)
         : fetchSinaDailyKline(symbol, neededBars)
