@@ -382,6 +382,17 @@ function useRouteGuard() {
 | 网络恢复 | 自动同步本地变更到 Supabase（基于 updated_at 时间戳冲突处理） |
 | 在线模式退出登录 | 保留本地 SQLite 数据，清空 auth session，UI 恢复离线模式 |
 
+### 10.1 价格缓存同步策略
+
+价格缓存（`price_cache`）是共享的公开市场数据，不绑定用户身份，采用独立的同步机制：
+
+| 模式 | Repository | 写入行为 |
+|------|-----------|---------|
+| 离线 | `SqlitePriceCacheRepository` | 仅写本地 SQLite |
+| 在线 | `SupabasePriceCacheRepository` | 写本地 SQLite + 逐条异步推送至 Supabase（fire-and-forget） |
+
+在线模式下，`savePriceHistory(code, prices)` 内部调用 `pushToSupabase(code, prices)`，使用 `upsert` + `ignoreDuplicates` 幂等写入。离线期间累积的价格数据会在下次缓存过期、在线刷新时自动同步至 Supabase，无需单独的批量同步触发。
+
 ## 11. 侧边栏调整
 
 在 `AppShell` 底部新增用户状态区域：

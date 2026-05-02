@@ -256,6 +256,7 @@ export function toStockComparisonRowDto(source: StockAssetDetailSource): Compari
     code: source.stock.symbol,
     symbol: source.stock.symbol,
     name: source.stock.name,
+    industry: source.stock.industry,
     latestPrice: source.stock.latestPrice,
     marketCap: source.stock.marketCap,
     peRatio: source.stock.peRatio,

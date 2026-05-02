@@ -10,6 +10,7 @@ import { YearlyDividendTrendChart } from '@renderer/components/stock-detail/Year
 import { DEFAULT_STOCK_SYMBOL } from '@renderer/defaults'
 import { useAssetDetail } from '@renderer/hooks/useAssetDetail'
 import { useWatchlist } from '@renderer/hooks/useWatchlist'
+import { useIndustryBenchmark } from '@renderer/hooks/useIndustryAnalysis'
 import { buildStockAssetKey, createStockAssetQuery } from '@shared/contracts/api'
 import {
   buildBacktestPathFromAssetKey,
@@ -57,6 +58,7 @@ export function StockDetailPage() {
   const [showAllYearlyYields, setShowAllYearlyYields] = useState(false)
   const [valuationWindow, setValuationWindow] = useState<'10Y' | '20Y'>('10Y')
   const isInWatchlist = useMemo(() => watchlistItems.some((item) => item.assetKey === assetKey), [assetKey, watchlistItems])
+  const industryBenchmark = useIndustryBenchmark(data?.industry)
 
   useEffect(() => {
     rememberLastAssetKey(assetKey)
@@ -314,6 +316,14 @@ export function StockDetailPage() {
                 <div>
                   <div className="ledger-stat-label">市盈率 PE(TTM)</div>
                   <div className="ledger-valuation-primary">{formatRatioValue(data.peRatio)}</div>
+                  {industryBenchmark && (
+                    <div style={{ fontSize: 12, color: '#8b949e', marginTop: 2 }}>
+                      行业均值 {industryBenchmark.avgPeRatio > 0 ? industryBenchmark.avgPeRatio.toFixed(1) : '--'}
+                      <span style={{ marginLeft: 4, fontSize: 11 }}>
+                        (共 {industryBenchmark.stockCount} 只)
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <span className="pill primary">{peWindow?.percentile == null ? '--' : `${peWindow.percentile.toFixed(2)}%`}</span>
               </div>
@@ -329,6 +339,11 @@ export function StockDetailPage() {
                 <div>
                   <div className="ledger-stat-label">市净率 PB(MRQ)</div>
                   <div className="ledger-valuation-primary">{formatRatioValue(data.pbRatio)}</div>
+                  {industryBenchmark && (
+                    <div style={{ fontSize: 12, color: '#8b949e', marginTop: 2 }}>
+                      行业均值 --
+                    </div>
+                  )}
                 </div>
                 <span className="pill primary">{pbWindow?.percentile == null ? '--' : `${pbWindow.percentile.toFixed(2)}%`}</span>
               </div>
@@ -344,6 +359,11 @@ export function StockDetailPage() {
                 <div>
                   <div className="ledger-stat-label">净资产收益率 ROE</div>
                   <div className="ledger-valuation-primary">{data.roe != null ? `${data.roe.toFixed(2)}%` : '--'}</div>
+                  {industryBenchmark && (
+                    <div style={{ fontSize: 12, color: '#8b949e', marginTop: 2 }}>
+                      行业均值 {industryBenchmark.avgRoe > 0 ? `${industryBenchmark.avgRoe.toFixed(1)}%` : '--'}
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="ledger-valuation-status">加权净资产收益率（归属于母公司股东）</div>

@@ -119,7 +119,7 @@ export function ComparisonTable({ items, valuationWindow, onOpenDetail }: Compar
         className="soft-table"
         rowKey="assetKey"
         pagination={false}
-        scroll={{ x: 1180 }}
+        scroll={{ x: 1280 }}
         dataSource={items}
         columns={[
           {
@@ -135,6 +135,12 @@ export function ComparisonTable({ items, valuationWindow, onOpenDetail }: Compar
                 </div>
               </div>
             )
+          },
+          {
+            title: '行业',
+            dataIndex: 'industry',
+            width: 80,
+            render: (value?: string) => value ? <Tag>{value}</Tag> : '-'
           },
           {
             title: '最新价',

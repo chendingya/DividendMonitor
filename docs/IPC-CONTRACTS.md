@@ -135,6 +135,16 @@ interface DividendMonitorApi {
     bidirectional(): Promise<{ watchlist: number; portfolio: number; errors: string[] }>
     getStatus(): Promise<SyncStatusDto>
   }
+  industry: {
+    getAnalysis(industryName?: string, assetKeys?: string[]): Promise<IndustryAnalysisDto[]>
+    getDistribution(): Promise<IndustryDistributionItemDto[]>
+    getBenchmark(industryName: string): Promise<IndustrySummaryDto | null>
+  }
+  backtest: {
+    historyList(): Promise<Array<BacktestHistoryItemDto>>
+    historySave(result: BacktestResultDto, name?: string, dcaConfig?: string): Promise<BacktestHistoryItemDto>
+    historyDelete(id: string): Promise<boolean>
+  }
 }
 ```
 
@@ -323,6 +333,42 @@ flowchart TB
   - 入参：无
   - 用例：获取同步状态
 
+## 5.6 Industry
+
+文件：
+
+- `src/main/ipc/channels/industryChannels.ts`
+
+当前 channel：
+
+- `industry:analysis`
+  - 入参：`industryName?: string, assetKeys?: string[]`
+  - 用例：`getIndustryAnalysis`
+- `industry:distribution`
+  - 入参：无
+  - 用例：`getIndustryDistribution`
+- `industry:benchmark`
+  - 入参：`industryName: string`
+  - 用例：`getIndustryBenchmark`
+
+## 5.7 Backtest History
+
+文件：
+
+- `src/main/ipc/channels/calculationChannels.ts`
+
+当前 channel：
+
+- `backtest:history-list`
+  - 入参：无
+  - 用例：`listBacktestHistory`
+- `backtest:history-save`
+  - 入参：`result: BacktestResultDto, name?: string, dcaConfig?: string`
+  - 用例：`saveBacktestHistory`
+- `backtest:history-delete`
+  - 入参：`id: string`
+  - 用例：`deleteBacktestHistory`
+
 ## 6. 渲染层运行时选择
 
 当前运行时选择入口：
@@ -459,3 +505,4 @@ sequenceDiagram
 2. 错误码 / 用户可见错误信息清单
 3. 数据源适配层接口文档
 4. 显式 SQLite 依赖切换决策文档
+5. 回测历史存储结构文档

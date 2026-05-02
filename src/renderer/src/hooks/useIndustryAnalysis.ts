@@ -42,3 +42,32 @@ export function useIndustryAnalysis() {
 
   return { data, distribution, loading, error }
 }
+
+export function useIndustryBenchmark(industryName: string | undefined) {
+  const [benchmark, setBenchmark] = useState<{
+    avgDividendYield: number
+    avgPeRatio: number
+    avgRoe: number
+    stockCount: number
+  } | null>(null)
+
+  useEffect(() => {
+    if (!industryName) {
+      setBenchmark(null)
+      return
+    }
+
+    let disposed = false
+    const api = getIndustryDesktopApi()
+
+    api.getBenchmark(industryName).then((result) => {
+      if (!disposed) setBenchmark(result)
+    }).catch(() => {
+      if (!disposed) setBenchmark(null)
+    })
+
+    return () => { disposed = true }
+  }, [industryName])
+
+  return benchmark
+}

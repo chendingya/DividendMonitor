@@ -154,27 +154,33 @@ DividendMonitor/
 - `dbService`：管理 SQLite 初始化、最小 schema 和查询
 - `settingsService`：管理本地配置
 - `stockDataService`：统一股票、财务、分红数据查询入口
-- `calculationService`：统一股息率、估算值等核心计算逻辑
+- `calculationService`：统一股息率、估算值、回测等核心计算逻辑
+- `industryService`：行业分析、分布统计、行业基准对比
 - `authService`：Supabase 认证（登录、注册、登出、获取 session、修改密码）
 - `dataSyncService`：本地与云端数据同步（推送/拉取/双向合并）
+- `priceCacheService`：价格缓存管理（在线模式逐条推送至 Supabase，离线模式仅本地 SQLite）
 - `logService`：错误与运行日志
 
 ### 7.2 渲染进程模块
 
-- `dashboard`：首页与总览
+- `dashboard`：首页与总览（持仓汇总、风险指标、相关性矩阵、行业分布）
 - `stock-search`：股票搜索和加入自选
 - `watchlist`：自选股管理
-- `stock-detail`：单只股票详情与股息分析
-- `comparison`：多股票对比
+- `stock-detail`：单只股票详情与股息分析（含行业基准 PE/ROE 对比）
+- `comparison`：多股票对比（含行业列）
+- `industry-analysis`：行业分析（行业分布饼图、行业汇总表）
+- `backtest`：回测（单股/多股对比、最大回撤、结果保存）
+- `backtest-history`：回测历史（查看/删除已保存结果）
 - `login`：登录与注册（注册需确认密码）
 - `user-center`：用户中心（修改密码、数据同步、退出登录）
+- `settings`：设置页（默认年份范围、排序指标、回测参数）
 - `runtime-adapter`：统一选择 Electron bridge 或浏览器 fallback
 
 当前实现补充：
 
-1. 当前 renderer 已落地页面为：首页、个股详情页、自选页、对比页、回测页
-2. `yield-map` 与 `settings` 仍属于预留能力，当前仓库未落地对应页面
-3. 运行时适配已经落地在 `desktopApi.ts` 与 `browserRuntimeApi.ts`
+1. 当前 renderer 已落地页面为：首页、个股详情页、自选页、对比页、回测页、回测历史页、行业分析页、设置页、用户中心页
+2. `yield-map` 仍属于预留能力
+3. 运行时适配已经落地在 `desktopApi.ts`、`browserRuntimeApi.ts` 与 `browserHttpRuntimeApi.ts`
 
 ### 7.3 数据适配模块
 
@@ -365,6 +371,10 @@ type BacktestResult = {
   finalMarketValue: number;
   totalReturn: number;
   annualizedReturn: number;
+  maxDrawdown: number;
+  totalFees: number;
+  benchmarkReturn?: number;
+  benchmarkAnnualizedReturn?: number;
 };
 ```
 
@@ -603,10 +613,31 @@ AnnualizedReturn = (finalMarketValue / initialCost) ^ (365 / holdingDays) - 1
 
 功能：
 
-- 选择买入日期
-- 展示复投规则说明
-- 展示回测结果卡片
+- 选择买入日期、初始资金、费率参数
+- 可选基准指数对比
+- 可选定投配置（频率/金额）
+- 展示最大回撤与回测结果卡片
 - 展示分红与复投流水
+- 支持多股对比回测（URL `symbols` 参数逗号分隔）
+- 保存回测结果到历史记录
+- 跳转回测历史页
+
+### 11.8 回测历史页
+
+功能：
+
+- 展示已保存回测记录列表（名称/标的/买入日期/收益率/最大回撤/手续费/创建时间）
+- 支持查看回测详情（跳转至回测页回放）
+- 支持删除记录
+
+### 11.9 行业分析页
+
+功能：
+
+- 持仓行业分布饼图
+- 行业汇总指标表（股票数量/平均股息率/平均PE/平均ROE）
+- 支持行业详情展开（行业个股明细表）
+- 行业基准对比（行业均值 PE/ROE vs 个股票）
 
 ## 12. IPC 设计
 
@@ -634,17 +665,18 @@ window.dividendMonitor = {
 };
 ```
 
-### 12.2 IPC 事件建议
+### 12.2 IPC 事件清单
 
-- `stock:search`
-- `stock:get-detail`
-- `stock:compare`
-- `watchlist:list`
-- `watchlist:add`
-- `watchlist:remove`
-- `calculation:historical-yield`
-- `calculation:estimate-future-yield`
-- `calculation:run-dividend-reinvestment-backtest`
+- `asset:search` / `asset:get-detail` / `asset:compare`
+- `stock:search` / `stock:get-detail` / `stock:compare`（兼容层）
+- `watchlist:list` / `watchlist:add` / `watchlist:remove`
+- `calculation:historical-yield` / `calculation:estimate-future-yield` / `calculation:run-dividend-reinvestment-backtest`
+- `calculation:historical-yield-for-asset` / `calculation:estimate-future-yield-for-asset` / `calculation:run-backtest-for-asset`
+- `backtest:history-list` / `backtest:history-save` / `backtest:history-delete`
+- `industry:analysis` / `industry:distribution` / `industry:benchmark`
+- `portfolio:list` / `portfolio:upsert` / `portfolio:remove` / `portfolio:getRiskMetrics`
+- `auth:login` / `auth:register` / `auth:logout` / `auth:getSession` / `auth:update-password`
+- `sync:push` / `sync:pull` / `sync:bidirectional` / `sync:get-status`
 
 ### 12.3 当前运行时补充说明
 
@@ -781,7 +813,7 @@ window.dividendMonitor = {
 - 数据适配器转换
 - 回测流水重放
 
-## 23. 当前实现对齐状态（2026-04-30）
+## 23. 当前实现对齐状态（2026-05-01）
 
 1. Electron + React + preload + IPC 主链路已可运行
 2. 多资产架构已落地：`AssetProviderRegistry` + `StockAssetProvider` / `EtfAssetProvider` / `FundAssetProvider`
@@ -793,16 +825,21 @@ window.dividendMonitor = {
 8. ETF/基金详情、历史分配收益率、未来分配率估算已实现
 9. 基金数据源使用 `fqt=0`（未复权）K 线，与股票端未复权价格口径一致
 10. 场外基金优先使用单位净值作为价格基准，避免累计净值干扰
-11. ROE 指标已实现：从东方财富 push2 API `f173` 字段提取，展示在 `StockDetailPage`（估值卡片区）和 `ComparisonTable`（对比列）
+11. ROE 指标已实现：从东方财富 push2 API `f173` 字段提取，展示在 `StockDetailPage`（估值卡片区 + 行业基准对比）和 `ComparisonTable`（对比列）
 12. 年化波动率与夏普比率已实现：`riskMetricsService.ts` 计算，展示在详情页和对比表
 13. SQLite 资产数据缓存层已实现：`AssetSnapshotRepository` + 启动同步 `AssetCacheSyncService`
 14. 组合风险领域服务已实现：`portfolioRiskService.ts` 计算组合波动率、夏普比率、最大回撤、相关性矩阵
-15. Dashboard 已重构：852 行拆分为 `usePortfolio` 钩子 + 5 个子组件 + `CorrelationMatrix` 热力图
-16. IPC 通道新增：`portfolio:getRiskMetrics`，HTTP 路由新增 `POST /api/portfolio/risk-metrics`
+15. Dashboard 已重构：852 行拆分为 `usePortfolio` 钩子 + 5 个子组件 + `CorrelationMatrix` 热力图 + `IndustryDistributionPie` 饼图
+16. IPC 通道新增：`portfolio:getRiskMetrics`、`industry:analysis/distribution/benchmark`、`backtest:history-list/save/delete`
 17. 在线版已落地：Supabase 认证（`authService`）+ 数据同步（`dataSyncService`）+ 用户中心
 18. 注册流程增加确认密码校验
 19. 用户中心新增修改密码功能（IPC: `auth:update-password`，HTTP: `POST /api/auth/update-password`）
 20. 数据同步策略：推送 = 覆盖云端、拉取 = 覆盖本地、双向 = 按 key 合并取并集
+21. 回测增强已实现：最大回撤指标（域服务跟踪峰谷跌幅）、多股对比回测（`BacktestMultiCompare` 组件）、回测历史（保存/查看/删除）
+22. 行业分析已实现：`IndustryDistributionPie` 共享饼图组件、行业基准对比（`getIndustryBenchmark`）、Dashboard 行业分布卡片
+23. 设置页增强：默认年份范围选择器、回测参数默认值同步到买入日期
+24. 价格缓存同步简化：在线模式通过 `savePriceHistory` 逐条推送至 Supabase，离线累积数据在下次缓存过期刷新时自动同步
+25. 对比表新增行业列、最大回撤列；回测 NavChart 不再依赖基准数据即可渲染
 
 ### 20.3 E2E 测试
 

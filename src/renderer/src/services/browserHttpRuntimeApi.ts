@@ -89,6 +89,9 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
     },
     getDistribution() {
       return requestJson('/api/industry/distribution')
+    },
+    getBenchmark(industryName: string) {
+      return postJson('/api/industry/benchmark', { industryName })
     }
   },
   settings: {
@@ -195,6 +198,17 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
   security: {
     getLocalNonce() {
       return window.dividendMonitor.security.getLocalNonce()
+    }
+  },
+  backtest: {
+    historyList() {
+      return requestJson('/api/backtest/history')
+    },
+    historySave(result: BacktestResultDto, name?: string, dcaConfig?: string) {
+      return postJson('/api/backtest/history', { result, name, dcaConfig })
+    },
+    historyDelete(id: string) {
+      return requestJson('/api/backtest/history', { method: 'DELETE', body: { id } })
     }
   }
 }

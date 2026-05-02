@@ -8,11 +8,13 @@
 2. `SDD.md`：系统设计总览、技术选型和运行时结构
 3. `ARCHITECTURE.md`：代码分层、目录职责、依赖方向和当前实现边界
 4. `MULTI-ASSET-ARCHITECTURE.md`：股票扩展到 ETF/基金的多资产架构设计与实施计划
-5. `ONLINE-ARCHITECTURE.md`：在线版架构设计 — Supabase 认证、云端数据库、离线/在线切换
-6. `IPC-CONTRACTS.md`：preload、IPC 和 renderer runtime 接口
-7. `PACKAGING-AND-DEPLOYMENT.md`：Windows exe 打包与网页部署现状、步骤和缺口
-8. `MANUAL-VERIFICATION-GUIDE.md`：手动验证路径
-9. `UI-UX-DESIGN-PRINCIPLES.md`：页面视觉与交互风格
+5. `DATA-SOURCE-GATEWAY-ARCHITECTURE.md`：统一第三方数据源、URL、降级与保护机制的架构设计
+6. `DATA-SOURCE-GATEWAY-IMPLEMENTATION-RFC.md`：统一数据源网关的实施 RFC、迁移步骤、验收标准与回滚策略
+7. `ONLINE-ARCHITECTURE.md`：在线版架构设计 — Supabase 认证、云端数据库、离线/在线切换
+8. `IPC-CONTRACTS.md`：preload、IPC 和 renderer runtime 接口
+9. `PACKAGING-AND-DEPLOYMENT.md`：Windows exe 打包与网页部署现状、步骤和缺口
+10. `MANUAL-VERIFICATION-GUIDE.md`：手动验证路径
+11. `UI-UX-DESIGN-PRINCIPLES.md`：页面视觉与交互风格
 
 ## 2. 当前有效文档
 
@@ -26,6 +28,8 @@
 - `SDD.md`
 - `ARCHITECTURE.md`
 - `MULTI-ASSET-ARCHITECTURE.md`
+- `DATA-SOURCE-GATEWAY-ARCHITECTURE.md`
+- `DATA-SOURCE-GATEWAY-IMPLEMENTATION-RFC.md`
 - `ONLINE-ARCHITECTURE.md`
 - `IPC-CONTRACTS.md`
 - `PACKAGING-AND-DEPLOYMENT.md`

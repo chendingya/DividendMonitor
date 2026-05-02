@@ -269,6 +269,7 @@ export type AssetComparisonRowDto = {
   code: string
   symbol?: string
   name: string
+  industry?: string
   latestPrice: number
   marketCap?: number
   peRatio?: number
@@ -405,6 +406,7 @@ export type BacktestResultDto = {
   totalReturn: number
   annualizedReturn: number
   totalFees: number
+  maxDrawdown: number
   benchmarkReturn?: number
   benchmarkAnnualizedReturn?: number
   benchmarkSymbol?: string
@@ -577,6 +579,12 @@ export interface DividendMonitorApi {
   industry: {
     getAnalysis(industryName?: string, assetKeys?: string[]): Promise<IndustryAnalysisDto[]>
     getDistribution(): Promise<IndustryDistributionItemDto[]>
+    getBenchmark(industryName: string): Promise<IndustrySummaryDto | null>
+  }
+  backtest: {
+    historyList(): Promise<Array<{ id: string; name: string; assetKey: string; buyDate: string; dcaConfig: string | null; result: BacktestResultDto; createdAt: string }>>
+    historySave(result: BacktestResultDto, name?: string, dcaConfig?: string): Promise<{ id: string; name: string; assetKey: string; buyDate: string; dcaConfig: string | null; result: BacktestResultDto; createdAt: string }>
+    historyDelete(id: string): Promise<boolean>
   }
   security: {
     getLocalNonce(): Promise<string>

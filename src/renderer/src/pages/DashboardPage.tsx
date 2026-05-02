@@ -15,6 +15,8 @@ import { DashboardTools } from '@renderer/components/dashboard/DashboardTools'
 import { usePortfolio, type PortfolioRow } from '@renderer/hooks/usePortfolio'
 import { usePortfolioRiskMetrics } from '@renderer/hooks/usePortfolioRiskMetrics'
 import { CorrelationMatrix } from '@renderer/components/dashboard/CorrelationMatrix'
+import { IndustryDistributionPie } from '@renderer/components/industry/IndustryDistributionPie'
+import { useIndustryAnalysis } from '@renderer/hooks/useIndustryAnalysis'
 import { assetApi } from '@renderer/services/assetApi'
 import {
   buildAssetDetailPath,
@@ -50,6 +52,7 @@ export function DashboardPage() {
     reload
   } = usePortfolio()
   const { data: riskMetrics } = usePortfolioRiskMetrics(rows)
+  const { distribution } = useIndustryAnalysis()
 
   const [searchKeyword, setSearchKeyword] = useState('')
   const [editorOpen, setEditorOpen] = useState(false)
@@ -427,6 +430,17 @@ export function DashboardPage() {
         data={riskMetrics?.correlationMatrix}
         dateRange={riskMetrics?.commonDateRange}
       />
+
+      {distribution && distribution.length > 0 && (
+        <div className="page-section">
+          <div className="ledger-section-head">
+            <h2>持仓行业分布</h2>
+          </div>
+          <div className="ledger-toolbar-card">
+            <IndustryDistributionPie distribution={distribution} />
+          </div>
+        </div>
+      )}
 
       <DashboardTools
         recentItems={recentItems}

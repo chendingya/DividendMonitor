@@ -869,23 +869,23 @@ flowchart LR
 3. `docs/DB-DDL.sql`
 4. `src` 目录脚手架初始化
 
-## 18. 当前实现状态（2026-04-30）
+## 18. 当前实现状态（2026-05-01）
 
 1. Main 侧已落地最小数据库设施与 `watchlistRepository`
 2. Main 侧已落地多资产路由：`AssetProviderRegistry` + Stock / ETF / Fund 三个 Provider
-3. Renderer 侧已落地 `desktopApi` 运行时选择器与 `browserRuntimeApi`
-4. 架构目标中的"统一 renderer service 接口、多运行时实现"已开始落地
+3. Renderer 侧已落地 `desktopApi` 运行时选择器与 `browserRuntimeApi` / `browserHttpRuntimeApi`
+4. 架构目标中的"统一 renderer service 接口、多运行时实现"已落地
 5. 前端能力驱动渲染：`StockDetailPage` 通过 `data.capabilities` 控制模块显隐
 6. ETF/基金完整链路已通：搜索 → 详情 → 历史分配收益率 → 未来分配率估算
 7. `FutureYieldEstimateCard` 区分股票（财务驱动）和基金（分配记录驱动）的估算展示
 8. SQLite 资产数据缓存层已落地：`AssetSnapshotRepository` + `AssetCacheSyncService` 启动同步
-9. 领域服务已扩展：`riskMetricsService`（波动率/夏普）、`valuationService`（PE/PB 分位）、`portfolioRiskService`（组合风险/相关性矩阵）
-10. Dashboard 已重构：`usePortfolio` 钩子 + 5 个子组件（Hero / MetricCards / Table / Opportunities / Tools）+ `CorrelationMatrix` 热力图
-11. ROE 指标已落地：从东方财富 push2 API `f173` 提取，展示在详情页估值区和对比表
-12. IPC 通道新增 `portfolio:getRiskMetrics`，HTTP 路由新增 `POST /api/portfolio/risk-metrics`
+9. 领域服务已扩展：`riskMetricsService`（波动率/夏普）、`valuationService`（PE/PB 分位）、`portfolioRiskService`（组合风险/相关性矩阵）、`dividendReinvestmentBacktestService`（最大回撤）
+10. Dashboard 已重构：`usePortfolio` 钩子 + 5 个子组件 + `CorrelationMatrix` 热力图 + `IndustryDistributionPie` 行业分布
+11. ROE 指标已落地：从东方财富 push2 API `f173` 提取，展示在详情页估值区（含行业基准对比）和对比表
+12. IPC 通道新增 `portfolio:getRiskMetrics`、`industry:analysis/distribution/benchmark`、`backtest:history-list/save/delete`
 13. 在线版已落地：`authService`（Supabase 认证）+ `dataSyncService`（数据同步）+ `UserCenterPage`
 14. 认证链路完整：登录/注册/登出/修改密码/状态监听，IPC + HTTP 双通道
-15. 注册流程增加确认密码校验
-16. 用户中心新增修改密码功能（IPC: `auth:update-password`）
-17. 数据同步三种策略：推送（覆盖云端）、拉取（覆盖本地）、双向（按 key 合并）
-18. 新增 IPC 通道：`auth:login/register/logout/getSession/update-password`、`sync:push/pull/bidirectional/get-status`
+15. 数据同步三种策略：推送（覆盖云端）、拉取（覆盖本地）、双向（按 key 合并）
+16. 回测增强：最大回撤指标、多股对比回测（`BacktestMultiCompare`）、回测历史保存/查看/删除
+17. 行业分析：行业分布饼图（可复用组件，Dashboard 和行业分析页共用）、行业基准对比（`getIndustryBenchmark`）
+18. 价格缓存同步：在线模式通过 `savePriceHistory` 逐条推送至 Supabase，离线模式仅本地 SQLite

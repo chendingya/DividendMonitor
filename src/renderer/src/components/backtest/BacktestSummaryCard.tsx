@@ -48,6 +48,15 @@ function MetricCardGlyph({ kind }: { kind: string }) {
       </svg>
     )
   }
+  if (kind === 'drawdown') {
+    return (
+      <svg className="ledger-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 20h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M6 17l3-5 3 3 5-8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="17" cy="7" r="1.5" fill="currentColor" />
+      </svg>
+    )
+  }
   return (
     <svg className="ledger-icon-svg" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M4 18h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -59,7 +68,7 @@ function MetricCardGlyph({ kind }: { kind: string }) {
 export function BacktestSummaryCard({ result }: { result: BacktestResultDto }) {
   return (
     <div className="page-section">
-      <div className="ledger-metric-grid" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
+      <div className="ledger-metric-grid" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}>
         <div className="ledger-metric-panel is-primary">
           <div className="ledger-metric-top">
             <div className="ledger-metric-icon">
@@ -120,6 +129,19 @@ export function BacktestSummaryCard({ result }: { result: BacktestResultDto }) {
           <div className="ledger-metric-value">{currency.format(result.totalFees)}</div>
           <div className="ledger-metric-hint">
             期末市值 {currency.format(result.finalMarketValue)}
+          </div>
+        </div>
+
+        <div className="ledger-metric-panel">
+          <div className="ledger-metric-top">
+            <div className="ledger-metric-icon">
+              <MetricCardGlyph kind="drawdown" />
+            </div>
+          </div>
+          <div className="ledger-metric-label">最大回撤</div>
+          <div className="ledger-metric-value" style={{ color: '#e04352' }}>{percent.format(result.maxDrawdown)}</div>
+          <div className="ledger-metric-hint">
+            持仓市值从峰值最大回落
           </div>
         </div>
       </div>
