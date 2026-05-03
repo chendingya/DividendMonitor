@@ -5,6 +5,8 @@ import { AppCard } from '@renderer/components/app/AppCard'
 import { AssetAvatar } from '@renderer/components/app/AssetAvatar'
 import { PageStateBlock } from '@renderer/components/app/PageStateBlock'
 import { FutureYieldEstimateCard } from '@renderer/components/stock-detail/FutureYieldEstimateCard'
+import { IndexValuationCard } from '@renderer/components/stock-detail/IndexValuationCard'
+import { IndexValuationTrendChart } from '@renderer/components/stock-detail/IndexValuationTrendChart'
 import { ValuationTrendChart } from '@renderer/components/stock-detail/ValuationTrendChart'
 import { YearlyDividendTrendChart } from '@renderer/components/stock-detail/YearlyDividendTrendChart'
 import { DEFAULT_STOCK_SYMBOL } from '@renderer/defaults'
@@ -146,6 +148,7 @@ export function StockDetailPage() {
   const displayName = data.name?.trim() || displayCode
   const caps = data.capabilities
   const hasValuation = caps.hasValuationAnalysis && (data.peRatio != null || data.pbRatio != null || data.valuation != null)
+  const hasIndexValuation = data.modules.indexValuation != null
   const hasFundProfile =
     !caps.hasValuationAnalysis &&
     Boolean(data.category || data.manager || data.trackingIndex || data.benchmark || data.latestNav != null || data.fundScale != null)
@@ -375,6 +378,15 @@ export function StockDetailPage() {
         </AppCard>
       ) : null}
 
+      {hasIndexValuation ? (
+        <div style={{ marginTop: 18 }}>
+          <IndexValuationCard
+            indexValuation={data.modules.indexValuation!}
+            valuationWindow={valuationWindow}
+          />
+        </div>
+      ) : null}
+
       <Row gutter={[20, 20]}>
         <Col xs={24} xl={16}>
           <AppCard
@@ -422,6 +434,13 @@ export function StockDetailPage() {
       <YearlyDividendTrendChart items={data.yearlyYields} />
 
       {hasValuation ? <ValuationTrendChart detail={data} valuationWindow={valuationWindow} /> : null}
+
+      {hasIndexValuation && data.modules.indexValuation!.hasHistory ? (
+        <IndexValuationTrendChart
+          indexValuation={data.modules.indexValuation!}
+          valuationWindow={valuationWindow}
+        />
+      ) : null}
 
       <AppCard title="现金分配历史（最近在上）">
         <Table

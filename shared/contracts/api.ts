@@ -212,6 +212,15 @@ export type ValuationSnapshotDto = {
   pb?: ValuationMetricDto
 }
 
+export type IndexValuationDto = {
+  indexCode: string
+  indexName: string
+  source: 'eastmoney' | 'danjuan'
+  pe?: ValuationMetricDto
+  pb?: ValuationMetricDto
+  hasHistory: boolean
+}
+
 export type DividendEventDto = {
   year: number
   fiscalYear?: number
@@ -326,6 +335,7 @@ export type AssetDetailModulesDto = {
   equity?: EquityAssetModuleDto
   fund?: FundAssetModuleDto
   risk?: RiskMetricsDto
+  indexValuation?: IndexValuationDto
 }
 
 export type AssetDetailDto = {
