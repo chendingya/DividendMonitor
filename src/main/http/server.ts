@@ -56,12 +56,14 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
   const pathname = url.pathname
   const method = request.method ?? 'GET'
 
-  // Restrict CORS to same-origin only.
-  // /auth/callback is a top-level browser navigation (redirect from email link),
-  // not a cross-origin fetch — CORS headers do not apply to navigations.
-  // /api/auth/confirm is called by the same-origin HTML page served by /auth/callback,
-  // so it is also same-origin and needs no CORS relaxation.
-  response.setHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:3210')
+  // Allow same-origin and local dev server origins.
+  const origin = request.headers.origin
+  const allowedOrigins = ['http://127.0.0.1:3210', 'http://localhost:3210']
+  if (origin && (allowedOrigins.includes(origin) || /^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin))) {
+    response.setHeader('Access-Control-Allow-Origin', origin)
+  } else {
+    response.setHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:3210')
+  }
   response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Local-Nonce')
 

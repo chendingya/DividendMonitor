@@ -7,6 +7,7 @@ import type {
   ComparisonRowDto,
   FutureYieldResponseDto,
   HistoricalYieldResponseDto,
+  IndexValuationDto,
   WatchlistEntryDto,
   StockDetailDto,
   StockSearchItemDto
@@ -17,6 +18,7 @@ import { estimateFutureYield, estimateFundFutureYield } from '@main/domain/servi
 import { calculateRiskMetrics } from '@main/domain/services/riskMetricsService'
 import { buildValuationWindows } from '@main/domain/services/valuationService'
 import type { AssetSearchSource, FundAssetDetailSource, StockAssetDetailSource } from '@main/repositories/assetProviderRegistry'
+import type { IndexValuationSource } from '@main/repositories/indexValuationRepository'
 
 const FUND_YIELD_BASIS =
   'Event-level yield accumulation by distribution year, using per-share cash distribution divided by the close on or before the record date'
@@ -171,13 +173,29 @@ export function toStockDetailDto(source: StockAssetDetailSource): StockDetailDto
   }
 }
 
-export function toAssetDetailDto(source: StockAssetDetailSource | FundAssetDetailSource): AssetDetailDto {
+function toIndexValuationDto(source?: IndexValuationSource): IndexValuationDto | undefined {
+  if (!source) return undefined
+
+  return {
+    indexCode: source.indexCode,
+    indexName: source.indexName,
+    source: source.source,
+    pe: toValuationMetricDto(source.pe),
+    pb: toValuationMetricDto(source.pb),
+    hasHistory: source.hasHistory
+  }
+}
+
+export function toAssetDetailDto(source: StockAssetDetailSource | FundAssetDetailSource, indexValuation?: IndexValuationSource): AssetDetailDto {
   if (source.kind === 'STOCK') {
     return toStockDetailDto(source)
   }
 
   const yearlyYields = buildHistoricalYields(source.dividendEvents)
-  const caps = deriveCapabilities(source.kind)
+  const indexValuationDto = indexValuation ? toIndexValuationDto(indexValuation) : undefined
+  const caps = indexValuationDto
+    ? { ...deriveCapabilities(source.kind), hasValuationAnalysis: true }
+    : deriveCapabilities(source.kind)
   const assetKey = buildAssetKey(source.identifier.assetType, source.identifier.market, source.identifier.code)
 
   const estimates = source.dividendEvents.length > 0
@@ -232,7 +250,8 @@ export function toAssetDetailDto(source: StockAssetDetailSource | FundAssetDetai
         latestNav: source.latestNav,
         fundScale: source.fundScale
       },
-      risk: riskMetrics
+      risk: riskMetrics,
+      indexValuation: indexValuationDto
     }
   }
 }
@@ -273,7 +292,7 @@ export function toStockComparisonRowDto(source: StockAssetDetailSource): Compari
   }
 }
 
-export function toAssetComparisonRowDto(source: StockAssetDetailSource | FundAssetDetailSource): AssetComparisonRowDto {
+export function toAssetComparisonRowDto(source: StockAssetDetailSource | FundAssetDetailSource, indexValuation?: IndexValuationSource): AssetComparisonRowDto {
   if (source.kind === 'STOCK') {
     return toStockComparisonRowDto(source)
   }
@@ -296,6 +315,8 @@ export function toAssetComparisonRowDto(source: StockAssetDetailSource | FundAss
     name: source.name,
     latestPrice: source.latestPrice,
     marketCap: source.fundScale,
+    peRatio: indexValuation?.pe?.currentValue,
+    pbRatio: indexValuation?.pb?.currentValue,
     averageYield: yearlyYields.length > 0 ? averageYield : undefined,
     estimatedFutureYield: estimates?.baseline.isAvailable
       ? estimates.baseline.estimatedFutureYield
