@@ -76,6 +76,15 @@ const POLICY_MAP: Record<Capability, RequestPolicy> = {
     useRateLimit: false,
     cacheTtlMs: 10 * 60_000,
     staleTtlMs: 60 * 60_000
+  },
+  'fx.quote': {
+    retryCount: 1,
+    degradeMode: 'fallback',
+    useInFlightDedupe: true,
+    useCircuitBreaker: false,
+    useRateLimit: false,
+    cacheTtlMs: 5 * 60_000,
+    staleTtlMs: 60 * 60_000
   }
 }
 

@@ -1,5 +1,5 @@
 import { getDatabase } from '@main/infrastructure/db/sqlite'
-import type { SettingsEntity, RefreshStrategy, SortMetric } from '@main/domain/entities/Settings'
+import type { SettingsEntity, RefreshStrategy, SortMetric, PreciousMetalUnit, PreciousMetalCurrency } from '@main/domain/entities/Settings'
 import { DEFAULT_SETTINGS } from '@main/domain/entities/Settings'
 
 function serializeValue(value: unknown): string {
@@ -55,7 +55,9 @@ export function getAllSettings(): SettingsEntity {
       : DEFAULT_SETTINGS.backtestStampDutyRate,
     backtestMinCommission: stored['backtestMinCommission'] !== undefined
       ? Number(stored['backtestMinCommission'])
-      : DEFAULT_SETTINGS.backtestMinCommission
+      : DEFAULT_SETTINGS.backtestMinCommission,
+    preciousMetalUnit: (stored['preciousMetalUnit'] as PreciousMetalUnit) ?? DEFAULT_SETTINGS.preciousMetalUnit,
+    preciousMetalCurrency: (stored['preciousMetalCurrency'] as PreciousMetalCurrency) ?? DEFAULT_SETTINGS.preciousMetalCurrency
   }
 }
 

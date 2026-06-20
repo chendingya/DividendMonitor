@@ -1,6 +1,6 @@
-export type AssetType = 'STOCK' | 'ETF' | 'FUND'
+export type AssetType = 'STOCK' | 'ETF' | 'FUND' | 'GOLD' | 'SILVER'
 
-export type MarketCode = 'A_SHARE'
+export type MarketCode = 'A_SHARE' | 'SGE'
 
 export type AssetKey = string
 
@@ -106,11 +106,11 @@ export function parseAssetKey(assetKey: string): AssetIdentifierDto | null {
     return null
   }
 
-  if (!['STOCK', 'ETF', 'FUND'].includes(assetType)) {
+  if (!['STOCK', 'ETF', 'FUND', 'GOLD', 'SILVER'].includes(assetType)) {
     return null
   }
 
-  if (market !== 'A_SHARE') {
+  if (!['A_SHARE', 'SGE'].includes(market)) {
     return null
   }
 
@@ -324,6 +324,17 @@ export type FundAssetModuleDto = {
   fundScale?: number
 }
 
+export type PreciousMetalAssetModuleDto = {
+  metal: 'GOLD' | 'SILVER'
+  contractCode: string
+  purity?: string
+  quoteUnit: 'gram' | 'ounce'
+  quoteCurrency: 'CNY' | 'USD'
+  exchangeName?: string
+  sgePriceCnyPerGram: number
+  internationalPriceUsdPerOz?: number
+}
+
 export type RiskMetricsDto = {
   annualVolatility: number
   sharpeRatio: number
@@ -334,6 +345,7 @@ export type AssetDetailModulesDto = {
   valuation?: ValuationSnapshotDto
   equity?: EquityAssetModuleDto
   fund?: FundAssetModuleDto
+  preciousMetal?: PreciousMetalAssetModuleDto
   risk?: RiskMetricsDto
   indexValuation?: IndexValuationDto
 }
@@ -500,6 +512,8 @@ export type SettingsDto = {
   backtestFeeRate: number
   backtestStampDutyRate: number
   backtestMinCommission: number
+  preciousMetalUnit: 'gram' | 'ounce'
+  preciousMetalCurrency: 'CNY' | 'USD'
 }
 
 export type IndustrySummaryDto = {
@@ -535,6 +549,26 @@ export type IndustryDistributionItemDto = {
   stockCount: number
 }
 
+export type WatchlistGroupDto = {
+  id: string
+  name: string
+  color?: string
+  sortOrder: number
+  assetCount: number
+}
+
+export type WatchlistGroupUpsertDto = {
+  id?: string
+  name: string
+  color?: string
+  sortOrder?: number
+}
+
+export type WatchlistGroupAssetActionDto = {
+  groupId: string
+  assetKey: AssetKey
+}
+
 export interface DividendMonitorApi {
   auth: {
     login(email: string, password: string): Promise<AuthSessionDto>
@@ -564,6 +598,14 @@ export interface DividendMonitorApi {
     remove(symbol: string): Promise<void>
     addAsset(request: WatchlistAddRequestDto): Promise<void>
     removeAsset(assetKey: AssetKey): Promise<void>
+    listGroups(): Promise<WatchlistGroupDto[]>
+    createGroup(request: WatchlistGroupUpsertDto): Promise<WatchlistGroupDto>
+    updateGroup(id: string, request: WatchlistGroupUpsertDto): Promise<WatchlistGroupDto>
+    deleteGroup(id: string): Promise<void>
+    addToGroup(request: WatchlistGroupAssetActionDto): Promise<void>
+    removeFromGroup(request: WatchlistGroupAssetActionDto): Promise<void>
+    listGroupAssets(groupId: string): Promise<WatchlistEntryDto[]>
+    getAssetGroupIds(assetKey: AssetKey): Promise<string[]>
   }
   calculation: {
     getHistoricalYield(symbol: string): Promise<HistoricalYieldResponseDto>
@@ -598,6 +640,9 @@ export interface DividendMonitorApi {
   }
   security: {
     getLocalNonce(): Promise<string>
+  }
+  fx: {
+    getUsdCnyRate(): Promise<number>
   }
 }
 

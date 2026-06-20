@@ -60,7 +60,7 @@ describe('assetCacheConfig', () => {
 
     it('contains only valid asset key formats', () => {
       for (const key of FIXED_POOL_ASSET_KEYS) {
-        expect(key).toMatch(/^(STOCK|ETF|FUND):A_SHARE:\d{6}$/)
+        expect(key).toMatch(/^(STOCK|ETF|FUND):A_SHARE:\d{6}$|^(GOLD|SILVER):SGE:[A-Z0-9]+$/)
       }
     })
 

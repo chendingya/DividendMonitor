@@ -2,6 +2,10 @@ export type RefreshStrategy = 'manual' | 'onLaunch' | 'interval'
 
 export type SortMetric = 'estimatedFutureYield' | 'averageYield' | 'peRatio' | 'roe'
 
+export type PreciousMetalUnit = 'gram' | 'ounce'
+
+export type PreciousMetalCurrency = 'CNY' | 'USD'
+
 export type SettingsEntity = {
   defaultYearRange: [number, number]
   defaultSortMetric: SortMetric
@@ -12,6 +16,8 @@ export type SettingsEntity = {
   backtestFeeRate: number
   backtestStampDutyRate: number
   backtestMinCommission: number
+  preciousMetalUnit: PreciousMetalUnit
+  preciousMetalCurrency: PreciousMetalCurrency
 }
 
 const currentYear = new Date().getFullYear()
@@ -25,5 +31,7 @@ export const DEFAULT_SETTINGS: SettingsEntity = {
   backtestIncludeFees: false,
   backtestFeeRate: 0.0003,
   backtestStampDutyRate: 0.0005,
-  backtestMinCommission: 5
+  backtestMinCommission: 5,
+  preciousMetalUnit: 'gram',
+  preciousMetalCurrency: 'CNY'
 }

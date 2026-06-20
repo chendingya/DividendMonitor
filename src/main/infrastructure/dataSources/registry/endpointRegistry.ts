@@ -7,7 +7,7 @@ import type {
   ProviderKey
 } from '@main/infrastructure/dataSources/types/sourceTypes'
 
-type AssetTypeHint = 'STOCK' | 'ETF' | 'FUND'
+type AssetTypeHint = 'STOCK' | 'ETF' | 'FUND' | 'GOLD' | 'SILVER'
 
 export class EndpointRegistry {
   private readonly endpoints = new Map<string, EndpointDefinition<any, any, any>>()
@@ -45,10 +45,13 @@ export class EndpointRegistry {
   }
 
   private extractAssetTypeFromId(id: string): AssetTypeHint | undefined {
-    // Use regex to match .stock, .fund, .etf at end or followed by another segment
+    // Use regex to match .stock, .fund, .etf, .gold, .silver, .precious at end or followed by another segment
     if (/\.stock(?:\.|$)/.test(id)) return 'STOCK'
     if (/\.fund(?:\.|$)/.test(id)) return 'FUND'
     if (/\.etf(?:\.|$)/.test(id)) return 'FUND'
+    if (/\.gold(?:\.|$)/.test(id)) return 'GOLD'
+    if (/\.silver(?:\.|$)/.test(id)) return 'SILVER'
+    if (/\.precious(?:\.|$)/.test(id)) return 'GOLD'
     return undefined
   }
 }

@@ -51,4 +51,36 @@ describe('asset contracts helpers', () => {
     expect(parseAssetKey('INVALID')).toBeNull()
     expect(() => resolveAssetQuery({ assetKey: 'UNKNOWN:A_SHARE:510300' })).toThrow('Invalid assetKey')
   })
+
+  it('builds and parses precious metal asset keys', () => {
+    const goldKey = buildAssetKey('GOLD', 'SGE', 'AU9999')
+    expect(goldKey).toBe('GOLD:SGE:AU9999')
+    expect(parseAssetKey(goldKey)).toEqual({
+      assetType: 'GOLD',
+      market: 'SGE',
+      code: 'AU9999'
+    })
+
+    const silverKey = buildAssetKey('SILVER', 'SGE', 'AG9999')
+    expect(silverKey).toBe('SILVER:SGE:AG9999')
+    expect(parseAssetKey(silverKey)).toEqual({
+      assetType: 'SILVER',
+      market: 'SGE',
+      code: 'AG9999'
+    })
+  })
+
+  it('creates precious metal queries without stock-only symbol field', () => {
+    expect(createAssetQuery('GOLD', 'AU9999', 'SGE')).toEqual({
+      assetKey: 'GOLD:SGE:AU9999',
+      assetType: 'GOLD',
+      market: 'SGE',
+      code: 'AU9999',
+      symbol: undefined
+    })
+  })
+
+  it('rejects unknown markets for precious metals', () => {
+    expect(parseAssetKey('GOLD:UNKNOWN:AU9999')).toBeNull()
+  })
 })

@@ -3,7 +3,9 @@ import type { AssetType } from '@shared/contracts/api'
 export const ASSET_CACHE_TTL_MS: Record<AssetType, number> = {
   STOCK: 15 * 60 * 1000,
   ETF: 15 * 60 * 1000,
-  FUND: 24 * 60 * 60 * 1000
+  FUND: 24 * 60 * 60 * 1000,
+  GOLD: 5 * 60 * 1000,
+  SILVER: 5 * 60 * 1000
 }
 
 export function getAssetTtlMs(assetType: AssetType): number {
@@ -30,5 +32,7 @@ export const FIXED_POOL_ASSET_KEYS: string[] = [
   'STOCK:A_SHARE:600585',
   'ETF:A_SHARE:510050',
   'ETF:A_SHARE:510300',
-  'ETF:A_SHARE:510500'
+  'ETF:A_SHARE:510500',
+  'GOLD:SGE:AU9999',
+  'SILVER:SGE:AG9999'
 ]
