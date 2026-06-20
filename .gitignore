@@ -11,3 +11,4 @@ coverage/
 *.log
 .env
 .codebuddy/
+supabase/.temp/
