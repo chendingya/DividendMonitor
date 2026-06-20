@@ -1,8 +1,11 @@
-import { Space, Table, Tag, Typography } from 'antd'
+import { Space, Table, Typography } from 'antd'
 import { AppCard } from '@renderer/components/app/AppCard'
 import { AssetAvatar } from '@renderer/components/app/AssetAvatar'
+import { AssetGroupPopover } from '@renderer/components/app/AssetGroupPopover'
+import { LedgerIcon } from '@renderer/components/app/LedgerUi'
 import { PageStateBlock } from '@renderer/components/app/PageStateBlock'
 import type { PortfolioRow } from '@renderer/hooks/usePortfolio'
+import type { WatchlistGroupDto } from '@shared/contracts/api'
 
 const currency = new Intl.NumberFormat('zh-CN', {
   style: 'currency',
@@ -18,12 +21,23 @@ const percent = new Intl.NumberFormat('zh-CN', {
 
 type PortfolioTableProps = {
   rows: PortfolioRow[]
+  groups: WatchlistGroupDto[]
+  getAssetGroupIds: (assetKey: string) => Promise<string[]>
+  onToggleAssetGroup: (assetKey: string, groupId: string, add: boolean) => Promise<void>
   onGoToDetail: (row: PortfolioRow) => void
   onEdit: (row: PortfolioRow) => void
   onRemove: (row: PortfolioRow) => void
 }
 
-export function PortfolioTable({ rows, onGoToDetail, onEdit, onRemove }: PortfolioTableProps) {
+export function PortfolioTable({
+  rows,
+  groups,
+  getAssetGroupIds,
+  onToggleAssetGroup,
+  onGoToDetail,
+  onEdit,
+  onRemove
+}: PortfolioTableProps) {
   return (
     <AppCard title="持仓明细" extra={<Typography.Text type="secondary">{rows.length} 条</Typography.Text>}>
       <p className="ledger-transaction-hint">同一资产可录入多笔买入/卖出交易，系统按净持仓与净成本汇总展示。</p>
@@ -46,10 +60,7 @@ export function PortfolioTable({ rows, onGoToDetail, onEdit, onRemove }: Portfol
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <AssetAvatar name={record.name} assetType={record.assetType ?? 'STOCK'} size={32} />
                   <div>
-                    <Space size={8}>
-                      <Typography.Text strong>{record.name}</Typography.Text>
-                      {record.assetType ? <Tag color="blue">{record.assetType}</Tag> : null}
-                    </Space>
+                    <Typography.Text strong>{record.name}</Typography.Text>
                     <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }}>
                       {record.symbol ?? record.code ?? '无代码资产'}
                     </div>
@@ -96,23 +107,36 @@ export function PortfolioTable({ rows, onGoToDetail, onEdit, onRemove }: Portfol
               title: '操作',
               render: (_, record) => (
                 <Space className="ledger-inline-action-group">
+                  <AssetGroupPopover
+                    assetKey={record.assetKey ?? ''}
+                    groups={groups}
+                    getAssetGroupIds={getAssetGroupIds}
+                    onToggle={(groupId, add) => onToggleAssetGroup(record.assetKey ?? '', groupId, add)}
+                  />
                   <button
                     type="button"
-                    className="ledger-inline-action-btn"
+                    className="ledger-inline-action-btn ledger-icon-only"
                     onClick={() => onGoToDetail(record)}
                     disabled={!record.assetKey && !record.symbol}
+                    title="查看详情"
                   >
-                    详情
-                  </button>
-                  <button type="button" className="ledger-inline-action-btn" onClick={() => onEdit(record)}>
-                    编辑
+                    <LedgerIcon name="detail" />
                   </button>
                   <button
                     type="button"
-                    className="ledger-inline-action-btn is-danger"
-                    onClick={() => onRemove(record)}
+                    className="ledger-inline-action-btn ledger-icon-only"
+                    onClick={() => onEdit(record)}
+                    title="编辑持仓"
                   >
-                    删除
+                    <LedgerIcon name="edit" />
+                  </button>
+                  <button
+                    type="button"
+                    className="ledger-inline-action-btn ledger-icon-only is-danger"
+                    onClick={() => onRemove(record)}
+                    title="删除持仓"
+                  >
+                    <LedgerIcon name="delete" />
                   </button>
                 </Space>
               )

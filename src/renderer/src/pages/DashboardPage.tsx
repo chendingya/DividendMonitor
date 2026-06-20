@@ -32,11 +32,19 @@ import {
   removePortfolioPositionsByAssetInBackend,
   upsertPortfolioPositionInBackend
 } from '@renderer/services/portfolioStore'
+import type { WatchlistGroupDto } from '@shared/contracts/api'
 
 export function DashboardPage() {
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [apiMessage, messageHolder] = message.useMessage()
+  const groups: WatchlistGroupDto[] = []
+  const handleGetAssetGroupIds = async (_assetKey: string): Promise<string[]> => []
+  const handleToggleAssetGroup = async (
+    _assetKey: string,
+    _groupId: string,
+    _add: boolean
+  ): Promise<void> => {}
   const {
     positions,
     rows,
@@ -405,6 +413,9 @@ export function DashboardPage() {
 
       <PortfolioTable
         rows={rows}
+        groups={groups}
+        getAssetGroupIds={handleGetAssetGroupIds}
+        onToggleAssetGroup={handleToggleAssetGroup}
         onGoToDetail={(row) => goToDetail(row)}
         onEdit={openEdit}
         onRemove={onRemoveRow}
