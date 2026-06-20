@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 
-type LedgerIconName = 'yield' | 'wallet' | 'calendar' | 'recent' | 'analysis' | 'allocation'
+type LedgerIconName = 'yield' | 'wallet' | 'calendar' | 'recent' | 'analysis' | 'allocation' | 'detail' | 'delete' | 'select' | 'plus' | 'groups'
 
-function LedgerIcon({ name, className }: { name: LedgerIconName; className?: string }) {
+export function LedgerIcon({ name, className }: { name: LedgerIconName; className?: string }) {
   if (name === 'yield') {
     return (
       <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -45,6 +45,53 @@ function LedgerIcon({ name, className }: { name: LedgerIconName; className?: str
     return (
       <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M5 18V9M12 18V6M19 18v-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (name === 'detail') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M12 5.5C7.6 5.5 3.7 8.3 2 12c1.7 3.7 5.6 6.5 10 6.5s8.3-2.8 10-6.5c-1.7-3.7-5.6-6.5-10-6.5z" stroke="currentColor" strokeWidth="1.8" />
+      </svg>
+    )
+  }
+
+  if (name === 'delete') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 7h16M8 7V5.5A1.5 1.5 0 019.5 4h5A1.5 1.5 0 0116 5.5V7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M6 7l1.5 12.5A1.5 1.5 0 008.9 21h6.2a1.5 1.5 0 001.4-1.5L18 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        <path d="M9 11v5M12 11v5M15 11v5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (name === 'select') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M8 12l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+
+  if (name === 'plus') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M8 12h8M12 8v8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (name === 'groups') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="3" y="3" width="18" height="7" rx="2" stroke="currentColor" strokeWidth="1.8" />
+        <rect x="3" y="14" width="18" height="7" rx="2" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M7 10v4M17 10v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       </svg>
     )
   }

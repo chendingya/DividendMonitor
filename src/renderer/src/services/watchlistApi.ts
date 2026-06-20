@@ -1,22 +1,48 @@
-import type { AssetQueryDto, WatchlistEntryDto } from '@shared/contracts/api'
+import type { AssetQueryDto, WatchlistEntryDto, WatchlistGroupDto, WatchlistGroupUpsertDto, WatchlistGroupAssetActionDto } from '@shared/contracts/api'
 import { buildStockAssetKey, createStockAssetQuery } from '@shared/contracts/api'
 import { getWatchlistDesktopApi } from '@renderer/services/desktopApi'
 
+const api = () => getWatchlistDesktopApi()
+
 export const watchlistApi = {
   async list(): Promise<WatchlistEntryDto[]> {
-    return getWatchlistDesktopApi().list()
+    return api().list()
   },
   add(symbol: string) {
-    return getWatchlistDesktopApi().addAsset(createStockAssetQuery(symbol))
+    return api().addAsset(createStockAssetQuery(symbol))
   },
   remove(symbol: string) {
-    return getWatchlistDesktopApi().removeAsset(buildStockAssetKey(symbol))
+    return api().removeAsset(buildStockAssetKey(symbol))
   },
   addAsset(request: string | AssetQueryDto) {
-    return getWatchlistDesktopApi().addAsset(typeof request === 'string' ? { assetKey: request } : request)
+    return api().addAsset(typeof request === 'string' ? { assetKey: request } : request)
   },
   removeAsset(assetKey: string) {
-    return getWatchlistDesktopApi().removeAsset(assetKey)
+    return api().removeAsset(assetKey)
+  },
+  listGroups(): Promise<WatchlistGroupDto[]> {
+    return api().listGroups()
+  },
+  createGroup(request: WatchlistGroupUpsertDto): Promise<WatchlistGroupDto> {
+    return api().createGroup(request)
+  },
+  updateGroup(id: string, request: WatchlistGroupUpsertDto): Promise<WatchlistGroupDto> {
+    return api().updateGroup(id, request)
+  },
+  deleteGroup(id: string): Promise<void> {
+    return api().deleteGroup(id)
+  },
+  addToGroup(request: WatchlistGroupAssetActionDto): Promise<void> {
+    return api().addToGroup(request)
+  },
+  removeFromGroup(request: WatchlistGroupAssetActionDto): Promise<void> {
+    return api().removeFromGroup(request)
+  },
+  listGroupAssets(groupId: string): Promise<WatchlistEntryDto[]> {
+    return api().listGroupAssets(groupId)
+  },
+  getAssetGroupIds(assetKey: string): Promise<string[]> {
+    return api().getAssetGroupIds(assetKey)
   }
 }
 
