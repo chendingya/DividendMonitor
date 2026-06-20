@@ -1901,6 +1901,16 @@ button.ledger-breadcrumb-item:hover {
   font-size: 13px;
 }
 
+.ledger-portfolio-group-tabs .ledger-group-actions {
+  width: 0;
+  overflow: hidden;
+  transition: width 160ms ease, opacity 160ms ease;
+}
+
+.ledger-portfolio-group-tabs .ledger-group-row:hover .ledger-group-actions {
+  width: 52px;
+}
+
 .ledger-group-add {
   padding-top: 2px;
 }

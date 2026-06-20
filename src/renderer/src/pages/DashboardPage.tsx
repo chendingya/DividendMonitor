@@ -1,4 +1,4 @@
-import { Input, message, Modal } from 'antd'
+import { Input, message, Modal, Popconfirm } from 'antd'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -42,6 +42,8 @@ export function DashboardPage() {
   const {
     groups,
     createGroup,
+    updateGroup,
+    deleteGroup,
     addToGroup,
     removeFromGroup
   } = useWatchlistGroups()
@@ -49,6 +51,8 @@ export function DashboardPage() {
   const [assetKeyToGroupIds, setAssetKeyToGroupIds] = useState<Map<string, string[]>>(new Map())
   const [newGroupName, setNewGroupName] = useState('')
   const [showNewGroupInput, setShowNewGroupInput] = useState(false)
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
+  const [editingGroupName, setEditingGroupName] = useState('')
   const {
     positions,
     rows,
@@ -64,6 +68,11 @@ export function DashboardPage() {
   } = usePortfolio()
   const { data: riskMetrics } = usePortfolioRiskMetrics(rows)
   const { distribution } = useIndustryAnalysis()
+
+  const positionAssetKeySignature = useMemo(
+    () => positions.map((p) => p.assetKey ?? '').filter(Boolean).join(','),
+    [positions]
+  )
 
   useEffect(() => {
     if (positions.length === 0) {
@@ -90,7 +99,7 @@ export function DashboardPage() {
     return () => {
       disposed = true
     }
-  }, [positions])
+  }, [positionAssetKeySignature])
 
   useEffect(() => {
     if (activeGroupId && !groups.some((g) => g.id === activeGroupId)) {
@@ -143,6 +152,35 @@ export function DashboardPage() {
       apiMessage.success('分组创建成功')
     } catch (err) {
       apiMessage.error(err instanceof Error ? err.message : '创建分组失败')
+    }
+  }
+
+  function handleStartEditGroup(groupId: string, currentName: string) {
+    setEditingGroupId(groupId)
+    setEditingGroupName(currentName)
+  }
+
+  async function handleUpdateGroup(id: string) {
+    const name = editingGroupName.trim()
+    if (!name) return
+    try {
+      await updateGroup(id, { name })
+      setEditingGroupId(null)
+      apiMessage.success('分组已重命名')
+    } catch (err) {
+      apiMessage.error(err instanceof Error ? err.message : '重命名失败')
+    }
+  }
+
+  async function handleDeleteGroup(id: string) {
+    try {
+      await deleteGroup(id)
+      if (activeGroupId === id) {
+        setActiveGroupId(null)
+      }
+      apiMessage.success('分组已删除')
+    } catch (err) {
+      apiMessage.error(err instanceof Error ? err.message : '删除失败')
     }
   }
 
@@ -508,27 +546,75 @@ export function DashboardPage() {
           全部
         </button>
         {groups.map((g) => (
-          <button
-            key={g.id}
-            type="button"
-            className={`ledger-inline-action-btn ${activeGroupId === g.id ? 'is-selected' : ''}`}
-            onClick={() => setActiveGroupId(g.id)}
-          >
-            {g.color && (
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: g.color,
-                  marginRight: 6,
-                  verticalAlign: 'middle'
-                }}
+          <div key={g.id} className="ledger-group-row">
+            {editingGroupId === g.id ? (
+              <Input
+                size="small"
+                className="ledger-group-edit-input"
+                placeholder="分组名称"
+                value={editingGroupName}
+                onChange={(e) => setEditingGroupName(e.target.value)}
+                onPressEnter={() => handleUpdateGroup(g.id)}
+                onBlur={() => handleUpdateGroup(g.id)}
+                style={{ width: 120 }}
+                autoFocus
               />
+            ) : (
+              <button
+                type="button"
+                className={`ledger-inline-action-btn ${activeGroupId === g.id ? 'is-selected' : ''}`}
+                onClick={() => setActiveGroupId(g.id)}
+              >
+                {g.color && (
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: g.color,
+                      marginRight: 6,
+                      verticalAlign: 'middle'
+                    }}
+                  />
+                )}
+                {g.name}
+              </button>
             )}
-            {g.name}
-          </button>
+
+            {editingGroupId !== g.id && (
+              <div className="ledger-group-actions">
+                <button
+                  type="button"
+                  className="ledger-group-action-btn"
+                  onClick={() => handleStartEditGroup(g.id, g.name)}
+                  title="重命名"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" width="13" height="13" aria-hidden="true">
+                    <path d="M13 7l4 4M7 17l1-5 4-4 4 4-4 4-5 1z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M20 20H4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                  </svg>
+                </button>
+                <Popconfirm
+                  title="确认删除分组？"
+                  description="分组内的资产不会被删除，仅移除分组本身。"
+                  onConfirm={() => handleDeleteGroup(g.id)}
+                  okText="删除"
+                  cancelText="取消"
+                >
+                  <button
+                    type="button"
+                    className="ledger-group-action-btn is-danger"
+                    title="删除分组"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" width="13" height="13" aria-hidden="true">
+                      <path d="M4 7h16M8 7V5.5A1.5 1.5 0 019.5 4h5A1.5 1.5 0 0116 5.5V7M6 7l1.5 12.5A1.5 1.5 0 008.9 21h6.2a1.5 1.5 0 001.4-1.5L18 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                </Popconfirm>
+              </div>
+            )}
+          </div>
         ))}
         {showNewGroupInput ? (
           <Input
