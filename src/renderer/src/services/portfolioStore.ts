@@ -32,6 +32,20 @@ function normalizeName(name: string) {
 }
 
 function deriveAssetIdentity(position: Pick<PortfolioPosition, 'assetKey' | 'assetType' | 'market' | 'code' | 'symbol'>) {
+  const code = position.code?.trim() ?? ''
+  const assetType = position.assetType
+  const market = position.market
+
+  if (assetType && market && code) {
+    return {
+      assetKey: buildAssetKey(assetType, market, code),
+      assetType,
+      market,
+      code,
+      symbol: assetType === 'STOCK' ? position.symbol?.trim() || code : undefined
+    }
+  }
+
   const parsed = position.assetKey ? parseAssetKey(position.assetKey) : null
   if (parsed) {
     return {
@@ -51,19 +65,6 @@ function deriveAssetIdentity(position: Pick<PortfolioPosition, 'assetKey' | 'ass
       market: 'A_SHARE' as const,
       code: symbol,
       symbol
-    }
-  }
-
-  const code = position.code?.trim() ?? ''
-  const assetType = position.assetType
-  const market = position.market
-  if (assetType && market && code) {
-    return {
-      assetKey: buildAssetKey(assetType, market, code),
-      assetType,
-      market,
-      code,
-      symbol: assetType === 'STOCK' ? code : undefined
     }
   }
 
