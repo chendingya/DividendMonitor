@@ -1,4 +1,5 @@
 import type { AssetKey, WatchlistGroupDto, WatchlistGroupUpsertDto } from '@shared/contracts/api'
+import { parseAssetKey } from '@shared/contracts/api'
 import { getSupabaseClient } from '@main/infrastructure/supabase/supabaseClient'
 import { authService } from '@main/infrastructure/supabase/authService'
 import { notifySyncStatus } from '@main/infrastructure/supabase/syncStatusNotifier'
@@ -20,27 +21,35 @@ export class SupabaseWatchlistGroupRepository implements IWatchlistGroupReposito
 
     try {
       const userId = await this.getUserId()
-      const { data, error } = await supabase
+      const { data: groupsData, error: groupsError } = await supabase
         .from('watchlist_groups')
         .select('id, name, color, sort_order')
         .eq('user_id', userId)
         .order('sort_order', { ascending: true })
         .order('name', { ascending: true })
 
-      if (error) throw error
+      if (groupsError) throw groupsError
 
-      const localGroups = await this.localRepo.listGroups()
+      const { data: countsData, error: countsError } = await supabase
+        .from('watchlist_group_assets')
+        .select('group_id')
+        .eq('user_id', userId)
 
-      return (data ?? []).map((row: Record<string, unknown>) => {
-        const localMatch = localGroups.find((g) => g.id === String(row['id']))
-        return {
-          id: String(row['id']),
-          name: String(row['name']),
-          color: row['color'] ? String(row['color']) : undefined,
-          sortOrder: Number(row['sort_order'] ?? 0),
-          assetCount: localMatch?.assetCount ?? 0
-        }
-      })
+      if (countsError) throw countsError
+
+      const countMap = new Map<string, number>()
+      for (const row of countsData ?? []) {
+        const gid = String(row['group_id'])
+        countMap.set(gid, (countMap.get(gid) ?? 0) + 1)
+      }
+
+      return (groupsData ?? []).map((row: Record<string, unknown>) => ({
+        id: String(row['id']),
+        name: String(row['name']),
+        color: row['color'] ? String(row['color']) : undefined,
+        sortOrder: Number(row['sort_order'] ?? 0),
+        assetCount: countMap.get(String(row['id'])) ?? 0
+      }))
     } catch {
       notifySyncStatus({ status: 'offline-fallback', message: '无法读取云端分组数据，使用本地缓存' })
       return this.localRepo.listGroups()
@@ -150,10 +159,54 @@ export class SupabaseWatchlistGroupRepository implements IWatchlistGroupReposito
   }
 
   async listGroupAssets(groupId: string): Promise<WatchlistAssetRecord[]> {
-    return this.localRepo.listGroupAssets(groupId)
+    const supabase = getSupabaseClient()
+    if (!supabase) return this.localRepo.listGroupAssets(groupId)
+
+    try {
+      const userId = await this.getUserId()
+      const { data, error } = await supabase
+        .from('watchlist_group_assets')
+        .select('asset_key, added_at')
+        .eq('group_id', groupId)
+        .eq('user_id', userId)
+        .order('added_at', { ascending: false })
+
+      if (error) throw error
+
+      return (data ?? []).map((row: Record<string, unknown>) => {
+        const assetKey = String(row['asset_key'])
+        const parsed = parseAssetKey(assetKey)
+        return {
+          assetKey,
+          assetType: (parsed?.assetType ?? 'STOCK') as WatchlistAssetRecord['assetType'],
+          market: (parsed?.market ?? 'A_SHARE') as WatchlistAssetRecord['market'],
+          code: parsed?.code ?? assetKey,
+          name: undefined
+        }
+      })
+    } catch {
+      notifySyncStatus({ status: 'offline-fallback', message: '无法读取云端分组资产，使用本地缓存' })
+      return this.localRepo.listGroupAssets(groupId)
+    }
   }
 
   async getAssetGroupIds(assetKey: AssetKey): Promise<string[]> {
-    return this.localRepo.getAssetGroupIds(assetKey)
+    const supabase = getSupabaseClient()
+    if (!supabase) return this.localRepo.getAssetGroupIds(assetKey)
+
+    try {
+      const userId = await this.getUserId()
+      const { data, error } = await supabase
+        .from('watchlist_group_assets')
+        .select('group_id')
+        .eq('user_id', userId)
+        .eq('asset_key', assetKey.trim())
+
+      if (error) throw error
+
+      return (data ?? []).map((row: Record<string, unknown>) => String(row['group_id']))
+    } catch {
+      return this.localRepo.getAssetGroupIds(assetKey)
+    }
   }
 }
