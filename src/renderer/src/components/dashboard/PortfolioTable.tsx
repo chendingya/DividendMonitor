@@ -48,7 +48,6 @@ export function PortfolioTable({ rows, onGoToDetail, onEdit, onRemove }: Portfol
                   <div>
                     <Space size={8}>
                       <Typography.Text strong>{record.name}</Typography.Text>
-                      {record.transactionCount > 1 ? <Tag color="orange">多笔交易</Tag> : null}
                       {record.assetType ? <Tag color="blue">{record.assetType}</Tag> : null}
                     </Space>
                     <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }}>
