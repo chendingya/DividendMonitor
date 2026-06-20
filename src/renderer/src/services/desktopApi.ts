@@ -115,3 +115,13 @@ export function getBacktestDesktopApi() {
 
   return api.backtest
 }
+
+export function getFxDesktopApi() {
+  const api = getRuntimeApi()
+
+  if (!api.fx) {
+    throw new Error('Runtime API is missing the fx namespace.')
+  }
+
+  return api.fx
+}

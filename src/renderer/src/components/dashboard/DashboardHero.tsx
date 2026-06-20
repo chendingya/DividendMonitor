@@ -119,15 +119,15 @@ export function DashboardSearchCard({
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
         <Space.Compact style={{ width: '100%' }}>
           <Input
-            placeholder="输入股票、ETF 或基金代码/名称，例如 510880 / 红利ETF / 贵州茅台"
+            placeholder="输入股票、ETF、基金或贵金属代码/名称，例如 510880 / 红利ETF / 贵州茅台 / 黄金"
             value={searchKeyword}
             onChange={(event) => onSearchKeywordChange(event.target.value)}
             onPressEnter={onSearch}
           />
           <Button onClick={onSearch}>搜索</Button>
         </Space.Compact>
-        <Typography.Text type="secondary">搜索会进入结果列表页，统一展示股票、ETF 和基金，再选择进入详情或加入自选。</Typography.Text>
-        <Typography.Text type="secondary">工作台里的持仓录入现已支持股票、ETF 和基金，输入代码或名称会自动识别资产类型。</Typography.Text>
+        <Typography.Text type="secondary">搜索会进入结果列表页，统一展示股票、ETF、基金与贵金属，再选择进入详情或加入自选。</Typography.Text>
+        <Typography.Text type="secondary">工作台里的持仓录入现已支持股票、ETF、基金与贵金属，输入代码或名称会自动识别资产类型。</Typography.Text>
       </Space>
     </AppCard>
   )

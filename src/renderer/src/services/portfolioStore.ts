@@ -5,8 +5,8 @@ import { portfolioApi } from '@renderer/services/portfolioApi'
 export type PortfolioPosition = {
   id: string
   assetKey?: string
-  assetType?: 'STOCK' | 'ETF' | 'FUND'
-  market?: 'A_SHARE'
+  assetType?: 'STOCK' | 'ETF' | 'FUND' | 'GOLD' | 'SILVER'
+  market?: 'A_SHARE' | 'SGE'
   code?: string
   symbol?: string
   name: string

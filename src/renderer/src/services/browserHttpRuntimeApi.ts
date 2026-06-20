@@ -16,7 +16,10 @@ import type {
   StockSearchItemDto,
   SyncStatusDto,
   WatchlistAddRequestDto,
-  WatchlistEntryDto
+  WatchlistEntryDto,
+  WatchlistGroupAssetActionDto,
+  WatchlistGroupDto,
+  WatchlistGroupUpsertDto
 } from '@shared/contracts/api'
 import { createStockAssetQuery } from '@shared/contracts/api'
 import { requestJson } from '@renderer/services/httpClient'
@@ -150,6 +153,30 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
     },
     removeAsset(assetKey: string) {
       return postJson<void>('/api/watchlist/remove-asset', { assetKey })
+    },
+    listGroups(): Promise<WatchlistGroupDto[]> {
+      return requestJson('/api/watchlist/groups')
+    },
+    createGroup(request: WatchlistGroupUpsertDto): Promise<WatchlistGroupDto> {
+      return postJson('/api/watchlist/groups', request)
+    },
+    updateGroup(id: string, request: WatchlistGroupUpsertDto): Promise<WatchlistGroupDto> {
+      return requestJson(`/api/watchlist/groups/${encodeURIComponent(id)}`, { method: 'PUT', body: request })
+    },
+    deleteGroup(id: string): Promise<void> {
+      return requestJson(`/api/watchlist/groups/${encodeURIComponent(id)}`, { method: 'DELETE' })
+    },
+    addToGroup(request: WatchlistGroupAssetActionDto): Promise<void> {
+      return postJson('/api/watchlist/groups/add-asset', request)
+    },
+    removeFromGroup(request: WatchlistGroupAssetActionDto): Promise<void> {
+      return postJson('/api/watchlist/groups/remove-asset', request)
+    },
+    listGroupAssets(groupId: string): Promise<WatchlistEntryDto[]> {
+      return requestJson(`/api/watchlist/groups/${encodeURIComponent(groupId)}/assets`)
+    },
+    getAssetGroupIds(assetKey: string): Promise<string[]> {
+      return requestJson(`/api/watchlist/asset-groups/${encodeURIComponent(assetKey)}`)
     }
   },
   calculation: {
@@ -198,6 +225,11 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
   security: {
     getLocalNonce() {
       return window.dividendMonitor.security.getLocalNonce()
+    }
+  },
+  fx: {
+    getUsdCnyRate() {
+      return requestJson<{ rate: number }>('/api/fx/usd-cny-rate').then((r) => r.rate)
     }
   },
   backtest: {

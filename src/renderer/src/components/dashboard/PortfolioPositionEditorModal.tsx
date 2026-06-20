@@ -1,5 +1,6 @@
 import { Form, Input, InputNumber, message, Modal, Select } from 'antd'
-import { useEffect, useState } from 'react'
+import type { InputRef } from 'antd'
+import { useEffect, useRef, useState } from 'react'
 import type { AssetSearchItemDto, AssetType, MarketCode } from '@shared/contracts/api'
 
 type AssetApi = {
@@ -36,7 +37,6 @@ type Props = {
   open: boolean
   mode: PortfolioEditorMode
   initialValues: PortfolioEditorInitialValues
-  lockIdentity?: boolean
   onCancel: () => void
   onSubmit: (values: PortfolioEditorSubmitValues) => Promise<void> | void
   assetApi: AssetApi
@@ -70,7 +70,6 @@ export function PortfolioPositionEditorModal({
   open,
   mode,
   initialValues,
-  lockIdentity = false,
   onCancel,
   onSubmit,
   assetApi
@@ -88,6 +87,7 @@ export function PortfolioPositionEditorModal({
     shares: number
     avgCost: number
   }>()
+  const codeInputRef = useRef<InputRef | null>(null)
 
   useEffect(() => {
     if (!open) {
@@ -104,7 +104,13 @@ export function PortfolioPositionEditorModal({
       shares: initialValues.shares,
       avgCost: initialValues.avgCost
     })
-  }, [form, initialValues, open])
+    const timer = setTimeout(() => {
+      if (mode === 'create') {
+        codeInputRef.current?.focus()
+      }
+    }, 0)
+    return () => clearTimeout(timer)
+  }, [form, initialValues, open, mode])
 
   function fillIdentity(item: AssetSearchItemDto) {
     form.setFieldsValue({
@@ -126,7 +132,7 @@ export function PortfolioPositionEditorModal({
     try {
       const results = await assetApi.search({
         keyword: normalized,
-        assetTypes: ['STOCK', 'ETF', 'FUND']
+        assetTypes: ['STOCK', 'ETF', 'FUND', 'GOLD', 'SILVER']
       })
       const best = pickBestSearchResult(normalized, results)
       if (best) {
@@ -249,61 +255,66 @@ export function PortfolioPositionEditorModal({
         <Form.Item name="assetKey" hidden>
           <Input />
         </Form.Item>
-        <Form.Item name="assetType" hidden>
-          <Input />
+        <Form.Item label="资产类型" name="assetType">
+          <Select
+            options={[
+              { label: '股票 (STOCK)', value: 'STOCK' },
+              { label: 'ETF', value: 'ETF' },
+              { label: '基金 (FUND)', value: 'FUND' },
+              { label: '黄金 (GOLD)', value: 'GOLD' },
+              { label: '白银 (SILVER)', value: 'SILVER' }
+            ]}
+          />
         </Form.Item>
-        <Form.Item name="market" hidden>
-          <Input />
+        <Form.Item label="市场" name="market">
+          <Select
+            options={[
+              { label: 'A股 (A_SHARE)', value: 'A_SHARE' },
+              { label: '上海金交所 (SGE)', value: 'SGE' }
+            ]}
+          />
         </Form.Item>
-        {mode === 'create' ? (
-          <Form.Item label="交易方向" name="direction" rules={[{ required: true, message: '请选择交易方向' }]}>
-            <Select
-              options={[
-                { label: '买入（增加持仓）', value: 'BUY' },
-                { label: '卖出（减少持仓）', value: 'SELL' }
-              ]}
-            />
-          </Form.Item>
-        ) : null}
+        <Form.Item label="交易方向" name="direction" rules={[{ required: true, message: '请选择交易方向' }]}>
+          <Select
+            options={[
+              { label: '买入（增加持仓）', value: 'BUY' },
+              { label: '卖出（减少持仓）', value: 'SELL' }
+            ]}
+          />
+        </Form.Item>
         <Form.Item
           label="资产代码"
           name="code"
           rules={[
             {
               validator: async (_, value: string | undefined) => {
-                const raw = value?.trim()
-                if (!raw) {
-                  return
-                }
+                if (!value?.trim()) return
               }
             }
           ]}
         >
           <Input
-            placeholder={mode === 'edit' ? '编辑模式下资产代码不可修改' : '可选，例如 600519 / 510880 / 160222；不填则可通过名称自动反查'}
-            onBlur={mode === 'create' ? onCodeBlur : undefined}
-            disabled={mode === 'edit' && lockIdentity}
+            ref={mode === 'create' ? codeInputRef : undefined}
+            placeholder="例如 600519 / 510880 / AU9999；可自动反查类型"
+            onBlur={onCodeBlur}
           />
         </Form.Item>
         <Form.Item label="资产名称" name="name">
           <Input
-            placeholder={mode === 'edit' ? '编辑模式下资产名称不可修改' : '可选，例如 贵州茅台 / 红利ETF；可自动反查代码'}
-            onBlur={mode === 'create' ? onNameBlur : undefined}
-            disabled={mode === 'edit' && lockIdentity}
+            placeholder="例如 贵州茅台 / 红利ETF；可自动反查代码"
+            onBlur={onNameBlur}
           />
         </Form.Item>
-        {mode === 'create' ? (
-          <Form.Item label="识别结果">
-            <Input
-              value={
-                [form.getFieldValue('assetType'), form.getFieldValue('market'), form.getFieldValue('code')]
-                  .filter((item) => typeof item === 'string' && item.trim().length > 0)
-                  .join(' / ') || (searchingIdentity ? '识别中...' : '未识别')
-              }
-              disabled
-            />
-          </Form.Item>
-        ) : null}
+        <Form.Item label="识别结果">
+          <Input
+            value={
+              [form.getFieldValue('assetType'), form.getFieldValue('market'), form.getFieldValue('code')]
+                .filter((item) => typeof item === 'string' && item.trim().length > 0)
+                .join(' / ') || (searchingIdentity ? '识别中...' : '未识别')
+            }
+            disabled
+          />
+        </Form.Item>
         <Form.Item label="持仓股数" name="shares" rules={[{ required: true, message: '请输入持仓股数' }]}>
           <InputNumber min={0.01} precision={2} style={{ width: '100%' }} />
         </Form.Item>

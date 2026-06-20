@@ -31,7 +31,7 @@ export function PortfolioTable({ rows, onGoToDetail, onEdit, onRemove }: Portfol
         <PageStateBlock
           kind="empty"
           title="当前没有持仓"
-          description={'可先搜索资产加入自选，或通过"录入持仓"记录你的股票、ETF 或基金仓位。'}
+          description={'可先搜索资产加入自选，或通过"录入持仓"记录你的股票、ETF、基金或贵金属仓位。'}
         />
       ) : (
         <Table

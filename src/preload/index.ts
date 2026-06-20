@@ -7,7 +7,9 @@ import type {
   AuthSessionDto,
   PortfolioPositionUpsertDto,
   PortfolioPositionReplaceByAssetDto,
-  SyncStatusDto
+  SyncStatusDto,
+  WatchlistGroupAssetActionDto,
+  WatchlistGroupUpsertDto
 } from '@shared/contracts/api'
 
 /**
@@ -57,7 +59,15 @@ const api = {
     add: (symbol: string) => ipcRenderer.invoke('watchlist:add', symbol),
     remove: (symbol: string) => ipcRenderer.invoke('watchlist:remove', symbol),
     addAsset: (request: AssetQueryDto & { name?: string }) => ipcRenderer.invoke('watchlist:add-asset', request),
-    removeAsset: (assetKey: string) => ipcRenderer.invoke('watchlist:remove-asset', assetKey)
+    removeAsset: (assetKey: string) => ipcRenderer.invoke('watchlist:remove-asset', assetKey),
+    listGroups: () => ipcRenderer.invoke('watchlist:list-groups'),
+    createGroup: (request: WatchlistGroupUpsertDto) => ipcRenderer.invoke('watchlist:create-group', request),
+    updateGroup: (id: string, request: WatchlistGroupUpsertDto) => ipcRenderer.invoke('watchlist:update-group', id, request),
+    deleteGroup: (id: string) => ipcRenderer.invoke('watchlist:delete-group', id),
+    addToGroup: (request: WatchlistGroupAssetActionDto) => ipcRenderer.invoke('watchlist:add-to-group', request),
+    removeFromGroup: (request: WatchlistGroupAssetActionDto) => ipcRenderer.invoke('watchlist:remove-from-group', request),
+    listGroupAssets: (groupId: string) => ipcRenderer.invoke('watchlist:list-group-assets', groupId),
+    getAssetGroupIds: (assetKey: string) => ipcRenderer.invoke('watchlist:get-asset-group-ids', assetKey)
   },
   calculation: {
     getHistoricalYield: (symbol: string) => ipcRenderer.invoke('calculation:historical-yield', symbol),
@@ -95,6 +105,9 @@ const api = {
   },
   security: {
     getLocalNonce: () => ipcRenderer.invoke('security:getLocalNonce')
+  },
+  fx: {
+    getUsdCnyRate: () => ipcRenderer.invoke('fx:usd-cny-rate')
   }
 }
 

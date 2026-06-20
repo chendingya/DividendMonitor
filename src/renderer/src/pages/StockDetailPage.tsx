@@ -7,8 +7,10 @@ import { PageStateBlock } from '@renderer/components/app/PageStateBlock'
 import { FutureYieldEstimateCard } from '@renderer/components/stock-detail/FutureYieldEstimateCard'
 import { IndexValuationCard } from '@renderer/components/stock-detail/IndexValuationCard'
 import { IndexValuationTrendChart } from '@renderer/components/stock-detail/IndexValuationTrendChart'
+import { PreciousMetalProfileCard } from '@renderer/components/stock-detail/PreciousMetalProfileCard'
 import { ValuationTrendChart } from '@renderer/components/stock-detail/ValuationTrendChart'
 import { YearlyDividendTrendChart } from '@renderer/components/stock-detail/YearlyDividendTrendChart'
+import { PreciousMetalDisplayProvider, usePreciousMetalDisplay } from '@renderer/contexts/PreciousMetalDisplayContext'
 import { DEFAULT_STOCK_SYMBOL } from '@renderer/defaults'
 import { useAssetDetail } from '@renderer/hooks/useAssetDetail'
 import { useWatchlist } from '@renderer/hooks/useWatchlist'
@@ -122,7 +124,9 @@ export function StockDetailPage() {
     )
   }
 
-  if (data.yearlyYields.length === 0 && data.dividendEvents.length === 0) {
+  const isPreciousMetal = data.assetType === 'GOLD' || data.assetType === 'SILVER'
+
+  if (!isPreciousMetal && data.yearlyYields.length === 0 && data.dividendEvents.length === 0) {
     return (
       <PageStateBlock
         kind="no-data"
@@ -152,6 +156,7 @@ export function StockDetailPage() {
   const hasFundProfile =
     !caps.hasValuationAnalysis &&
     Boolean(data.category || data.manager || data.trackingIndex || data.benchmark || data.latestNav != null || data.fundScale != null)
+  const hasPreciousMetalProfile = data.modules.preciousMetal != null
 
   function formatFundScale(value?: number) {
     if (value == null) {
@@ -167,6 +172,7 @@ export function StockDetailPage() {
   }
 
   return (
+    <PreciousMetalDisplayProvider>
     <div className="ledger-page">
       {messageHolder}
       <section className="ledger-detail-header">
@@ -204,50 +210,54 @@ export function StockDetailPage() {
         </div>
       </section>
 
-      <Row gutter={[18, 18]}>
-        <Col xs={24} md={12} xl={6}>
-          <AppCard className="ledger-detail-stat">
-            <div className="ledger-stat-label">股息率</div>
-            <div className="ledger-stat-value">{latestYear ? `${(latestYear.yield * 100).toFixed(2)}%` : '--'}</div>
-            <div className="ledger-stat-hint">最近自然年</div>
-          </AppCard>
-        </Col>
-        <Col xs={24} md={12} xl={6}>
-          <AppCard className="ledger-detail-stat">
-            <div className="ledger-stat-label">最近现金分配</div>
-            <div className="ledger-stat-value">
-              {data.dividendEvents.length > 0
-                ? data.dividendEvents[data.dividendEvents.length - 1].dividendPerShare.toFixed(2)
-                : '--'}
-            </div>
-            <div className="ledger-stat-hint">最近一次每股现金分红</div>
-          </AppCard>
-        </Col>
-        <Col xs={24} md={12} xl={6}>
-          <AppCard className="ledger-detail-stat">
-            <div className="ledger-stat-label">平均收益率</div>
-            <div className="ledger-stat-value">{`${(averageYield * 100).toFixed(2)}%`}</div>
-            <Progress
-              percent={Number(Math.min(100, averageYield * 1200).toFixed(2))}
-              showInfo={false}
-              strokeColor="#0052d0"
-              trailColor="rgba(217,221,224,0.65)"
-              style={{ marginTop: 10 }}
-            />
-          </AppCard>
-        </Col>
-        <Col xs={24} md={12} xl={6}>
-          <AppCard className="ledger-detail-stat">
-            <div className="ledger-stat-label">未来收益估算</div>
-            <div className="ledger-stat-value" style={{ color: '#0052d0' }}>
-              {data.futureYieldEstimate.isAvailable
-                ? `${(data.futureYieldEstimate.estimatedFutureYield * 100).toFixed(2)}%`
-                : '--'}
-            </div>
-            <div className="ledger-stat-hint">{data.futureYieldEstimate.reason ?? '基准未来股息率估算'}</div>
-          </AppCard>
-        </Col>
-      </Row>
+      {isPreciousMetal && data.modules.preciousMetal ? (
+        <PreciousMetalStatRow module={data.modules.preciousMetal} />
+      ) : (
+        <Row gutter={[18, 18]}>
+          <Col xs={24} md={12} xl={6}>
+            <AppCard className="ledger-detail-stat">
+              <div className="ledger-stat-label">股息率</div>
+              <div className="ledger-stat-value">{latestYear ? `${(latestYear.yield * 100).toFixed(2)}%` : '--'}</div>
+              <div className="ledger-stat-hint">最近自然年</div>
+            </AppCard>
+          </Col>
+          <Col xs={24} md={12} xl={6}>
+            <AppCard className="ledger-detail-stat">
+              <div className="ledger-stat-label">最近现金分配</div>
+              <div className="ledger-stat-value">
+                {data.dividendEvents.length > 0
+                  ? data.dividendEvents[data.dividendEvents.length - 1].dividendPerShare.toFixed(2)
+                  : '--'}
+              </div>
+              <div className="ledger-stat-hint">最近一次每股现金分红</div>
+            </AppCard>
+          </Col>
+          <Col xs={24} md={12} xl={6}>
+            <AppCard className="ledger-detail-stat">
+              <div className="ledger-stat-label">平均收益率</div>
+              <div className="ledger-stat-value">{`${(averageYield * 100).toFixed(2)}%`}</div>
+              <Progress
+                percent={Number(Math.min(100, averageYield * 1200).toFixed(2))}
+                showInfo={false}
+                strokeColor="#0052d0"
+                trailColor="rgba(217,221,224,0.65)"
+                style={{ marginTop: 10 }}
+              />
+            </AppCard>
+          </Col>
+          <Col xs={24} md={12} xl={6}>
+            <AppCard className="ledger-detail-stat">
+              <div className="ledger-stat-label">未来收益估算</div>
+              <div className="ledger-stat-value" style={{ color: '#0052d0' }}>
+                {data.futureYieldEstimate.isAvailable
+                  ? `${(data.futureYieldEstimate.estimatedFutureYield * 100).toFixed(2)}%`
+                  : '--'}
+              </div>
+              <div className="ledger-stat-hint">{data.futureYieldEstimate.reason ?? '基准未来股息率估算'}</div>
+            </AppCard>
+          </Col>
+        </Row>
+      )}
       <Row gutter={[18, 18]} style={{ marginTop: 18 }}>
         <Col xs={24} md={12} xl={8}>
           <AppCard className="ledger-detail-stat">
@@ -289,6 +299,10 @@ export function StockDetailPage() {
             </div>
           </div>
         </AppCard>
+      ) : null}
+
+      {hasPreciousMetalProfile && data.modules.preciousMetal ? (
+        <PreciousMetalProfileCard module={data.modules.preciousMetal} />
       ) : null}
 
       {hasValuation ? (
@@ -387,6 +401,7 @@ export function StockDetailPage() {
         </div>
       ) : null}
 
+      {!isPreciousMetal ? (
       <Row gutter={[20, 20]}>
         <Col xs={24} xl={16}>
           <AppCard
@@ -430,8 +445,9 @@ export function StockDetailPage() {
           <FutureYieldEstimateCard estimate={data.futureYieldEstimate} />
         </Col>
       </Row>
+      ) : null}
 
-      <YearlyDividendTrendChart items={data.yearlyYields} />
+      {!isPreciousMetal ? <YearlyDividendTrendChart items={data.yearlyYields} /> : null}
 
       {hasValuation ? <ValuationTrendChart detail={data} valuationWindow={valuationWindow} /> : null}
 
@@ -442,6 +458,7 @@ export function StockDetailPage() {
         />
       ) : null}
 
+      {!isPreciousMetal ? (
       <AppCard title="现金分配历史（最近在上）">
         <Table
           className="soft-table"
@@ -480,6 +497,7 @@ export function StockDetailPage() {
           最近年份会排在最上面，每页展示 10 条。收益率按除权除息日所属自然年归集，并以事件级收益率逐次累加。
         </Typography.Paragraph>
       </AppCard>
+      ) : null}
 
       <AppCard title="数据口径">
         <Space direction="vertical" size={12}>
@@ -488,5 +506,36 @@ export function StockDetailPage() {
         </Space>
       </AppCard>
     </div>
+    </PreciousMetalDisplayProvider>
+  )
+}
+
+function PreciousMetalStatRow({ module }: { module: NonNullable<import('@shared/contracts/api').AssetDetailDto['modules']['preciousMetal']> }) {
+  const { formatPrice, priceLabel } = usePreciousMetalDisplay()
+  const prices = { sgePriceCnyPerGram: module.sgePriceCnyPerGram, internationalPriceUsdPerOz: module.internationalPriceUsdPerOz }
+  return (
+    <Row gutter={[18, 18]}>
+      <Col xs={24} md={12} xl={6}>
+        <AppCard className="ledger-detail-stat">
+          <div className="ledger-stat-label">最新价</div>
+          <div className="ledger-stat-value" style={{ color: '#0052d0' }}>{formatPrice(prices)}</div>
+          <div className="ledger-stat-hint">{priceLabel}</div>
+        </AppCard>
+      </Col>
+      <Col xs={24} md={12} xl={6}>
+        <AppCard className="ledger-detail-stat">
+          <div className="ledger-stat-label">计价单位</div>
+          <div className="ledger-stat-value">{priceLabel}</div>
+          <div className="ledger-stat-hint">可在上方切换克/盎司、人民币/美元</div>
+        </AppCard>
+      </Col>
+      <Col xs={24} md={12} xl={6}>
+        <AppCard className="ledger-detail-stat">
+          <div className="ledger-stat-label">资产类别</div>
+          <div className="ledger-stat-value">贵金属</div>
+          <div className="ledger-stat-hint">无分红，支持价格回测</div>
+        </AppCard>
+      </Col>
+    </Row>
   )
 }

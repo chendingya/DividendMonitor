@@ -288,7 +288,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </span>
               <input
                 className="ledger-topbar-search"
-                placeholder="输入股票、ETF 或基金代码/名称并回车，例如 510880 / 红利ETF / 贵州茅台"
+                placeholder="输入股票、ETF、基金或贵金属代码/名称并回车，例如 510880 / 红利ETF / 贵州茅台 / 黄金"
                 value={topbarKeyword}
                 onChange={(event) => setTopbarKeyword(event.target.value)}
                 onKeyDown={(event) => {

@@ -2,6 +2,7 @@ import { ipcMain } from 'electron'
 import { registerAssetChannels } from '@main/ipc/channels/assetChannels'
 import { registerAuthChannels } from '@main/ipc/channels/authChannels'
 import { registerCalculationChannels } from '@main/ipc/channels/calculationChannels'
+import { registerFxChannels } from '@main/ipc/channels/fxChannels'
 import { registerPortfolioChannels } from '@main/ipc/channels/portfolioChannels'
 import { registerStockChannels } from '@main/ipc/channels/stockChannels'
 import { registerSyncChannels } from '@main/ipc/channels/syncChannels'
@@ -14,6 +15,7 @@ export function registerIpcHandlers() {
   registerAssetChannels()
   registerAuthChannels()
   registerCalculationChannels()
+  registerFxChannels()
   registerIndustryChannels()
   registerPortfolioChannels()
   registerSettingsChannels()
