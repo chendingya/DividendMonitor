@@ -1,8 +1,7 @@
 import type { IndustryAnalysis, IndustryDistributionItem } from '@main/domain/services/industryAnalysisService'
 import { aggregateByIndustry, getIndustryList, rankInIndustry, calculateIndustryDistribution } from '@main/domain/services/industryAnalysisService'
 import { AssetRepository } from '@main/repositories/assetRepository'
-import { WatchlistRepository } from '@main/repositories/watchlistRepository'
-import { PortfolioRepository } from '@main/repositories/portfolioRepository'
+import { getWatchlistRepository, getPortfolioRepository } from '@main/repositories/repositoryFactory'
 import { buildAssetKey } from '@shared/contracts/api'
 import type { AssetDetailSource } from '@main/repositories/assetProviderRegistry'
 
@@ -44,8 +43,8 @@ export async function getIndustryAnalysis(
       }
     }
   } else {
-    const watchlistRepo = new WatchlistRepository()
-    const portfolioRepo = new PortfolioRepository()
+    const watchlistRepo = getWatchlistRepository()
+    const portfolioRepo = getPortfolioRepository()
     const watchlistItems = await watchlistRepo.listAssets()
     const portfolioItems = await portfolioRepo.list()
 
@@ -109,7 +108,7 @@ export async function getIndustryAnalysis(
 }
 
 export async function getIndustryDistribution(): Promise<IndustryDistributionItem[]> {
-  const portfolioRepo = new PortfolioRepository()
+  const portfolioRepo = getPortfolioRepository()
   const repository = new AssetRepository()
   const portfolioItems = await portfolioRepo.list()
 
