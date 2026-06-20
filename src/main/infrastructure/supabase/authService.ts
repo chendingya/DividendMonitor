@@ -165,22 +165,37 @@ export const authService = {
     }
 
     const supabase = getSupabaseClient()
-    if (!supabase) return null
+    if (!supabase) {
+      setRuntimeMode('offline')
+      return null
+    }
 
-    const { data } = await supabase.auth.getSession()
-    const session = toAuthSession(data.session)
-    cachedSession = session
-    setRuntimeMode(session ? 'online' : 'offline')
-    return session
+    try {
+      const { data } = await supabase.auth.getSession()
+      const session = toAuthSession(data.session)
+      cachedSession = session
+      setRuntimeMode(session ? 'online' : 'offline')
+      return session
+    } catch (error) {
+      console.warn('[Auth] getSession failed, switching to offline mode:', (error as Error).message)
+      setRuntimeMode('offline')
+      return null
+    }
   },
 
   async initSession(): Promise<AuthSession | null> {
-    const session = await authService.getSession()
-    setRuntimeMode(session ? 'online' : 'offline')
+    try {
+      const session = await authService.getSession()
+      setRuntimeMode(session ? 'online' : 'offline')
 
-    // Start listening for auth state changes after initial session check
-    startAuthListener()
+      // Start listening for auth state changes after initial session check
+      startAuthListener()
 
-    return session
+      return session
+    } catch (error) {
+      console.warn('[Auth] initSession failed, staying offline:', (error as Error).message)
+      setRuntimeMode('offline')
+      return null
+    }
   }
 }
