@@ -26,6 +26,13 @@ export class CapabilityRouter {
           degradeMode: 'stale-while-error'
         }
       case 'asset.quote':
+        if (context.assetType === 'GOLD' || context.assetType === 'SILVER') {
+          return {
+            primary: 'sina',
+            fallbacks: [],
+            degradeMode: 'fallback'
+          }
+        }
         return {
           primary: context.assetType === 'STOCK' ? 'tencent' : 'eastmoney',
           fallbacks: context.assetType === 'STOCK' ? ['eastmoney'] : ['tencent'],
@@ -38,6 +45,12 @@ export class CapabilityRouter {
       case 'valuation.trend':
         return {
           primary: 'eastmoney',
+          fallbacks: [],
+          degradeMode: 'fallback'
+        }
+      case 'fx.quote':
+        return {
+          primary: 'sina',
           fallbacks: [],
           degradeMode: 'fallback'
         }

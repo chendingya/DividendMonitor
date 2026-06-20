@@ -1,5 +1,5 @@
 import type { HistoricalPricePoint } from '@main/domain/entities/Stock'
-import type { EndpointDefinition } from '@main/infrastructure/dataSources/types/sourceTypes'
+import type { EndpointDefinition, FxQuoteInput, FxQuoteOutput } from '@main/infrastructure/dataSources/types/sourceTypes'
 
 type SinaKlineItem = {
   day: string
@@ -17,6 +17,84 @@ function toSinaSymbol(code: string): string {
     return `sh${normalized}`
   }
   return `sz${normalized}`
+}
+
+type SinaPreciousMetalQuoteInput = {
+  code: string
+}
+
+type SinaPreciousMetalQuotePayload = {
+  f43?: number
+  f57?: string
+  f58?: string
+}
+
+function toSgeSinaCode(code: string): string {
+  const normalized = code.trim().toUpperCase()
+  if (normalized.startsWith('HF_')) return normalized
+  return `SGE_${normalized}`
+}
+
+function parseSinaSgeQuote(raw: string, code: string): SinaPreciousMetalQuotePayload {
+  const match = raw.match(/var hq_str_\w+="([^"]+)"/)
+  if (!match) return {}
+  const fields = match[1].split(',')
+  const isInternational = code.toUpperCase().startsWith('HF_')
+  const latestPrice = parseFloat(fields[isInternational ? 0 : 3] ?? '')
+  const name = fields[1] ?? ''
+  return {
+    f43: Number.isFinite(latestPrice) ? latestPrice : undefined,
+    f57: code,
+    f58: name ? name.trim() : undefined
+  }
+}
+
+export const sinaPreciousMetalQuoteEndpoint: EndpointDefinition<
+  SinaPreciousMetalQuoteInput,
+  string,
+  SinaPreciousMetalQuotePayload
+> = {
+  id: 'sina.precious.quote',
+  provider: 'sina',
+  capability: 'asset.quote',
+  parser: 'gbk',
+  method: 'GET',
+  timeoutMs: 8000,
+  headers: {
+    Referer: 'https://finance.sina.com.cn'
+  },
+  buildUrl: ({ code }) => `https://hq.sinajs.cn/list=${toSgeSinaCode(code)}`,
+  mapResponse: (raw, input) => parseSinaSgeQuote(raw, input.code)
+}
+
+function parseSinaFxQuote(raw: string, pair: string): FxQuoteOutput {
+  const match = raw.match(/var hq_str_\w+="([^"]*)"/)
+  if (!match) return { pair, rate: 0, fetchedAt: new Date().toISOString() }
+  const fields = match[1].split(',')
+  const rate = parseFloat(fields[1] ?? '')
+  return {
+    pair,
+    rate: Number.isFinite(rate) ? rate : 0,
+    fetchedAt: new Date().toISOString()
+  }
+}
+
+export const sinaFxQuoteEndpoint: EndpointDefinition<
+  FxQuoteInput,
+  string,
+  FxQuoteOutput
+> = {
+  id: 'sina.fx.quote',
+  provider: 'sina',
+  capability: 'fx.quote',
+  parser: 'gbk',
+  method: 'GET',
+  timeoutMs: 8000,
+  headers: {
+    Referer: 'https://finance.sina.com.cn'
+  },
+  buildUrl: ({ pair }) => `https://hq.sinajs.cn/list=${pair}`,
+  mapResponse: (raw, input) => parseSinaFxQuote(raw, input.pair)
 }
 
 export const sinaAssetKlineEndpoint: EndpointDefinition<SinaKlineInput, SinaKlineItem[], HistoricalPricePoint[]> = {
@@ -46,4 +124,4 @@ export const sinaAssetKlineEndpoint: EndpointDefinition<SinaKlineInput, SinaKlin
   }
 }
 
-export const sinaEndpoints = [sinaAssetKlineEndpoint]
+export const sinaEndpoints = [sinaAssetKlineEndpoint, sinaPreciousMetalQuoteEndpoint, sinaFxQuoteEndpoint]

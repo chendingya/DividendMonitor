@@ -1,7 +1,9 @@
-import type { AShareDataSource, FundCatalogDataSource, FundDetailDataSource, ValuationDataSource } from '@main/adapters/contracts'
+import type { AShareDataSource, FundCatalogDataSource, FundDetailDataSource, PreciousMetalDataSource, FxDataSource, ValuationDataSource } from '@main/adapters/contracts'
 import { EastmoneyAShareDataSource } from '@main/adapters/eastmoney/eastmoneyAShareDataSource'
 import { EastmoneyFundCatalogAdapter } from '@main/adapters/eastmoney/eastmoneyFundCatalogAdapter'
 import { EastmoneyFundDetailDataSource } from '@main/adapters/eastmoney/eastmoneyFundDetailDataSource'
+import { EastmoneyPreciousMetalDataSource } from '@main/adapters/eastmoney/eastmoneyPreciousMetalDataSource'
+import { SinaFxAdapter } from '@main/adapters/eastmoney/eastmoneyFxAdapter'
 import { EastmoneyValuationAdapter } from '@main/adapters/eastmoney/eastmoneyValuationAdapter'
 import type { DataSourceMode } from '@main/infrastructure/config/appConfig'
 import { getAppConfig } from '@main/infrastructure/config/appConfig'
@@ -36,4 +38,20 @@ export function createFundDetailDataSource(mode: DataSourceMode = getAppConfig()
   }
 
   return new EastmoneyFundDetailDataSource()
+}
+
+export function createPreciousMetalDataSource(mode: DataSourceMode = getAppConfig().dataSourceMode): PreciousMetalDataSource {
+  if (mode !== 'eastmoney') {
+    throw new Error(`Unsupported precious metal data source mode: ${mode}`)
+  }
+
+  return new EastmoneyPreciousMetalDataSource()
+}
+
+export function createFxDataSource(mode: DataSourceMode = getAppConfig().dataSourceMode): FxDataSource {
+  if (mode !== 'eastmoney') {
+    throw new Error(`Unsupported FX data source mode: ${mode}`)
+  }
+
+  return new SinaFxAdapter()
 }

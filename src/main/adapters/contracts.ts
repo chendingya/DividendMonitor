@@ -1,7 +1,6 @@
 import type { HistoricalPricePoint, Stock, DividendEvent } from '@main/domain/entities/Stock'
 import type { ValuationMetric, ValuationTrendPoint } from '@main/domain/services/valuationService'
 import type { AssetType } from '@shared/contracts/api'
-
 export type StockValuationSource = {
   pe?: ValuationMetric
   pb?: ValuationMetric
@@ -71,4 +70,43 @@ export type ValuationSnapshotSource = {
 export interface ValuationDataSource {
   getSnapshot(symbol: string, indicatorType: ValuationIndicatorType): Promise<ValuationSnapshotSource | undefined>
   getTrend(symbol: string, indicatorType: ValuationIndicatorType): Promise<ValuationTrendPoint[]>
+}
+
+export type PreciousMetalSearchSource = {
+  assetType: Extract<AssetType, 'GOLD' | 'SILVER'>
+  code: string
+  name: string
+  market: 'SGE'
+  purity?: string
+}
+
+export type PreciousMetalDetailSource = {
+  assetType: Extract<AssetType, 'GOLD' | 'SILVER'>
+  code: string
+  name: string
+  market: 'SGE'
+  purity?: string
+  exchangeName: string
+  latestPrice: number
+  internationalPriceUsdPerOz?: number
+  priceHistory: HistoricalPricePoint[]
+  dividendEvents: DividendEvent[]
+  dataSource: 'eastmoney'
+}
+
+export interface PreciousMetalDataSource {
+  search(keyword: string): Promise<PreciousMetalSearchSource[]>
+  getDetail(code: string, assetType: Extract<AssetType, 'GOLD' | 'SILVER'>): Promise<PreciousMetalDetailSource>
+  compare(codes: string[], assetType: Extract<AssetType, 'GOLD' | 'SILVER'>): Promise<PreciousMetalDetailSource[]>
+}
+
+export type FxRateSource = {
+  pair: string
+  rate: number
+  name?: string
+  fetchedAt: string
+}
+
+export interface FxDataSource {
+  getRate(pair: string): Promise<FxRateSource>
 }
