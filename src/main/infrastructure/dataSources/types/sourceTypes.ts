@@ -13,6 +13,7 @@ export type Capability =
   | 'valuation.percentile'
   | 'valuation.trend'
   | 'benchmark.kline'
+  | 'fx.quote'
 
 export type DegradeMode = 'strict' | 'fallback' | 'stale-while-error'
 
@@ -20,7 +21,7 @@ export type ParserKind = 'json' | 'text' | 'gbk'
 
 export type RouteContext = {
   assetType?: AssetType
-  market?: 'A_SHARE'
+  market?: 'A_SHARE' | 'SGE'
   code?: string
 }
 
@@ -170,3 +171,18 @@ export type ValuationTrendPoint = {
 }
 
 export type ValuationTrendOutput = ValuationTrendPoint[]
+
+// ====== FX (foreign exchange) capability types ======
+
+export type FxQuoteInput = {
+  pair: string
+}
+
+export type FxQuoteOutput = {
+  pair: string
+  rate: number
+  name?: string
+  change?: number
+  changePercent?: number
+  fetchedAt: string
+}

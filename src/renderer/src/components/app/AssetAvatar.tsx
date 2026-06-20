@@ -1,13 +1,15 @@
 type AssetAvatarProps = {
   name: string
-  assetType: 'STOCK' | 'ETF' | 'FUND'
+  assetType: 'STOCK' | 'ETF' | 'FUND' | 'GOLD' | 'SILVER'
   size?: number
 }
 
 const PALETTE: Record<string, { bg: string; text: string }> = {
   STOCK: { bg: '#fff0ed', text: '#d4380d' },
   ETF: { bg: '#e6f4ff', text: '#1677ff' },
-  FUND: { bg: '#f0fdf4', text: '#16a34a' }
+  FUND: { bg: '#f0fdf4', text: '#16a34a' },
+  GOLD: { bg: '#fff7e0', text: '#b8860b' },
+  SILVER: { bg: '#f0f2f5', text: '#595959' }
 }
 
 function pickLabel(name: string): string {
