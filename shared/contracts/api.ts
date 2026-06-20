@@ -56,6 +56,7 @@ export type PortfolioPositionDto = {
   direction: PortfolioDirectionDto
   shares: number
   avgCost: number
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH'
   updatedAt: string
   createdAt: string
 }
@@ -71,6 +72,7 @@ export type PortfolioPositionUpsertDto = {
   direction?: PortfolioDirectionDto
   shares: number
   avgCost: number
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH'
 }
 
 export type PortfolioPositionReplaceByAssetDto = {
