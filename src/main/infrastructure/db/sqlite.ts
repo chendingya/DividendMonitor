@@ -2,6 +2,8 @@ import { app } from 'electron'
 import { DatabaseSync } from 'node:sqlite'
 import { mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { migrateWatchlistGroupAssetsForeignKey } from '@main/infrastructure/db/migrations/watchlistGroupAssetsMigration'
+import { migratePortfolioRiskLevelColumn } from '@main/infrastructure/db/migrations/portfolioRiskLevelMigration'
 
 let database: DatabaseSync | null = null
 
@@ -191,6 +193,8 @@ function initializeSchema(db: DatabaseSync) {
   createBaseSchema(db)
   migrateLegacyWatchlistTable(db)
   migrateWatchlistAssetTypes(db)
+  migrateWatchlistGroupAssetsForeignKey(db)
+  migratePortfolioRiskLevelColumn(db)
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_watchlist_items_updated_at
       ON watchlist_items(updated_at DESC);
