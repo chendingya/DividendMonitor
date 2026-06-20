@@ -12,6 +12,7 @@ const createPortfolioPositionsTable = `
     direction TEXT NOT NULL,
     shares REAL NOT NULL,
     avg_cost REAL NOT NULL,
+    risk_level TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -68,5 +69,61 @@ describe('PortfolioRepository upsert — 同 assetKey 多笔新增', () => {
     const sameKeyRows = list.filter((row) => row.assetKey === 'STOCK:A_SHARE:600519')
     expect(sameKeyRows.length).toBe(2)
     expect(sameKeyRows[0].id).not.toBe(sameKeyRows[1].id)
+  })
+})
+
+describe('PortfolioRepository — risk_level 字段', () => {
+  let repo: InstanceType<typeof PortfolioRepository>
+
+  beforeEach(() => {
+    memoryDb = new DatabaseSync(':memory:')
+    memoryDb.exec(`
+      CREATE TABLE portfolio_positions (
+        id TEXT PRIMARY KEY,
+        asset_key TEXT NOT NULL,
+        asset_type TEXT NOT NULL,
+        market TEXT NOT NULL,
+        code TEXT NOT NULL,
+        name TEXT NOT NULL,
+        direction TEXT NOT NULL,
+        shares REAL NOT NULL,
+        avg_cost REAL NOT NULL,
+        risk_level TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `)
+    repo = new PortfolioRepository()
+  })
+
+  it('upsert 带 riskLevel 时写入，list 能读回', async () => {
+    await repo.upsert({
+      assetKey: 'STOCK:A_SHARE:600519',
+      assetType: 'STOCK',
+      market: 'A_SHARE',
+      code: '600519',
+      name: '贵州茅台',
+      direction: 'BUY',
+      shares: 100,
+      avgCost: 1500,
+      riskLevel: 'LOW'
+    })
+    const list = await repo.list()
+    expect(list[0].riskLevel).toBe('LOW')
+  })
+
+  it('upsert 不带 riskLevel 时为 undefined', async () => {
+    await repo.upsert({
+      assetKey: 'STOCK:A_SHARE:600519',
+      assetType: 'STOCK',
+      market: 'A_SHARE',
+      code: '600519',
+      name: '贵州茅台',
+      direction: 'BUY',
+      shares: 100,
+      avgCost: 1500
+    })
+    const list = await repo.list()
+    expect(list[0].riskLevel).toBeUndefined()
   })
 })

@@ -143,6 +143,7 @@ describe('SupabasePortfolioRepository upsert — 无 id 多笔同 assetKey', () 
         direction TEXT NOT NULL,
         shares REAL NOT NULL,
         avg_cost REAL NOT NULL,
+        risk_level TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );

@@ -19,6 +19,7 @@ type PortfolioPositionRow = {
   direction: 'BUY' | 'SELL'
   shares: number
   avg_cost: number
+  risk_level: string | null
   created_at: string
   updated_at: string
 }
@@ -44,6 +45,7 @@ function toDto(row: PortfolioPositionRow): PortfolioPositionDto {
     direction: row.direction,
     shares: Number(row.shares),
     avgCost: Number(row.avg_cost),
+    riskLevel: (row.risk_level as 'LOW' | 'MEDIUM' | 'HIGH' | null) ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
@@ -55,7 +57,7 @@ export class PortfolioRepository implements IPortfolioRepository {
     const rows = db
       .prepare(
         `
-          SELECT id, asset_key, asset_type, market, code, name, direction, shares, avg_cost, created_at, updated_at
+          SELECT id, asset_key, asset_type, market, code, name, direction, shares, avg_cost, risk_level, created_at, updated_at
           FROM portfolio_positions
           ORDER BY updated_at DESC, created_at DESC, id DESC
         `
@@ -88,6 +90,7 @@ export class PortfolioRepository implements IPortfolioRepository {
     const id = request.id?.trim() || `asset-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const assetKey = request.assetKey?.trim() || buildAssetKey(assetType, market, code)
     const direction = request.direction === 'SELL' ? 'SELL' : 'BUY'
+    const riskLevel = request.riskLevel ?? null
     const db = getDatabase()
     const existing = db.prepare('SELECT created_at FROM portfolio_positions WHERE id = ?').get(id) as
       | { created_at?: string }
@@ -96,9 +99,9 @@ export class PortfolioRepository implements IPortfolioRepository {
     db.prepare(
       `
         INSERT INTO portfolio_positions (
-          id, asset_key, asset_type, market, code, name, direction, shares, avg_cost, created_at, updated_at
+          id, asset_key, asset_type, market, code, name, direction, shares, avg_cost, risk_level, created_at, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           asset_key = excluded.asset_key,
           asset_type = excluded.asset_type,
@@ -108,9 +111,10 @@ export class PortfolioRepository implements IPortfolioRepository {
           direction = excluded.direction,
           shares = excluded.shares,
           avg_cost = excluded.avg_cost,
+          risk_level = excluded.risk_level,
           updated_at = excluded.updated_at
       `
-    ).run(id, assetKey, assetType, market, code, name, direction, shares, avgCost, existing?.created_at ?? now, now)
+    ).run(id, assetKey, assetType, market, code, name, direction, shares, avgCost, riskLevel, existing?.created_at ?? now, now)
   }
 
   async remove(id: string): Promise<void> {
