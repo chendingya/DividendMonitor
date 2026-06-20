@@ -33,16 +33,42 @@ CREATE TABLE IF NOT EXISTS portfolio_positions (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- 2b. 自选分组表
+CREATE TABLE IF NOT EXISTS watchlist_groups (
+  id TEXT PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  color TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 2c. 自选分组资产关联表（多对多）
+CREATE TABLE IF NOT EXISTS watchlist_group_assets (
+  group_id TEXT NOT NULL REFERENCES watchlist_groups(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  asset_key TEXT NOT NULL,
+  added_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (group_id, asset_key)
+);
+
 -- 3. 索引
 CREATE INDEX IF NOT EXISTS idx_watchlist_items_user_id ON watchlist_items(user_id);
 CREATE INDEX IF NOT EXISTS idx_watchlist_items_updated_at ON watchlist_items(updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_portfolio_positions_user_id ON portfolio_positions(user_id);
 CREATE INDEX IF NOT EXISTS idx_portfolio_positions_asset_key ON portfolio_positions(asset_key);
 CREATE INDEX IF NOT EXISTS idx_portfolio_positions_updated_at ON portfolio_positions(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_watchlist_groups_user_id ON watchlist_groups(user_id);
+CREATE INDEX IF NOT EXISTS idx_watchlist_groups_sort ON watchlist_groups(user_id, sort_order ASC, name ASC);
+CREATE INDEX IF NOT EXISTS idx_watchlist_group_assets_group ON watchlist_group_assets(group_id, added_at DESC);
+CREATE INDEX IF NOT EXISTS idx_watchlist_group_assets_user ON watchlist_group_assets(user_id);
 
 -- 4. 启用 Row Level Security
 ALTER TABLE watchlist_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE portfolio_positions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE watchlist_groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE watchlist_group_assets ENABLE ROW LEVEL SECURITY;
 
 -- 5. RLS 策略：用户只能读写自己的数据
 -- watchlist_items
@@ -69,6 +95,29 @@ CREATE POLICY "Users can update own portfolio" ON portfolio_positions
   FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Users can delete own portfolio" ON portfolio_positions
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- watchlist_groups
+CREATE POLICY "Users can read own groups" ON watchlist_groups
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own groups" ON watchlist_groups
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own groups" ON watchlist_groups
+  FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own groups" ON watchlist_groups
+  FOR DELETE USING (auth.uid() = user_id);
+
+-- watchlist_group_assets
+CREATE POLICY "Users can read own group assets" ON watchlist_group_assets
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own group assets" ON watchlist_group_assets
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own group assets" ON watchlist_group_assets
   FOR DELETE USING (auth.uid() = user_id);
 
 -- 6. 价格缓存表（公共市场数据，所有用户共享，无需 user_id）
@@ -106,4 +155,9 @@ CREATE TRIGGER trigger_watchlist_items_updated_at
 DROP TRIGGER IF EXISTS trigger_portfolio_positions_updated_at ON portfolio_positions;
 CREATE TRIGGER trigger_portfolio_positions_updated_at
   BEFORE UPDATE ON portfolio_positions
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+DROP TRIGGER IF EXISTS trigger_watchlist_groups_updated_at ON watchlist_groups;
+CREATE TRIGGER trigger_watchlist_groups_updated_at
+  BEFORE UPDATE ON watchlist_groups
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();

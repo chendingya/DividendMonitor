@@ -3,16 +3,19 @@ import { WatchlistRepository } from '@main/repositories/watchlistRepository'
 import { SupabaseWatchlistRepository } from '@main/repositories/supabaseWatchlistRepository'
 import { PortfolioRepository } from '@main/repositories/portfolioRepository'
 import { SupabasePortfolioRepository } from '@main/repositories/supabasePortfolioRepository'
-import type { IWatchlistRepository, IPortfolioRepository } from '@main/repositories/interfaces'
+import type { IWatchlistRepository, IPortfolioRepository, IWatchlistGroupRepository } from '@main/repositories/interfaces'
 import { AssetSnapshotRepository } from '@main/repositories/assetSnapshotRepository'
 import { SqlitePriceCacheRepository } from '@main/repositories/priceCacheRepository'
 import { SupabasePriceCacheRepository } from '@main/repositories/supabasePriceCacheRepository'
 import type { IPriceCacheRepository } from '@main/repositories/priceCacheRepository'
+import { WatchlistGroupRepository } from '@main/repositories/watchlistGroupRepository'
+import { SupabaseWatchlistGroupRepository } from '@main/repositories/supabaseWatchlistGroupRepository'
 
 let watchlistInstance: IWatchlistRepository | null = null
 let portfolioInstance: IPortfolioRepository | null = null
 let assetSnapshotInstance: AssetSnapshotRepository | null = null
 let priceCacheInstance: IPriceCacheRepository | null = null
+let watchlistGroupInstance: IWatchlistGroupRepository | null = null
 
 export function getWatchlistRepository(mode?: AppRuntimeMode): IWatchlistRepository {
   const runtimeMode = mode ?? getRuntimeMode()
@@ -62,4 +65,18 @@ export function getPriceCacheRepository(mode?: AppRuntimeMode): IPriceCacheRepos
     priceCacheInstance = new SqlitePriceCacheRepository()
   }
   return priceCacheInstance
+}
+
+export function getWatchlistGroupRepository(mode?: AppRuntimeMode): IWatchlistGroupRepository {
+  const runtimeMode = mode ?? getRuntimeMode()
+  if (runtimeMode === 'online') {
+    if (!(watchlistGroupInstance instanceof SupabaseWatchlistGroupRepository)) {
+      watchlistGroupInstance = new SupabaseWatchlistGroupRepository()
+    }
+    return watchlistGroupInstance
+  }
+  if (!(watchlistGroupInstance instanceof WatchlistGroupRepository)) {
+    watchlistGroupInstance = new WatchlistGroupRepository()
+  }
+  return watchlistGroupInstance
 }
