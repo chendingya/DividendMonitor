@@ -51,6 +51,11 @@ function createWindow() {
   }
 }
 
+// Catch unhandled rejections globally to prevent crashes from network failures
+process.on('unhandledRejection', (reason: Error) => {
+  console.error('[Process] unhandledRejection:', reason?.message ?? reason)
+})
+
 app.whenReady().then(() => {
   // Migrate legacy plaintext session file to encrypted storage
   migrateLegacySession()
@@ -58,8 +63,11 @@ app.whenReady().then(() => {
   registerIpcHandlers()
   void startLocalHttpServer()
 
-  // Initialize auth session from persistent storage and start auth state listener
-  void authService.initSession()
+  // Initialize auth session from persistent storage and start auth state listener.
+  // Failure is non-fatal — the app works fully offline with local SQLite.
+  authService.initSession().catch((err) => {
+    console.warn('[Main] Auth session init failed, running in offline mode:', (err as Error).message)
+  })
 
   const cacheSync = new AssetCacheSyncService()
   // Delay initial cache sync so the UI and user-initiated requests take priority.
