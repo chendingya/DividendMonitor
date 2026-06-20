@@ -78,47 +78,23 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
     try {
       const userId = await this.getUserId()
 
-      // Check if position already exists for this user+asset to decide upsert strategy
-      const { data: existing } = await supabase
-        .from('portfolio_positions')
-        .select('id')
-        .eq('user_id', userId)
-        .eq('asset_key', assetKey)
-        .limit(1)
-
-      if (existing && existing.length > 0 && !request.id) {
-        // Update existing position by asset_key
-        await supabase
-          .from('portfolio_positions')
-          .update({
-            asset_type: assetType,
-            market,
-            code,
-            name,
-            direction,
-            shares,
-            avg_cost: avgCost,
-            updated_at: now
-          })
-          .eq('user_id', userId)
-          .eq('asset_key', assetKey)
-      } else {
-        // Insert new or update by id
-        await supabase.from('portfolio_positions').upsert({
-          id,
-          user_id: userId,
-          asset_key: assetKey,
-          asset_type: assetType,
-          market,
-          code,
-          name,
-          direction,
-          shares,
-          avg_cost: avgCost,
-          created_at: now,
-          updated_at: now
-        }, { onConflict: 'id' })
-      }
+      // 无 id 时永远 INSERT 新行（与本地 PortfolioRepository 行为一致），
+      // 同一 assetKey 允许多笔记录共存，由前端按 assetKey 聚合展示。
+      // 有 id 时按 id UPSERT（编辑已有持仓）。
+      await supabase.from('portfolio_positions').upsert({
+        id,
+        user_id: userId,
+        asset_key: assetKey,
+        asset_type: assetType,
+        market,
+        code,
+        name,
+        direction,
+        shares,
+        avg_cost: avgCost,
+        created_at: now,
+        updated_at: now
+      }, { onConflict: 'id' })
 
       notifySyncStatus({ status: 'synced' })
     } catch {

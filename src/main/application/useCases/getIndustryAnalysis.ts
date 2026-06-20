@@ -4,6 +4,28 @@ import { AssetRepository } from '@main/repositories/assetRepository'
 import { WatchlistRepository } from '@main/repositories/watchlistRepository'
 import { PortfolioRepository } from '@main/repositories/portfolioRepository'
 import { buildAssetKey } from '@shared/contracts/api'
+import type { AssetDetailSource } from '@main/repositories/assetProviderRegistry'
+
+const PRECIOUS_METAL_KEYWORDS = ['黄金', 'gold'] as const
+const SILVER_KEYWORDS = ['白银', 'silver'] as const
+
+function resolveIndustryLabel(
+  detail: AssetDetailSource,
+  item: { assetType: string; market: string; code: string; name?: string }
+): string {
+  if (detail.kind === 'STOCK') {
+    return detail.stock.industry ?? '未分类'
+  }
+
+  if (detail.kind === 'GOLD') return '黄金'
+  if (detail.kind === 'SILVER') return '白银'
+
+  const name = (item.name ?? detail.kind).toLowerCase()
+  if (PRECIOUS_METAL_KEYWORDS.some((kw) => name.includes(kw))) return '黄金'
+  if (SILVER_KEYWORDS.some((kw) => name.includes(kw))) return '白银'
+
+  return detail.kind
+}
 
 export async function getIndustryAnalysis(
   industryName?: string,
@@ -112,10 +134,10 @@ export async function getIndustryDistribution(): Promise<IndustryDistributionIte
       const item = batch[j]
       if (r.status === 'fulfilled') {
         const detail = r.value
-        const industry = detail.kind === 'STOCK' ? detail.stock.industry : detail.kind
         const price = detail.kind === 'STOCK' ? detail.stock.latestPrice : detail.latestPrice
         const marketValue = (item.shares ?? 0) * price
-        positions.push({ industry: industry ?? '未分类', marketValue })
+        const industry = resolveIndustryLabel(detail, item)
+        positions.push({ industry, marketValue })
       } else {
         positions.push({ industry: item.assetType, marketValue: 0 })
       }
