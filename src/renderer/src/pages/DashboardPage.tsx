@@ -1,5 +1,5 @@
-import { message, Modal } from 'antd'
-import { useRef, useState } from 'react'
+import { Input, message, Modal } from 'antd'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   PortfolioPositionEditorModal,
@@ -18,6 +18,8 @@ import { CorrelationMatrix } from '@renderer/components/dashboard/CorrelationMat
 import { IndustryDistributionPie } from '@renderer/components/industry/IndustryDistributionPie'
 import { useIndustryAnalysis } from '@renderer/hooks/useIndustryAnalysis'
 import { assetApi } from '@renderer/services/assetApi'
+import { useWatchlistGroups } from '@renderer/hooks/useWatchlistGroups'
+import { watchlistApi } from '@renderer/services/watchlistApi'
 import {
   buildAssetDetailPath,
   buildAssetSearchPath,
@@ -32,19 +34,21 @@ import {
   removePortfolioPositionsByAssetInBackend,
   upsertPortfolioPositionInBackend
 } from '@renderer/services/portfolioStore'
-import type { WatchlistGroupDto } from '@shared/contracts/api'
 
 export function DashboardPage() {
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [apiMessage, messageHolder] = message.useMessage()
-  const groups: WatchlistGroupDto[] = []
-  const handleGetAssetGroupIds = async (_assetKey: string): Promise<string[]> => []
-  const handleToggleAssetGroup = async (
-    _assetKey: string,
-    _groupId: string,
-    _add: boolean
-  ): Promise<void> => {}
+  const {
+    groups,
+    createGroup,
+    addToGroup,
+    removeFromGroup
+  } = useWatchlistGroups()
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
+  const [assetKeyToGroupIds, setAssetKeyToGroupIds] = useState<Map<string, string[]>>(new Map())
+  const [newGroupName, setNewGroupName] = useState('')
+  const [showNewGroupInput, setShowNewGroupInput] = useState(false)
   const {
     positions,
     rows,
@@ -60,6 +64,87 @@ export function DashboardPage() {
   } = usePortfolio()
   const { data: riskMetrics } = usePortfolioRiskMetrics(rows)
   const { distribution } = useIndustryAnalysis()
+
+  useEffect(() => {
+    if (positions.length === 0) {
+      setAssetKeyToGroupIds(new Map())
+      return
+    }
+    let disposed = false
+    void Promise.allSettled(
+      positions.map((p) => {
+        const assetKey = p.assetKey
+        if (!assetKey) return Promise.reject(new Error('no assetKey'))
+        return watchlistApi.getAssetGroupIds(assetKey).then((ids) => [assetKey, ids] as const)
+      })
+    ).then((results) => {
+      if (disposed) return
+      const next = new Map<string, string[]>()
+      results.forEach((r) => {
+        if (r.status === 'fulfilled') {
+          next.set(r.value[0], r.value[1])
+        }
+      })
+      setAssetKeyToGroupIds(next)
+    })
+    return () => {
+      disposed = true
+    }
+  }, [positions])
+
+  useEffect(() => {
+    if (activeGroupId && !groups.some((g) => g.id === activeGroupId)) {
+      setActiveGroupId(null)
+    }
+  }, [groups, activeGroupId])
+
+  const filteredRows = useMemo(() => {
+    if (!activeGroupId) return rows
+    return rows.filter((row) => assetKeyToGroupIds.get(row.assetKey ?? '')?.includes(activeGroupId))
+  }, [rows, activeGroupId, assetKeyToGroupIds])
+
+  const handleGetAssetGroupIds = useCallback(async (assetKey: string): Promise<string[]> => {
+    try {
+      return await watchlistApi.getAssetGroupIds(assetKey)
+    } catch {
+      return []
+    }
+  }, [])
+
+  const handleToggleAssetGroup = useCallback(
+    async (assetKey: string, groupId: string, add: boolean) => {
+      try {
+        if (add) {
+          await addToGroup(groupId, assetKey)
+        } else {
+          await removeFromGroup(groupId, assetKey)
+        }
+        const ids = await watchlistApi.getAssetGroupIds(assetKey)
+        setAssetKeyToGroupIds((prev) => {
+          const next = new Map(prev)
+          next.set(assetKey, ids)
+          return next
+        })
+      } catch (err) {
+        apiMessage.error(err instanceof Error ? err.message : '分组操作失败')
+        throw err
+      }
+    },
+    [addToGroup, removeFromGroup, apiMessage]
+  )
+
+  async function handleCreateGroup() {
+    const name = newGroupName.trim()
+    if (!name) return
+    try {
+      await createGroup({ name })
+      setNewGroupName('')
+      setShowNewGroupInput(false)
+      apiMessage.success('分组创建成功')
+    } catch (err) {
+      apiMessage.error(err instanceof Error ? err.message : '创建分组失败')
+    }
+  }
 
   const [searchKeyword, setSearchKeyword] = useState('')
   const [editorOpen, setEditorOpen] = useState(false)
@@ -411,8 +496,67 @@ export function DashboardPage() {
         onSearch={openAssetSearch}
       />
 
+      <div
+        className="ledger-portfolio-group-tabs"
+        style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}
+      >
+        <button
+          type="button"
+          className={`ledger-inline-action-btn ${activeGroupId === null ? 'is-selected' : ''}`}
+          onClick={() => setActiveGroupId(null)}
+        >
+          全部
+        </button>
+        {groups.map((g) => (
+          <button
+            key={g.id}
+            type="button"
+            className={`ledger-inline-action-btn ${activeGroupId === g.id ? 'is-selected' : ''}`}
+            onClick={() => setActiveGroupId(g.id)}
+          >
+            {g.color && (
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: g.color,
+                  marginRight: 6,
+                  verticalAlign: 'middle'
+                }}
+              />
+            )}
+            {g.name}
+          </button>
+        ))}
+        {showNewGroupInput ? (
+          <Input
+            size="small"
+            placeholder="分组名称"
+            value={newGroupName}
+            onChange={(e) => setNewGroupName(e.target.value)}
+            onPressEnter={handleCreateGroup}
+            onBlur={() => {
+              setShowNewGroupInput(false)
+              setNewGroupName('')
+            }}
+            style={{ width: 120 }}
+            autoFocus
+          />
+        ) : (
+          <button
+            type="button"
+            className="ledger-inline-action-btn"
+            onClick={() => setShowNewGroupInput(true)}
+          >
+            + 新建分组
+          </button>
+        )}
+      </div>
+
       <PortfolioTable
-        rows={rows}
+        rows={filteredRows}
         groups={groups}
         getAssetGroupIds={handleGetAssetGroupIds}
         onToggleAssetGroup={handleToggleAssetGroup}
