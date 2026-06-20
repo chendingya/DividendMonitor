@@ -9,10 +9,10 @@ export class WatchlistGroupRepository implements IWatchlistGroupRepository {
     const groups = db
       .prepare(
         `SELECT g.id, g.name, g.color, g.sort_order, g.created_at, g.updated_at,
-                COUNT(ga.asset_key) AS asset_count
+                (SELECT COUNT(*) FROM watchlist_group_assets ga
+                 JOIN watchlist_items wi ON ga.asset_key = wi.asset_key
+                 WHERE ga.group_id = g.id) AS asset_count
          FROM watchlist_groups g
-         LEFT JOIN watchlist_group_assets ga ON g.id = ga.group_id
-         GROUP BY g.id
          ORDER BY g.sort_order ASC, g.name ASC`
       )
       .all() as Array<{

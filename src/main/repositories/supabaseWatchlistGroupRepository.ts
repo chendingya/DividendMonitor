@@ -32,15 +32,27 @@ export class SupabaseWatchlistGroupRepository implements IWatchlistGroupReposito
 
       const { data: countsData, error: countsError } = await supabase
         .from('watchlist_group_assets')
-        .select('group_id')
+        .select('group_id, asset_key')
         .eq('user_id', userId)
 
       if (countsError) throw countsError
 
+      const { data: watchlistKeys, error: watchlistError } = await supabase
+        .from('watchlist_items')
+        .select('asset_key')
+        .eq('user_id', userId)
+
+      if (watchlistError) throw watchlistError
+
+      const watchlistKeySet = new Set((watchlistKeys ?? []).map((r: Record<string, unknown>) => String(r['asset_key'])))
+
       const countMap = new Map<string, number>()
       for (const row of countsData ?? []) {
         const gid = String(row['group_id'])
-        countMap.set(gid, (countMap.get(gid) ?? 0) + 1)
+        const akey = String(row['asset_key'])
+        if (watchlistKeySet.has(akey)) {
+          countMap.set(gid, (countMap.get(gid) ?? 0) + 1)
+        }
       }
 
       return (groupsData ?? []).map((row: Record<string, unknown>) => ({
