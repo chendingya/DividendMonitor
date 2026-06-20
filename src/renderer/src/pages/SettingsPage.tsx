@@ -14,7 +14,7 @@ function SettingsPage() {
   const { settings, loading, error, saving, save, reset } = useSettings()
   const [local, setLocal] = useState<SettingsDto | null>(null)
   const [dirty, setDirty] = useState(false)
-  const [activeTab, setActiveTab] = useState<'general' | 'backtest'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'backtest' | 'preciousMetal'>('general')
 
   useEffect(() => {
     if (settings && !local) {
@@ -101,6 +101,13 @@ function SettingsPage() {
             onClick={() => setActiveTab('backtest')}
           >
             回测
+          </button>
+          <button
+            type="button"
+            className={`ledger-filter-chip ${activeTab === 'preciousMetal' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('preciousMetal')}
+          >
+            贵金属显示
           </button>
         </div>
 
@@ -263,6 +270,52 @@ function SettingsPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === 'preciousMetal' && (
+          <div className="ledger-section" style={{ gap: 22 }}>
+            <div>
+              <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>计价单位</label>
+              <div className="ledger-segmented-control">
+                <button
+                  type="button"
+                  className={`ledger-filter-chip ${local.preciousMetalUnit === 'gram' ? 'is-active' : ''}`}
+                  onClick={() => merge('preciousMetalUnit', 'gram')}
+                >
+                  克
+                </button>
+                <button
+                  type="button"
+                  className={`ledger-filter-chip ${local.preciousMetalUnit === 'ounce' ? 'is-active' : ''}`}
+                  onClick={() => merge('preciousMetalUnit', 'ounce')}
+                >
+                  盎司
+                </button>
+              </div>
+              <p className="ledger-transaction-hint">1 金衡盎司 = 31.1035 克，切换后贵金属详情与列表价格将按所选单位换算展示。</p>
+            </div>
+
+            <div>
+              <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>计价货币</label>
+              <div className="ledger-segmented-control">
+                <button
+                  type="button"
+                  className={`ledger-filter-chip ${local.preciousMetalCurrency === 'CNY' ? 'is-active' : ''}`}
+                  onClick={() => merge('preciousMetalCurrency', 'CNY')}
+                >
+                  人民币 ¥
+                </button>
+                <button
+                  type="button"
+                  className={`ledger-filter-chip ${local.preciousMetalCurrency === 'USD' ? 'is-active' : ''}`}
+                  onClick={() => merge('preciousMetalCurrency', 'USD')}
+                >
+                  美元 $
+                </button>
+              </div>
+              <p className="ledger-transaction-hint">选择美元时将自动获取 USD/CNY 实时汇率进行换算（默认按 USD/盎司 国际金价口径展示）。</p>
+            </div>
           </div>
         )}
 

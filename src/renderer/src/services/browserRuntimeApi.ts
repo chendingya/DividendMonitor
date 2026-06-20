@@ -10,7 +10,11 @@ import type {
   DividendMonitorApi,
   FutureYieldResponseDto,
   HistoricalYieldResponseDto,
+  SettingsDto,
   WatchlistEntryDto,
+  WatchlistGroupAssetActionDto,
+  WatchlistGroupDto,
+  WatchlistGroupUpsertDto,
   ComparisonRowDto,
   StockDetailDto,
   StockSearchItemDto,
@@ -26,18 +30,8 @@ import {
 } from '@renderer/services/portfolioStore'
 
 const WATCHLIST_STORAGE_KEY = 'dm:web-watchlist'
-
-type SettingsDto = {
-  defaultYearRange: [number, number]
-  defaultSortMetric: string
-  refreshStrategy: 'manual' | 'onLaunch' | 'interval'
-  refreshIntervalMinutes: number
-  backtestInitialCapital: number
-  backtestIncludeFees: boolean
-  backtestFeeRate: number
-  backtestStampDutyRate: number
-  backtestMinCommission: number
-}
+const WATCHLIST_GROUPS_STORAGE_KEY = 'dm:web-watchlist-groups'
+const WATCHLIST_GROUP_ASSETS_STORAGE_KEY = 'dm:web-watchlist-group-assets'
 
 const defaultMockSettings: SettingsDto = {
   defaultYearRange: [2020, 2025],
@@ -48,7 +42,9 @@ const defaultMockSettings: SettingsDto = {
   backtestIncludeFees: false,
   backtestFeeRate: 0.0003,
   backtestStampDutyRate: 0.0005,
-  backtestMinCommission: 5
+  backtestMinCommission: 5,
+  preciousMetalUnit: 'gram',
+  preciousMetalCurrency: 'CNY'
 }
 
 let mockSettingsStore: SettingsDto = { ...defaultMockSettings }
@@ -105,6 +101,13 @@ const FUND_CAPABILITIES = {
   hasComparisonMetrics: true
 } as const
 
+const PRECIOUS_METAL_CAPABILITIES = {
+  hasIncomeAnalysis: false,
+  hasValuationAnalysis: false,
+  hasBacktest: true,
+  hasComparisonMetrics: true
+} as const
+
 type FlatDetailDto = Omit<AssetDetailDto, 'capabilities' | 'modules'>
 
 function augmentStockMock(detail: FlatDetailDto): AssetDetailDto {
@@ -150,6 +153,26 @@ function augmentFundMock(detail: FlatDetailDto): AssetDetailDto {
         benchmark: detail.benchmark,
         latestNav: detail.latestNav,
         fundScale: detail.fundScale
+      }
+    }
+  }
+}
+
+function augmentPreciousMetalMock(detail: FlatDetailDto): AssetDetailDto {
+  const metal = detail.assetType === 'GOLD' ? 'GOLD' : 'SILVER'
+  return {
+    ...detail,
+    capabilities: PRECIOUS_METAL_CAPABILITIES,
+    modules: {
+      preciousMetal: {
+        metal,
+        contractCode: detail.code,
+        purity: detail.assetType === 'GOLD' ? '99.99%' : '99.99%',
+        quoteUnit: 'gram',
+        quoteCurrency: 'CNY',
+        exchangeName: '上海黄金交易所',
+        sgePriceCnyPerGram: detail.latestPrice,
+        internationalPriceUsdPerOz: detail.assetType === 'GOLD' ? 4155.44 : 64.80
       }
     }
   }
@@ -544,6 +567,20 @@ const mockFundSearchItems: AssetSearchItemDto[] = [
     market: 'A_SHARE',
     code: '160222',
     name: '国泰国证食品饮料行业指数'
+  },
+  {
+    assetKey: 'GOLD:SGE:AU9999',
+    assetType: 'GOLD',
+    market: 'SGE',
+    code: 'AU9999',
+    name: '黄金99.99'
+  },
+  {
+    assetKey: 'SILVER:SGE:AG9999',
+    assetType: 'SILVER',
+    market: 'SGE',
+    code: 'AG9999',
+    name: '白银99.99'
   }
 ]
 
@@ -684,6 +721,73 @@ const mockFundDetails: Record<string, FlatDetailDto> = {
   }
 }
 
+const mockPreciousMetalDetails: Record<string, FlatDetailDto> = {
+  'GOLD:SGE:AU9999': {
+    assetKey: 'GOLD:SGE:AU9999',
+    assetType: 'GOLD',
+    market: 'SGE',
+    code: 'AU9999',
+    name: '黄金99.99',
+    latestPrice: 920.5,
+    dataSource: 'mock',
+    yieldBasis: '贵金属无分红，不适用收益率口径',
+    yearlyYields: [],
+    dividendEvents: [],
+    futureYieldEstimate: {
+      estimatedDividendPerShare: 0,
+      estimatedFutureYield: 0,
+      method: 'baseline',
+      isAvailable: false,
+      reason: '贵金属无分红，不提供未来股息率估算',
+      inputs: {},
+      steps: ['贵金属为纯价格资产，无现金分配。']
+    },
+    futureYieldEstimates: [
+      {
+        estimatedDividendPerShare: 0,
+        estimatedFutureYield: 0,
+        method: 'baseline',
+        isAvailable: false,
+        reason: '贵金属无分红，不提供未来股息率估算',
+        inputs: {},
+        steps: ['贵金属为纯价格资产，无现金分配。']
+      }
+    ]
+  },
+  'SILVER:SGE:AG9999': {
+    assetKey: 'SILVER:SGE:AG9999',
+    assetType: 'SILVER',
+    market: 'SGE',
+    code: 'AG9999',
+    name: '白银99.99',
+    latestPrice: 10850,
+    dataSource: 'mock',
+    yieldBasis: '贵金属无分红，不适用收益率口径',
+    yearlyYields: [],
+    dividendEvents: [],
+    futureYieldEstimate: {
+      estimatedDividendPerShare: 0,
+      estimatedFutureYield: 0,
+      method: 'baseline',
+      isAvailable: false,
+      reason: '贵金属无分红，不提供未来股息率估算',
+      inputs: {},
+      steps: ['贵金属为纯价格资产，无现金分配。']
+    },
+    futureYieldEstimates: [
+      {
+        estimatedDividendPerShare: 0,
+        estimatedFutureYield: 0,
+        method: 'baseline',
+        isAvailable: false,
+        reason: '贵金属无分红，不提供未来股息率估算',
+        inputs: {},
+        steps: ['贵金属为纯价格资产，无现金分配。']
+      }
+    ]
+  }
+}
+
 const mockBacktests: Record<string, BacktestResultDto> = {
   '600519': {
     symbol: '600519',
@@ -782,6 +886,42 @@ function writeWatchlistAssetKeysToStorage(assetKeys: string[]) {
   window.localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(normalized))
 }
 
+function readWatchlistGroupsFromStorage(): WatchlistGroupDto[] {
+  if (!isBrowserStorageAvailable()) return []
+  const raw = window.localStorage.getItem(WATCHLIST_GROUPS_STORAGE_KEY)
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed as WatchlistGroupDto[]
+  } catch {
+    return []
+  }
+}
+
+function writeWatchlistGroupsToStorage(groups: WatchlistGroupDto[]) {
+  if (!isBrowserStorageAvailable()) return
+  window.localStorage.setItem(WATCHLIST_GROUPS_STORAGE_KEY, JSON.stringify(groups))
+}
+
+function readWatchlistGroupAssetMapFromStorage(): Record<string, string[]> {
+  if (!isBrowserStorageAvailable()) return {}
+  const raw = window.localStorage.getItem(WATCHLIST_GROUP_ASSETS_STORAGE_KEY)
+  if (!raw) return {}
+  try {
+    const parsed = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed == null || Array.isArray(parsed)) return {}
+    return parsed as Record<string, string[]>
+  } catch {
+    return {}
+  }
+}
+
+function writeWatchlistGroupAssetMapToStorage(map: Record<string, string[]>) {
+  if (!isBrowserStorageAvailable()) return
+  window.localStorage.setItem(WATCHLIST_GROUP_ASSETS_STORAGE_KEY, JSON.stringify(map))
+}
+
 function toWatchlistItem(detail: AssetDetailDto): WatchlistEntryDto {
   return {
     assetKey: detail.assetKey,
@@ -837,6 +977,14 @@ function ensureMockAssetDetail(query: AssetQueryDto): AssetDetailDto {
   const assetKey = buildAssetKey(identifier.assetType, identifier.market, identifier.code)
   if (identifier.assetType === 'STOCK') {
     return ensureMockStockDetail(identifier.code)
+  }
+
+  if (identifier.assetType === 'GOLD' || identifier.assetType === 'SILVER') {
+    const detail = mockPreciousMetalDetails[assetKey]
+    if (!detail) {
+      throw new Error(`浏览器预览模式暂不支持该贵金属资产：${assetKey}。`)
+    }
+    return augmentPreciousMetalMock(detail)
   }
 
   const detail = mockFundDetails[assetKey]
@@ -952,6 +1100,90 @@ export const browserRuntimeApi: DividendMonitorApi = {
     async removeAsset(assetKey: string): Promise<void> {
       const normalized = assetKey.trim()
       writeWatchlistAssetKeysToStorage(readWatchlistAssetKeysFromStorage().filter((item) => item !== normalized))
+    },
+
+    async listGroups(): Promise<WatchlistGroupDto[]> {
+      const groups = readWatchlistGroupsFromStorage()
+      const map = readWatchlistGroupAssetMapFromStorage()
+      return groups.map((g) => ({
+        ...g,
+        assetCount: (map[g.id] ?? []).length
+      }))
+    },
+
+    async createGroup(request: WatchlistGroupUpsertDto): Promise<WatchlistGroupDto> {
+      const groups = readWatchlistGroupsFromStorage()
+      const id = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const group: WatchlistGroupDto = {
+        id,
+        name: request.name.trim(),
+        color: request.color,
+        sortOrder: request.sortOrder ?? groups.length,
+        assetCount: 0
+      }
+      groups.push(group)
+      writeWatchlistGroupsToStorage(groups)
+      return group
+    },
+
+    async updateGroup(id: string, request: WatchlistGroupUpsertDto): Promise<WatchlistGroupDto> {
+      const groups = readWatchlistGroupsFromStorage()
+      const idx = groups.findIndex((g) => g.id === id)
+      if (idx === -1) throw new Error(`分组不存在: ${id}`)
+      const map = readWatchlistGroupAssetMapFromStorage()
+      groups[idx] = {
+        ...groups[idx],
+        name: request.name?.trim() || groups[idx].name,
+        color: request.color !== undefined ? request.color : groups[idx].color,
+        sortOrder: request.sortOrder ?? groups[idx].sortOrder,
+        assetCount: (map[id] ?? []).length
+      }
+      writeWatchlistGroupsToStorage(groups)
+      return groups[idx]
+    },
+
+    async deleteGroup(id: string): Promise<void> {
+      const groups = readWatchlistGroupsFromStorage().filter((g) => g.id !== id)
+      writeWatchlistGroupsToStorage(groups)
+      const map = readWatchlistGroupAssetMapFromStorage()
+      delete map[id]
+      writeWatchlistGroupAssetMapToStorage(map)
+    },
+
+    async addToGroup(request: WatchlistGroupAssetActionDto): Promise<void> {
+      const map = readWatchlistGroupAssetMapFromStorage()
+      const assets = map[request.groupId] ?? []
+      if (!assets.includes(request.assetKey)) {
+        assets.push(request.assetKey)
+      }
+      map[request.groupId] = assets
+      writeWatchlistGroupAssetMapToStorage(map)
+    },
+
+    async removeFromGroup(request: WatchlistGroupAssetActionDto): Promise<void> {
+      const map = readWatchlistGroupAssetMapFromStorage()
+      map[request.groupId] = (map[request.groupId] ?? []).filter((k) => k !== request.assetKey)
+      writeWatchlistGroupAssetMapToStorage(map)
+    },
+
+    async listGroupAssets(groupId: string): Promise<WatchlistEntryDto[]> {
+      const map = readWatchlistGroupAssetMapFromStorage()
+      const assetKeys = map[groupId] ?? []
+      return assetKeys
+        .map((assetKey) => assetKeyToDetail(assetKey))
+        .filter((item): item is AssetDetailDto => item != null)
+        .map(toWatchlistItem)
+    },
+
+    async getAssetGroupIds(assetKey: string): Promise<string[]> {
+      const map = readWatchlistGroupAssetMapFromStorage()
+      const ids: string[] = []
+      for (const [groupId, assetKeys] of Object.entries(map)) {
+        if (assetKeys.includes(assetKey)) {
+          ids.push(groupId)
+        }
+      }
+      return ids
     }
   },
 
@@ -1100,7 +1332,7 @@ export const browserRuntimeApi: DividendMonitorApi = {
 
     async removeByAsset(request) {
       const identifier = resolveAssetQuery(request)
-      if (identifier.assetType !== 'STOCK') {
+      if (identifier.assetType !== 'STOCK' && identifier.market !== 'SGE') {
         return
       }
       removePortfolioPositionsBySymbol(identifier.code)
@@ -1108,8 +1340,8 @@ export const browserRuntimeApi: DividendMonitorApi = {
 
     async replaceByAsset(request) {
       const identifier = resolveAssetQuery(request.asset)
-      if (identifier.assetType !== 'STOCK') {
-        throw new Error('浏览器预览模式下持仓编辑仍仅支持股票。')
+      if (identifier.assetType !== 'STOCK' && identifier.market !== 'SGE') {
+        throw new Error('浏览器预览模式下持仓编辑仅支持股票与贵金属。')
       }
       replacePortfolioPositionsBySymbol(identifier.code, {
         name: request.name,
@@ -1176,6 +1408,9 @@ export const browserRuntimeApi: DividendMonitorApi = {
   },
   security: {
     async getLocalNonce() { return '' }
+  },
+  fx: {
+    async getUsdCnyRate() { return 7.2 }
   },
   backtest: {
     async historyList() {

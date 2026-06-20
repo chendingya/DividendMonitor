@@ -3,6 +3,7 @@ import { LOCAL_HTTP_API_ORIGIN } from '@shared/contracts/api'
 import { handleAssetRoute } from '@main/http/routes/assetRoutes'
 import { handleAuthRoute } from '@main/http/routes/authRoutes'
 import { handleCalculationRoute } from '@main/http/routes/calculationRoutes'
+import { handleFxRoute } from '@main/http/routes/fxRoutes'
 import { handleIndustryRoute } from '@main/http/routes/industryRoutes'
 import { handlePortfolioRoute } from '@main/http/routes/portfolioRoutes'
 import { handleSettingsRoute } from '@main/http/routes/settingsRoutes'
@@ -78,6 +79,7 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
   const handled =
     (await handleAuthRoute({ pathname, method, body, response, headers: request.headers })) ||
     (await handleAssetRoute({ pathname, method, body, response })) ||
+    (await handleFxRoute({ pathname, method, body, response })) ||
     (await handleIndustryRoute({ pathname, method, body, response })) ||
     (await handleSettingsRoute({ pathname, method, body, response })) ||
     (await handleWatchlistRoute({ pathname, method, body, response })) ||

@@ -30,7 +30,6 @@ import {
 import {
   removePortfolioPositionInBackend,
   removePortfolioPositionsByAssetInBackend,
-  replacePortfolioPositionsByAssetInBackend,
   upsertPortfolioPositionInBackend
 } from '@renderer/services/portfolioStore'
 
@@ -130,26 +129,15 @@ export function DashboardPage() {
         apiMessage.error('未找到待编辑持仓')
         return
       }
-      if (editingRow.symbol) {
-        await replacePortfolioPositionsByAssetInBackend(editingRow.assetKey ?? editingRow.symbol, {
-          name: editingRow.name,
-          shares: values.shares,
-          avgCost: values.avgCost
-        })
-        await reload()
-        closeEditor()
-        apiMessage.success('持仓已更新（按当前汇总覆盖）')
-        return
-      }
       await upsertPortfolioPositionInBackend({
         id: editingRow.id,
-        assetKey: editingRow.assetKey,
-        assetType: editingRow.assetType,
-        market: editingRow.market,
-        code: editingRow.code,
-        symbol: editingRow.symbol,
+        assetKey: values.assetKey || editingRow.assetKey,
+        assetType: values.assetType ?? editingRow.assetType,
+        market: values.market ?? editingRow.market,
+        code: values.code ?? editingRow.code,
+        symbol: values.symbol ?? editingRow.symbol,
         name: values.name?.trim() || editingRow.name || '未命名标的',
-        direction: 'BUY',
+        direction: values.direction ?? editingRow.direction ?? 'BUY',
         shares: values.shares,
         avgCost: values.avgCost
       })
@@ -334,11 +322,12 @@ export function DashboardPage() {
       for (const item of data) {
         if (!item.name || item.shares == null || item.avgCost == null) continue
         const direction = (item.direction === 'SELL' ? 'SELL' : 'BUY') as 'BUY' | 'SELL'
-        const assetType = (item.assetType ?? 'STOCK') as 'STOCK' | 'ETF' | 'FUND'
+        const assetType = (item.assetType ?? 'STOCK') as 'STOCK' | 'ETF' | 'FUND' | 'GOLD' | 'SILVER'
         const code = item.code ?? item.symbol ?? ''
         const symbol = item.symbol ?? code
         const assetKey =
           item.symbol ? `STOCK:A_SHARE:${item.symbol}` :
+          assetType === 'GOLD' || assetType === 'SILVER' ? `${assetType}:SGE:${code}` :
           assetType !== 'STOCK' ? `${assetType}:A_SHARE:${code}` : undefined
 
         await upsertPortfolioPositionInBackend({
@@ -463,7 +452,6 @@ export function DashboardPage() {
         open={editorOpen}
         mode={editorMode}
         initialValues={editorInitialValues}
-        lockIdentity={Boolean(editorMode === 'edit' && editingRow?.symbol)}
         onCancel={closeEditor}
         onSubmit={onSubmitEditor}
         assetApi={assetApi}

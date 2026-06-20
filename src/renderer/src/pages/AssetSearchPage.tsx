@@ -42,7 +42,7 @@ export function AssetSearchPage() {
       try {
         const items = await assetApi.search({
           keyword: initialKeyword,
-          assetTypes: ['STOCK', 'ETF', 'FUND']
+          assetTypes: ['STOCK', 'ETF', 'FUND', 'GOLD', 'SILVER']
         })
         if (!disposed) {
           setResults(items)
@@ -97,7 +97,7 @@ export function AssetSearchPage() {
         <div className="ledger-hero-copy">
           <div>
             <div className="ledger-section-kicker">资产搜索</div>
-            <h1 className="ledger-hero-title">搜索股票、ETF 和基金</h1>
+            <h1 className="ledger-hero-title">搜索股票、ETF、基金与贵金属</h1>
             <p className="ledger-hero-subtitle">输入代码或名称，先查看候选结果，再进入详情页。</p>
           </div>
         </div>
@@ -125,7 +125,7 @@ export function AssetSearchPage() {
         <PageStateBlock
           kind="no-data"
           title="没有找到匹配结果"
-          description={`未找到与“${initialKeyword}”匹配的股票、ETF 或基金，请尝试更完整的代码或名称。`}
+          description={`未找到与“${initialKeyword}”匹配的股票、ETF、基金或贵金属，请尝试更完整的代码或名称。`}
         />
       ) : (
         <AppCard title={`搜索结果${initialKeyword ? `：${initialKeyword}` : ''}`}>
