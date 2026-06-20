@@ -5,8 +5,8 @@ import { getWatchlistRepository, getPortfolioRepository } from '@main/repositori
 import { buildAssetKey } from '@shared/contracts/api'
 import type { AssetDetailSource } from '@main/repositories/assetProviderRegistry'
 
-const PRECIOUS_METAL_KEYWORDS = ['黄金', 'gold'] as const
-const SILVER_KEYWORDS = ['白银', 'silver'] as const
+const PRECIOUS_METAL_KEYWORDS = ['黄金', '上海金', '金etf', '金联接', 'gold'] as const
+const SILVER_KEYWORDS = ['白银', '银etf', '银联接', 'silver'] as const
 
 function resolveIndustryLabel(
   detail: AssetDetailSource,
