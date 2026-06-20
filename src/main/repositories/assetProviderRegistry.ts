@@ -1,11 +1,12 @@
 import type { AssetCapabilitiesDto, AssetIdentifierDto, AssetType } from '@shared/contracts/api'
-import type { FundDetailSource, StockDetailSource } from '@main/adapters/contracts'
-import { createAShareDataSource, createFundCatalogDataSource, createFundDetailDataSource } from '@main/adapters'
+import type { FundDetailSource, PreciousMetalDetailSource, StockDetailSource } from '@main/adapters/contracts'
+import { createAShareDataSource, createFundCatalogDataSource, createFundDetailDataSource, createPreciousMetalDataSource } from '@main/adapters'
 import type {
   AShareDataSource,
   CoreStockDetailSource,
   FundCatalogDataSource,
   FundDetailDataSource,
+  PreciousMetalDataSource,
   StockValuationSource
 } from '@main/adapters/contracts'
 import { ValuationRepository } from '@main/repositories/valuationRepository'
@@ -28,7 +29,12 @@ export type FundAssetDetailSource = FundDetailSource & {
   identifier: AssetIdentifierDto
 }
 
-export type AssetDetailSource = StockAssetDetailSource | FundAssetDetailSource
+export type PreciousMetalAssetDetailSource = PreciousMetalDetailSource & {
+  kind: 'GOLD' | 'SILVER'
+  identifier: AssetIdentifierDto
+}
+
+export type AssetDetailSource = StockAssetDetailSource | FundAssetDetailSource | PreciousMetalAssetDetailSource
 
 export interface AssetProvider {
   readonly assetType: AssetType
@@ -55,6 +61,13 @@ const ETF_CAPABILITIES: AssetCapabilitiesDto = {
 
 const FUND_CAPABILITIES: AssetCapabilitiesDto = {
   hasIncomeAnalysis: true,
+  hasValuationAnalysis: false,
+  hasBacktest: true,
+  hasComparisonMetrics: true
+}
+
+const PRECIOUS_METAL_CAPABILITIES: AssetCapabilitiesDto = {
+  hasIncomeAnalysis: false,
   hasValuationAnalysis: false,
   hasBacktest: true,
   hasComparisonMetrics: true
@@ -224,9 +237,81 @@ export class FundAssetProvider implements AssetProvider {
   }
 }
 
+export class PreciousMetalAssetProvider implements AssetProvider {
+  readonly assetType: 'GOLD' | 'SILVER'
+
+  constructor(
+    assetType: 'GOLD' | 'SILVER',
+    private readonly dataSource: PreciousMetalDataSource = createPreciousMetalDataSource()
+  ) {
+    this.assetType = assetType
+  }
+
+  getCapabilities(): AssetCapabilitiesDto {
+    return PRECIOUS_METAL_CAPABILITIES
+  }
+
+  supports(identifier: AssetIdentifierDto) {
+    return identifier.assetType === this.assetType && identifier.market === 'SGE'
+  }
+
+  async search(keyword: string): Promise<AssetSearchSource[]> {
+    const items = await this.dataSource.search(keyword)
+    return items
+      .filter((item) => item.assetType === this.assetType)
+      .map((item) => ({
+        assetType: item.assetType,
+        market: item.market,
+        code: item.code,
+        name: item.name
+      }))
+  }
+
+  async getDetail(identifier: AssetIdentifierDto): Promise<PreciousMetalAssetDetailSource> {
+    if (!this.supports(identifier)) {
+      throw new Error(`Unsupported precious metal asset identifier: ${identifier.assetType}:${identifier.market}:${identifier.code}`)
+    }
+
+    const source = await this.dataSource.getDetail(identifier.code, this.assetType)
+    return {
+      kind: this.assetType,
+      identifier,
+      ...source
+    }
+  }
+
+  async compare(identifiers: AssetIdentifierDto[]): Promise<PreciousMetalAssetDetailSource[]> {
+    if (identifiers.length === 0) {
+      return []
+    }
+
+    const unsupported = identifiers.find((identifier) => !this.supports(identifier))
+    if (unsupported) {
+      throw new Error(
+        `Unsupported precious metal comparison identifier: ${unsupported.assetType}:${unsupported.market}:${unsupported.code}`
+      )
+    }
+
+    const codes = identifiers.map((identifier) => identifier.code)
+    const sources = await this.dataSource.compare(codes, this.assetType)
+
+    return sources.map((source, index) => ({
+      kind: this.assetType,
+      identifier: identifiers[index],
+      ...source
+    }))
+  }
+}
+
 export class AssetProviderRegistry {
   constructor(
-    private readonly providers: AssetProvider[] = [new StockAssetProvider(), new EtfAssetProvider(), new FundAssetProvider()]
+    private readonly providers: AssetProvider[] = [
+      new StockAssetProvider(),
+      new EtfAssetProvider(),
+      new FundAssetProvider(),
+      new PreciousMetalAssetProvider('GOLD'),
+      new PreciousMetalAssetProvider('SILVER')
+    ]
   ) {}
 
   getProvider(identifier: AssetIdentifierDto): AssetProvider {

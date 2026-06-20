@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { AssetProvider } from '@main/repositories/assetProviderRegistry'
 import { AssetRepository } from '@main/repositories/assetRepository'
 
-function createProvider(assetType: 'STOCK' | 'ETF' | 'FUND', overrides: Partial<AssetProvider> = {}): AssetProvider {
+function createProvider(assetType: 'STOCK' | 'ETF' | 'FUND' | 'GOLD' | 'SILVER', overrides: Partial<AssetProvider> = {}): AssetProvider {
   return {
     assetType,
     supports(identifier) {
@@ -41,7 +41,7 @@ describe('AssetRepository', () => {
       getProvider(identifier) {
         return [stockProvider, etfProvider, fundProvider].find((item) => item.supports(identifier))!
       },
-      getSearchProviders(assetTypes?: Array<'STOCK' | 'ETF' | 'FUND'>) {
+      getSearchProviders(assetTypes?: Array<'STOCK' | 'ETF' | 'FUND' | 'GOLD' | 'SILVER'>) {
         const providers = [stockProvider, etfProvider, fundProvider]
         return assetTypes?.length ? providers.filter((item) => assetTypes.includes(item.assetType)) : providers
       }

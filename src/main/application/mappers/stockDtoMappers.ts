@@ -17,7 +17,7 @@ import { buildHistoricalYields, NATURAL_YEAR_YIELD_BASIS } from '@main/domain/se
 import { estimateFutureYield, estimateFundFutureYield } from '@main/domain/services/futureYieldEstimator'
 import { calculateRiskMetrics } from '@main/domain/services/riskMetricsService'
 import { buildValuationWindows } from '@main/domain/services/valuationService'
-import type { AssetSearchSource, FundAssetDetailSource, StockAssetDetailSource } from '@main/repositories/assetProviderRegistry'
+import type { AssetSearchSource, FundAssetDetailSource, PreciousMetalAssetDetailSource, StockAssetDetailSource } from '@main/repositories/assetProviderRegistry'
 import type { IndexValuationSource } from '@main/repositories/indexValuationRepository'
 
 const FUND_YIELD_BASIS =
@@ -37,8 +37,17 @@ const ETF_FUND_CAPABILITIES: AssetCapabilitiesDto = {
   hasComparisonMetrics: true
 }
 
-function deriveCapabilities(kind: 'STOCK' | 'ETF' | 'FUND'): AssetCapabilitiesDto {
-  return kind === 'STOCK' ? STOCK_CAPABILITIES : ETF_FUND_CAPABILITIES
+const PRECIOUS_METAL_CAPABILITIES: AssetCapabilitiesDto = {
+  hasIncomeAnalysis: false,
+  hasValuationAnalysis: false,
+  hasBacktest: true,
+  hasComparisonMetrics: true
+}
+
+function deriveCapabilities(kind: 'STOCK' | 'ETF' | 'FUND' | 'GOLD' | 'SILVER'): AssetCapabilitiesDto {
+  if (kind === 'STOCK') return STOCK_CAPABILITIES
+  if (kind === 'GOLD' || kind === 'SILVER') return PRECIOUS_METAL_CAPABILITIES
+  return ETF_FUND_CAPABILITIES
 }
 
 function toValuationMetricDto(metric?: Parameters<typeof buildValuationWindows>[0]) {
@@ -186,11 +195,52 @@ function toIndexValuationDto(source?: IndexValuationSource): IndexValuationDto |
   }
 }
 
-export function toAssetDetailDto(source: StockAssetDetailSource | FundAssetDetailSource, indexValuation?: IndexValuationSource): AssetDetailDto {
+function toPreciousMetalDetailDto(source: PreciousMetalAssetDetailSource): AssetDetailDto {
+  const assetKey = buildAssetKey(source.identifier.assetType, source.identifier.market, source.identifier.code)
+  const riskMetrics = calculateRiskMetrics(source.priceHistory)
+
+  return {
+    assetKey,
+    assetType: source.identifier.assetType,
+    market: source.identifier.market,
+    code: source.identifier.code,
+    name: source.name,
+    latestPrice: source.latestPrice,
+    dataSource: source.dataSource,
+    yieldBasis: '贵金属无分红，不适用收益率口径',
+    yearlyYields: [],
+    dividendEvents: [],
+    futureYieldEstimate: createUnavailableEstimate(source.identifier.assetType),
+    futureYieldEstimates: [createUnavailableEstimate(source.identifier.assetType)],
+    annualVolatility: riskMetrics?.annualVolatility,
+    sharpeRatio: riskMetrics?.sharpeRatio,
+    capabilities: PRECIOUS_METAL_CAPABILITIES,
+    modules: {
+      preciousMetal: {
+        metal: source.kind,
+        contractCode: source.code,
+        purity: source.purity,
+        quoteUnit: 'gram',
+        quoteCurrency: 'CNY',
+        exchangeName: source.exchangeName,
+        sgePriceCnyPerGram: source.latestPrice,
+        internationalPriceUsdPerOz: source.internationalPriceUsdPerOz
+      },
+      risk: riskMetrics
+    }
+  }
+}
+
+export function toAssetDetailDto(source: StockAssetDetailSource | FundAssetDetailSource | PreciousMetalAssetDetailSource, indexValuation?: IndexValuationSource): AssetDetailDto {
   if (source.kind === 'STOCK') {
     return toStockDetailDto(source)
   }
 
+  if (source.kind === 'GOLD' || source.kind === 'SILVER') {
+    return toPreciousMetalDetailDto(source)
+  }
+
+  assertFundDetailSource(source)
   const yearlyYields = buildHistoricalYields(source.dividendEvents)
   const indexValuationDto = indexValuation ? toIndexValuationDto(indexValuation) : undefined
   const caps = indexValuationDto
@@ -292,11 +342,27 @@ export function toStockComparisonRowDto(source: StockAssetDetailSource): Compari
   }
 }
 
-export function toAssetComparisonRowDto(source: StockAssetDetailSource | FundAssetDetailSource, indexValuation?: IndexValuationSource): AssetComparisonRowDto {
+export function toAssetComparisonRowDto(source: StockAssetDetailSource | FundAssetDetailSource | PreciousMetalAssetDetailSource, indexValuation?: IndexValuationSource): AssetComparisonRowDto {
   if (source.kind === 'STOCK') {
     return toStockComparisonRowDto(source)
   }
 
+  if (source.kind === 'GOLD' || source.kind === 'SILVER') {
+    const riskMetrics = calculateRiskMetrics(source.priceHistory)
+
+    return {
+      assetKey: buildAssetKey(source.identifier.assetType, source.identifier.market, source.identifier.code),
+      assetType: source.identifier.assetType,
+      market: source.identifier.market,
+      code: source.identifier.code,
+      name: source.name,
+      latestPrice: source.latestPrice,
+      annualVolatility: riskMetrics?.annualVolatility,
+      sharpeRatio: riskMetrics?.sharpeRatio
+    }
+  }
+
+  assertFundDetailSource(source)
   const yearlyYields = buildHistoricalYields(source.dividendEvents)
   const averageYield = yearlyYields.reduce((sum, item) => sum + item.yield, 0) / Math.max(yearlyYields.length, 1)
   const estimates = source.dividendEvents.length > 0
@@ -326,7 +392,7 @@ export function toAssetComparisonRowDto(source: StockAssetDetailSource | FundAss
   }
 }
 
-export function toWatchlistEntryDto(source: StockAssetDetailSource | FundAssetDetailSource): WatchlistEntryDto {
+export function toWatchlistEntryDto(source: StockAssetDetailSource | FundAssetDetailSource | PreciousMetalAssetDetailSource): WatchlistEntryDto {
   if (source.kind === 'STOCK') {
     const estimates = estimateFutureYield({
       latestPrice: source.stock.latestPrice,
@@ -350,6 +416,19 @@ export function toWatchlistEntryDto(source: StockAssetDetailSource | FundAssetDe
     }
   }
 
+  if (source.kind === 'GOLD' || source.kind === 'SILVER') {
+    return {
+      assetKey: buildAssetKey(source.identifier.assetType, source.identifier.market, source.identifier.code),
+      assetType: source.identifier.assetType,
+      market: source.identifier.market,
+      code: source.identifier.code,
+      name: source.name,
+      latestPrice: source.latestPrice,
+      yieldLabel: '元/克'
+    }
+  }
+
+  assertFundDetailSource(source)
   const yearlyYields = buildHistoricalYields(source.dividendEvents)
   const averageYield = yearlyYields.reduce((sum, item) => sum + item.yield, 0) / Math.max(yearlyYields.length, 1)
   const estimates = source.dividendEvents.length > 0
@@ -374,7 +453,7 @@ export function toWatchlistEntryDto(source: StockAssetDetailSource | FundAssetDe
   }
 }
 
-export function toHistoricalYieldResponseDto(source: StockAssetDetailSource | FundAssetDetailSource): HistoricalYieldResponseDto {
+export function toHistoricalYieldResponseDto(source: StockAssetDetailSource | FundAssetDetailSource | PreciousMetalAssetDetailSource): HistoricalYieldResponseDto {
   if (source.kind === 'STOCK') {
     return {
       assetKey: buildStockAssetKey(source.stock.symbol),
@@ -388,6 +467,20 @@ export function toHistoricalYieldResponseDto(source: StockAssetDetailSource | Fu
     }
   }
 
+  if (source.kind === 'GOLD' || source.kind === 'SILVER') {
+    return {
+      assetKey: buildAssetKey(source.identifier.assetType, source.identifier.market, source.identifier.code),
+      assetType: source.identifier.assetType,
+      market: source.identifier.market,
+      code: source.identifier.code,
+      symbol: source.identifier.code,
+      basis: '贵金属无分红，不适用收益率口径',
+      yearlyYields: [],
+      dividendEvents: []
+    }
+  }
+
+  assertFundDetailSource(source)
   return {
     assetKey: buildAssetKey(source.identifier.assetType, source.identifier.market, source.identifier.code),
     assetType: source.identifier.assetType,
@@ -400,7 +493,7 @@ export function toHistoricalYieldResponseDto(source: StockAssetDetailSource | Fu
   }
 }
 
-export function toFutureYieldResponseDto(source: StockAssetDetailSource | FundAssetDetailSource): FutureYieldResponseDto {
+export function toFutureYieldResponseDto(source: StockAssetDetailSource | FundAssetDetailSource | PreciousMetalAssetDetailSource): FutureYieldResponseDto {
   if (source.kind === 'STOCK') {
     const estimates = estimateFutureYield({
       latestPrice: source.stock.latestPrice,
@@ -420,6 +513,18 @@ export function toFutureYieldResponseDto(source: StockAssetDetailSource | FundAs
     }
   }
 
+  if (source.kind === 'GOLD' || source.kind === 'SILVER') {
+    return {
+      assetKey: buildAssetKey(source.identifier.assetType, source.identifier.market, source.identifier.code),
+      assetType: source.identifier.assetType,
+      market: source.identifier.market,
+      code: source.identifier.code,
+      symbol: source.identifier.code,
+      estimates: [createUnavailableEstimate(source.identifier.assetType)]
+    }
+  }
+
+  assertFundDetailSource(source)
   const estimates = source.dividendEvents.length > 0
     ? estimateFundFutureYield({
         latestPrice: source.latestPrice,

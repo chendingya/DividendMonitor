@@ -11,7 +11,7 @@ export async function compareAssets(request: AssetCompareRequestDto): Promise<As
   const indexRepo = new IndexValuationRepository()
   const indexValuations = new Map<string, IndexValuationSource | undefined>()
 
-  const fundSources = sources.filter((s): s is FundAssetDetailSource => s.kind !== 'STOCK' && s.trackingIndex != null)
+  const fundSources = sources.filter((s): s is FundAssetDetailSource => (s.kind === 'ETF' || s.kind === 'FUND') && s.trackingIndex != null)
   await Promise.all(
     fundSources.map(async (s) => {
       const val = await indexRepo.getIndexValuation(s.trackingIndex!)
@@ -20,7 +20,7 @@ export async function compareAssets(request: AssetCompareRequestDto): Promise<As
   )
 
   return sources.map((source) => {
-    const trackingIndex = source.kind !== 'STOCK' ? (source as FundAssetDetailSource).trackingIndex : undefined
+    const trackingIndex = source.kind === 'ETF' || source.kind === 'FUND' ? (source as FundAssetDetailSource).trackingIndex : undefined
     const indexVal = trackingIndex ? indexValuations.get(trackingIndex) : undefined
     return toAssetComparisonRowDto(source, indexVal)
   })
