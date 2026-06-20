@@ -12,6 +12,7 @@ type UpsertRow = {
   direction: string
   shares: number
   avg_cost: number
+  risk_level: string | null
   created_at: string
   updated_at: string
 }
@@ -86,6 +87,7 @@ function createSupabaseMock() {
               direction: String(p.direction ?? 'BUY'),
               shares: Number(p.shares ?? 0),
               avg_cost: Number(p.avg_cost ?? 0),
+              risk_level: p.risk_level ?? null,
               created_at: String(p.created_at ?? new Date().toISOString()),
               updated_at: String(p.updated_at ?? new Date().toISOString())
             })
@@ -204,5 +206,22 @@ describe('SupabasePortfolioRepository upsert — 无 id 多笔同 assetKey', () 
     expect(sameKeyRows[0].id).not.toBe(sameKeyRows[1].id)
     expect(sameKeyRows.find((r) => r.shares === 100)).toBeTruthy()
     expect(sameKeyRows.find((r) => r.shares === 200)).toBeTruthy()
+  })
+
+  it('upsert 带 riskLevel 时云端行带 risk_level 字段', async () => {
+    await repo.upsert({
+      assetKey: 'FUND:A_SHARE:020602',
+      assetType: 'FUND',
+      market: 'A_SHARE',
+      code: '020602',
+      name: '易方达中证红利低波动ETF联接A',
+      direction: 'BUY',
+      shares: 100,
+      avgCost: 1.0,
+      riskLevel: 'MEDIUM'
+    })
+    const row = rows.find((r) => r.asset_key === 'FUND:A_SHARE:020602')
+    expect(row).toBeTruthy()
+    expect((row as UpsertRow).risk_level).toBe('MEDIUM')
   })
 })

@@ -39,6 +39,7 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
         direction: String(row['direction'] ?? 'BUY') as PortfolioPositionDto['direction'],
         shares: Number(row['shares'] ?? 0),
         avgCost: Number(row['avg_cost'] ?? 0),
+        riskLevel: (row['risk_level'] as 'LOW' | 'MEDIUM' | 'HIGH' | null) ?? undefined,
         createdAt: String(row['created_at'] ?? ''),
         updatedAt: String(row['updated_at'] ?? '')
       }))
@@ -74,6 +75,7 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
     const id = request.id?.trim() || `asset-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const assetKey = request.assetKey?.trim() || buildAssetKey(assetType, market, code)
     const direction = request.direction === 'SELL' ? 'SELL' : 'BUY'
+    const riskLevel = request.riskLevel ?? null
 
     try {
       const userId = await this.getUserId()
@@ -92,6 +94,7 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
         direction,
         shares,
         avg_cost: avgCost,
+        risk_level: riskLevel,
         created_at: now,
         updated_at: now
       }, { onConflict: 'id' })
