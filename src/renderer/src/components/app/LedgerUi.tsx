@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-type LedgerIconName = 'yield' | 'wallet' | 'calendar' | 'recent' | 'analysis' | 'allocation' | 'detail' | 'delete' | 'select' | 'plus' | 'groups'
+type LedgerIconName = 'yield' | 'wallet' | 'calendar' | 'recent' | 'analysis' | 'allocation' | 'detail' | 'delete' | 'select' | 'plus' | 'groups' | 'edit'
 
 export function LedgerIcon({ name, className }: { name: LedgerIconName; className?: string }) {
   if (name === 'yield') {
@@ -92,6 +92,15 @@ export function LedgerIcon({ name, className }: { name: LedgerIconName; classNam
         <rect x="3" y="3" width="18" height="7" rx="2" stroke="currentColor" strokeWidth="1.8" />
         <rect x="3" y="14" width="18" height="7" rx="2" stroke="currentColor" strokeWidth="1.8" />
         <path d="M7 10v4M17 10v4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (name === 'edit') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 20h4l10-10-4-4L4 16v4z" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M13.5 6.5l4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       </svg>
     )
   }
