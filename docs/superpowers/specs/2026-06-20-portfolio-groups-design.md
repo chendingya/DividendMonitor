@@ -15,7 +15,7 @@ Alex 希望给持仓资产加分组功能，像自选池一样管理；同时把
 
 | 维度 | 决策 |
 |------|------|
-| 分组关系 | **复用自选池分组**，一个资产在自选池分组 A 就在持仓分组 A，双向同步 |
+| 分组关系 | **分组定义共用**（组名列表自选池与持仓共用）；**资产-分组关联独立于自选池/持仓**，加入分组不强制加入自选池 |
 | 分组筛选 | 持仓表顶部 Tab 切换（全部 \| 分组A \| 分组B \| + 新建） |
 | 资产类别标签 | 去掉 Tag，靠 AssetAvatar 颜色区分 |
 | 操作栏图标 | 分组(groups) + 详情(detail) + 编辑(edit 新增) + 删除(delete) |
@@ -25,25 +25,39 @@ Alex 希望给持仓资产加分组功能，像自选池一样管理；同时把
 
 - 风险等级自动计算与 UI（后续迭代）
 - 资产类别（FUND/GOLD/STOCK）作为可筛选维度（去掉标签即可，不做替代筛选器）
-- 持仓分组与自选池分组独立的第二套分组体系
+- 分组关联强制绑定自选池（已修正：分组独立，见 §2.1）
 
 ## 2. 数据模型
 
-### 2.1 分组关联（零变更）
+### 2.1 分组关联（解耦自选池外键）
 
-持仓分组直接复用 `watchlist_group_assets` 关联表：
+现有 `watchlist_group_assets` 外键 `REFERENCES watchlist_items(asset_key) ON DELETE CASCADE` 强制分组关联依赖自选池记录——持仓资产加入分组会因外键失败，或被迫先加入自选池。这违背"分组独立"语义。
+
+**迁移**：重建 `watchlist_group_assets`，去掉对 `watchlist_items` 的外键：
 
 ```sql
--- 已存在，不改
-CREATE TABLE watchlist_group_assets (
+-- 迁移脚本（幂等）
+CREATE TABLE IF NOT EXISTS watchlist_group_assets_v2 (
   group_id TEXT NOT NULL REFERENCES watchlist_groups(id) ON DELETE CASCADE,
-  asset_key TEXT NOT NULL REFERENCES watchlist_items(asset_key) ON DELETE CASCADE,
+  asset_key TEXT NOT NULL,
   added_at TEXT NOT NULL,
   PRIMARY KEY (group_id, asset_key)
 );
+
+INSERT OR IGNORE INTO watchlist_group_assets_v2 (group_id, asset_key, added_at)
+SELECT group_id, asset_key, added_at FROM watchlist_group_assets;
+
+DROP TABLE watchlist_group_assets;
+ALTER TABLE watchlist_group_assets_v2 RENAME TO watchlist_group_assets;
+
+CREATE INDEX IF NOT EXISTS idx_watchlist_group_assets_group
+  ON watchlist_group_assets(group_id, added_at DESC);
 ```
 
-持仓表按 `assetKey` 查这张表拿所属分组。资产在自选池被移除时，外键 `ON DELETE CASCADE` 自动断开分组关联，持仓表下次刷新该行变"未分组"。
+迁移后：
+- 资产加入分组不再要求该资产在 `watchlist_items` 中
+- 自选池删除资产时，分组关联**不再**自动断开（CASCADE 已移除）。这是有意为之——分组是独立组织层，资产离开自选池不等于离开分组
+- 分组删除时，关联仍自动断开（`group_id` 外键保留 CASCADE）
 
 ### 2.2 风险等级预留列
 
@@ -191,9 +205,9 @@ type AssetGroupPopoverProps = {
 | 资产不在任何分组 | 只在"全部" Tab 显示，分组 Tab 里不显示 |
 | 分组被删除 | 该分组 Tab 消失，当前在该 Tab 则回退到"全部" |
 | `getAssetGroupIds` 失败 | 该行按"未分组"处理，不阻塞其他行 |
-| 资产在自选池被移除 | 外键 CASCADE 自动断开分组关联，持仓表下次刷新该行变"未分组" |
+| 资产在自选池被移除 | 分组关联**保留**（外键 CASCADE 已移除）。资产离开自选池仍在分组里，持仓表该行仍属该分组 |
 | 新建持仓时 | 不强制选分组，录入后可通过行操作栏的分组图标补加 |
-| 持仓的资产不在自选池 | `watchlist_group_assets` 关联不存在，该持仓行始终"未分组"；用户可在持仓表手动加入分组，加入后该资产也会出现在自选池对应分组（因共用同一张关联表，需确认 `watchlist_items` 是否有该资产，见 §10） |
+| 持仓的资产不在自选池 | 可直接加入分组，无需先加入自选池（外键约束已放宽） |
 
 ## 8. 测试策略
 
@@ -211,10 +225,11 @@ type AssetGroupPopoverProps = {
 ### 8.3 集成验证
 
 手动验证：
-1. 自选池把资产加入分组A → 持仓表该资产出现在分组A Tab
-2. 持仓表把资产移出分组A → 自选池也移出
-3. 持仓表新建分组B → 自选池页也能看到分组B
+1. 持仓表把资产加入分组A → 该资产出现在持仓表分组A Tab（无需在自选池）
+2. 自选池把资产移出 → 该资产仍保留在分组A（关联独立）
+3. 持仓表新建分组B → 自选池页也能看到分组B（分组定义共用）
 4. 持仓表删除分组B → 自选池页分组B 也消失
+5. **回归**：自选池删除资产后，该资产在分组里仍保留（行为变化，需确认自选池页分组 Tab 仍能正确展示）
 
 ## 9. 架构契合度
 
@@ -224,15 +239,11 @@ type AssetGroupPopoverProps = {
 - **风险等级字段预留**不污染现有业务逻辑，纯 schema 占位
 - **依赖方向不变**：前端 hook → renderer service → IPC → useCase → repository，无反向依赖
 
-## 10. 待确认风险
+## 10. 已解决的设计问题
 
-### 10.1 持仓资产不在自选池时的分组关联
+### 10.1 分组与自选池解耦
 
-`watchlist_group_assets.asset_key` 有外键 `REFERENCES watchlist_items(asset_key) ON DELETE CASCADE`。如果持仓里的资产不在 `watchlist_items` 表中，直接往 `watchlist_group_assets` 插入会因外键约束失败。
-
-**解决方案**：持仓表行操作栏"加入分组"时，若该资产不在自选池，先静默调用 `watchlist:addAsset` 把它加入自选池，再加入分组。这样双向同步语义自然成立——加入分组即加入自选池。
-
-**实现位置**：`DashboardPage` 的 `handleToggleAssetGroup` 包装函数里，调 `addToGroup` 前先检查 `watchlistApi.listAssets()` 是否包含该 assetKey，不包含则先 `addAsset`。
+原设计让分组关联外键依赖 `watchlist_items`，导致持仓资产加入分组被强制加入自选池——逻辑不对称。已修正：迁移去掉外键，分组成为独立于自选池/持仓的第三层资产组织。资产可在分组里无论是否在自选池/持仓。
 
 ### 10.2 后续扩展
 
