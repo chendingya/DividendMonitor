@@ -93,7 +93,7 @@ export function PortfolioTable({
               render: (value?: number) => (value == null ? '--' : percent.format(value))
             },
             {
-              title: '收益指标',
+              title: '预期分红率',
               render: (_, record) => (
                 <div>
                   <div>{record.yieldMetric == null ? '--' : percent.format(record.yieldMetric)}</div>
