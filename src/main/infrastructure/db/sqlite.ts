@@ -93,6 +93,28 @@ function createBaseSchema(db: DatabaseSync) {
 
     CREATE INDEX IF NOT EXISTS idx_backtest_results_created_at
       ON backtest_results(created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS watchlist_groups (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      color TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS watchlist_group_assets (
+      group_id TEXT NOT NULL REFERENCES watchlist_groups(id) ON DELETE CASCADE,
+      asset_key TEXT NOT NULL REFERENCES watchlist_items(asset_key) ON DELETE CASCADE,
+      added_at TEXT NOT NULL,
+      PRIMARY KEY (group_id, asset_key)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_watchlist_groups_sort
+      ON watchlist_groups(sort_order ASC, name ASC);
+
+    CREATE INDEX IF NOT EXISTS idx_watchlist_group_assets_group
+      ON watchlist_group_assets(group_id, added_at DESC);
   `)
 }
 

@@ -6,7 +6,9 @@ import type {
   MarketCode,
   PortfolioPositionDto,
   PortfolioPositionReplaceByAssetDto,
-  PortfolioPositionUpsertDto
+  PortfolioPositionUpsertDto,
+  WatchlistGroupDto,
+  WatchlistGroupUpsertDto
 } from '@shared/contracts/api'
 
 export type WatchlistAssetRecord = {
@@ -24,6 +26,17 @@ export interface IWatchlistRepository {
   removeAsset(assetKey: AssetKey): Promise<void>
   addSymbol(symbol: string): Promise<void>
   removeSymbol(symbol: string): Promise<void>
+}
+
+export interface IWatchlistGroupRepository {
+  listGroups(): Promise<WatchlistGroupDto[]>
+  createGroup(request: WatchlistGroupUpsertDto): Promise<WatchlistGroupDto>
+  updateGroup(id: string, request: WatchlistGroupUpsertDto): Promise<WatchlistGroupDto>
+  deleteGroup(id: string): Promise<void>
+  addToGroup(groupId: string, assetKey: AssetKey): Promise<void>
+  removeFromGroup(groupId: string, assetKey: AssetKey): Promise<void>
+  listGroupAssets(groupId: string): Promise<WatchlistAssetRecord[]>
+  getAssetGroupIds(assetKey: AssetKey): Promise<string[]>
 }
 
 export interface IPortfolioRepository {
