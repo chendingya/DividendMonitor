@@ -11,6 +11,8 @@ import type {
   ValuationPercentileOutput,
   ValuationTrendInput,
   ValuationTrendOutput,
+  FxQuoteInput,
+  FxQuoteOutput,
   StockDividendRecord
 } from '@main/infrastructure/dataSources/types/sourceTypes'
 import type { HistoricalPricePoint, DividendEvent } from '@main/domain/entities/Stock'
@@ -258,6 +260,16 @@ function resolveAShareSecId(code: string) {
   return `0.${normalized}`
 }
 
+function resolvePreciousMetalSecId(code: string) {
+  const normalized = code.trim().toUpperCase()
+  return `118.${normalized}`
+}
+
+function resolveFxSecId(pair: string) {
+  const normalized = pair.trim().toUpperCase()
+  return `119.${normalized}`
+}
+
 export const eastmoneyAssetSearchEndpoint: EndpointDefinition<
   SearchSuggestInput,
   EastmoneySuggestResponse,
@@ -498,6 +510,86 @@ export const eastmoneyValuationTrendEndpoint: EndpointDefinition<
   }
 }
 
+// ====== Precious metal quote endpoint (Shanghai Gold Exchange via push2) ======
+
+export const eastmoneyPreciousMetalQuoteEndpoint: EndpointDefinition<
+  EastmoneyQuoteInput,
+  EastmoneyFundQuoteResponse,
+  EastmoneyFundQuotePayload
+> = {
+  id: 'eastmoney.precious.quote',
+  provider: 'eastmoney',
+  capability: 'asset.quote',
+  parser: 'json',
+  method: 'GET',
+  timeoutMs: 8000,
+  buildUrl: ({ code }) =>
+    `https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&fields=f43,f57,f58&secid=${resolvePreciousMetalSecId(code)}`,
+  mapResponse: (raw) => raw.data ?? {}
+}
+
+// ====== Precious metal kline endpoint (Shanghai Gold Exchange) ======
+
+export const eastmoneyPreciousMetalKlineEndpoint: EndpointDefinition<
+  EastmoneyKlineInput,
+  EastmoneyKlineResponse,
+  HistoricalPricePoint[]
+> = {
+  id: 'eastmoney.precious.kline',
+  provider: 'eastmoney',
+  capability: 'asset.kline',
+  parser: 'json',
+  method: 'GET',
+  timeoutMs: 10000,
+  buildUrl: ({ code, fqt = 0, lmt = 2000 }) =>
+    `https://push2his.eastmoney.com/api/qt/stock/kline/get?secid=${resolvePreciousMetalSecId(code)}` +
+    `&klt=101&fqt=${fqt}&lmt=${lmt}&end=20500101&fields1=f1,f2,f3,f4,f5,f6&fields2=f51,f52,f53,f54,f55,f56`,
+  mapResponse: (raw) =>
+    (raw.data?.klines ?? [])
+      .map((item) => item.split(','))
+      .flatMap((parts) => {
+        const date = parts[0]?.trim()
+        const close = Number(parts[2])
+        if (!date || !Number.isFinite(close)) return []
+        return [{ date, close }]
+      })
+}
+
+// ====== FX quote endpoint (forex, e.g. USDCNH) ======
+
+type EastmoneyFxQuoteResponse = {
+  data?: {
+    f43?: number
+    f57?: string
+    f58?: string
+    f169?: number
+    f170?: number
+  }
+}
+
+export const eastmoneyFxQuoteEndpoint: EndpointDefinition<
+  FxQuoteInput,
+  EastmoneyFxQuoteResponse,
+  FxQuoteOutput
+> = {
+  id: 'eastmoney.fx.quote',
+  provider: 'eastmoney',
+  capability: 'fx.quote',
+  parser: 'json',
+  method: 'GET',
+  timeoutMs: 8000,
+  buildUrl: ({ pair }) =>
+    `https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&fields=f43,f57,f58,f169,f170&secid=${resolveFxSecId(pair)}`,
+  mapResponse: (raw, input) => ({
+    pair: input.pair,
+    rate: raw.data?.f43 ?? 0,
+    name: raw.data?.f58?.trim() || undefined,
+    change: raw.data?.f169,
+    changePercent: raw.data?.f170,
+    fetchedAt: new Date().toISOString()
+  })
+}
+
 export const eastmoneyEndpoints = [
   eastmoneyAssetSearchEndpoint,
   eastmoneyAssetQuoteEndpoint,
@@ -508,5 +600,8 @@ export const eastmoneyEndpoints = [
   eastmoneyFundProfileEndpoint,
   eastmoneyValuationSnapshotEndpoint,
   eastmoneyValuationPercentileEndpoint,
-  eastmoneyValuationTrendEndpoint
+  eastmoneyValuationTrendEndpoint,
+  eastmoneyPreciousMetalQuoteEndpoint,
+  eastmoneyPreciousMetalKlineEndpoint,
+  eastmoneyFxQuoteEndpoint
 ]
