@@ -9,6 +9,8 @@ export function migrateWatchlistGroupAssetsForeignKey(db: DatabaseSync): void {
   if (!tableInfo.sql.includes('REFERENCES watchlist_items')) return
 
   db.exec(`
+    BEGIN;
+
     CREATE TABLE IF NOT EXISTS watchlist_group_assets_v2 (
       group_id TEXT NOT NULL REFERENCES watchlist_groups(id) ON DELETE CASCADE,
       asset_key TEXT NOT NULL,
@@ -24,5 +26,7 @@ export function migrateWatchlistGroupAssetsForeignKey(db: DatabaseSync): void {
 
     CREATE INDEX IF NOT EXISTS idx_watchlist_group_assets_group
       ON watchlist_group_assets(group_id, added_at DESC);
+
+    COMMIT;
   `)
 }

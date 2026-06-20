@@ -107,7 +107,7 @@ function createBaseSchema(db: DatabaseSync) {
 
     CREATE TABLE IF NOT EXISTS watchlist_group_assets (
       group_id TEXT NOT NULL REFERENCES watchlist_groups(id) ON DELETE CASCADE,
-      asset_key TEXT NOT NULL REFERENCES watchlist_items(asset_key) ON DELETE CASCADE,
+      asset_key TEXT NOT NULL,
       added_at TEXT NOT NULL,
       PRIMARY KEY (group_id, asset_key)
     );
