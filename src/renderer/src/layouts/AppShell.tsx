@@ -8,6 +8,7 @@ import { useAuth } from '@renderer/contexts/AuthContext'
 type AppIconName =
   | 'dashboard'
   | 'dividend'
+  | 'dividend-center'
   | 'watchlist'
   | 'comparison'
   | 'backtest'
@@ -26,6 +27,7 @@ const menuItems = [
   { key: '/', label: '投资组合', icon: 'dashboard' as const },
   { key: '/stock-detail', label: '股息', icon: 'dividend' as const },
   { key: '/watchlist', label: '自选', icon: 'watchlist' as const },
+  { key: '/dividend-center', label: '分红统计', icon: 'dividend-center' as const },
   { key: '/comparison', label: '数据分析', icon: 'comparison' as const },
   { key: '/backtest', label: '回测', icon: 'backtest' as const },
   { key: '/user-center', label: '用户中心', icon: 'user' as const }
@@ -48,6 +50,17 @@ function AppShellIcon({ name, className }: { name: AppIconName; className?: stri
       <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M12 3v18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
         <path d="M16.5 7.5a4.5 4.5 0 0 0-9 0c0 2.5 2 3.3 4.5 4s4.5 1.5 4.5 4a4.5 4.5 0 0 1-9 0" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
+  if (name === 'dividend-center') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="4" y="13" width="4" height="7" rx="1" stroke="currentColor" strokeWidth="1.8" />
+        <rect x="10" y="9" width="4" height="11" rx="1" stroke="currentColor" strokeWidth="1.8" />
+        <rect x="16" y="5" width="4" height="15" rx="1" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M4 4.5h5M6.5 2v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
     )
   }

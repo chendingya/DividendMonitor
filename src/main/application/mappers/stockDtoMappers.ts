@@ -7,6 +7,7 @@ import type {
   ComparisonRowDto,
   FutureYieldResponseDto,
   HistoricalYieldResponseDto,
+  HistoricalPricePointDto,
   IndexValuationDto,
   WatchlistEntryDto,
   StockDetailDto,
@@ -48,6 +49,20 @@ function deriveCapabilities(kind: 'STOCK' | 'ETF' | 'FUND' | 'GOLD' | 'SILVER'):
   if (kind === 'STOCK') return STOCK_CAPABILITIES
   if (kind === 'GOLD' || kind === 'SILVER') return PRECIOUS_METAL_CAPABILITIES
   return ETF_FUND_CAPABILITIES
+}
+
+type RawPricePoint = { date: string; close: number; qfqClose?: number; hfqClose?: number }
+
+function toPriceHistoryDto(points: RawPricePoint[] | undefined): HistoricalPricePointDto[] | undefined {
+  if (!points || points.length === 0) {
+    return undefined
+  }
+  return points.map((point) => ({
+    date: point.date,
+    close: point.close,
+    qfqClose: point.qfqClose,
+    hfqClose: point.hfqClose
+  }))
 }
 
 function toValuationMetricDto(metric?: Parameters<typeof buildValuationWindows>[0]) {
@@ -154,6 +169,7 @@ export function toStockDetailDto(source: StockAssetDetailSource): StockDetailDto
     yieldBasis: NATURAL_YEAR_YIELD_BASIS,
     yearlyYields,
     dividendEvents: source.dividendEvents,
+    priceHistory: toPriceHistoryDto(source.priceHistory),
     futureYieldEstimate: estimates.baseline,
     futureYieldEstimates: [estimates.baseline, estimates.conservative],
     valuation: valuationDto,
@@ -210,6 +226,7 @@ function toPreciousMetalDetailDto(source: PreciousMetalAssetDetailSource): Asset
     yieldBasis: '贵金属无分红，不适用收益率口径',
     yearlyYields: [],
     dividendEvents: [],
+    priceHistory: toPriceHistoryDto(source.priceHistory),
     futureYieldEstimate: createUnavailableEstimate(source.identifier.assetType),
     futureYieldEstimates: [createUnavailableEstimate(source.identifier.assetType)],
     annualVolatility: riskMetrics?.annualVolatility,
@@ -279,6 +296,7 @@ export function toAssetDetailDto(source: StockAssetDetailSource | FundAssetDetai
     yieldBasis: FUND_YIELD_BASIS,
     yearlyYields,
     dividendEvents: source.dividendEvents,
+    priceHistory: toPriceHistoryDto(source.priceHistory),
     futureYieldEstimate,
     futureYieldEstimates,
     annualVolatility: riskMetrics?.annualVolatility,

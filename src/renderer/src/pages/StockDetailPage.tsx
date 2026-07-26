@@ -10,6 +10,7 @@ import { IndexValuationTrendChart } from '@renderer/components/stock-detail/Inde
 import { PreciousMetalProfileCard } from '@renderer/components/stock-detail/PreciousMetalProfileCard'
 import { ValuationTrendChart } from '@renderer/components/stock-detail/ValuationTrendChart'
 import { YearlyDividendTrendChart } from '@renderer/components/stock-detail/YearlyDividendTrendChart'
+import { PriceTrendChart } from '@renderer/components/stock-detail/PriceTrendChart'
 import { PreciousMetalDisplayProvider, usePreciousMetalDisplay } from '@renderer/contexts/PreciousMetalDisplayContext'
 import { DEFAULT_STOCK_SYMBOL } from '@renderer/defaults'
 import { useAssetDetail } from '@renderer/hooks/useAssetDetail'
@@ -278,6 +279,8 @@ export function StockDetailPage() {
           </AppCard>
         </Col>
       </Row>
+
+      {!isPreciousMetal && <PriceTrendChart data={data.priceHistory} />}
 
       {hasFundProfile ? (
         <AppCard title="基金画像">

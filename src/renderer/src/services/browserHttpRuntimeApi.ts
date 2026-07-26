@@ -14,6 +14,7 @@ import type {
   PortfolioRiskMetricsDto,
   StockDetailDto,
   StockSearchItemDto,
+  SyncResultDto,
   SyncStatusDto,
   WatchlistAddRequestDto,
   WatchlistEntryDto,
@@ -74,16 +75,6 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
     },
     updatePassword(_newPassword: string) {
       return postJsonWithNonce<void>('/api/auth/update-password', { newPassword: _newPassword })
-    }
-  },
-  sync: {
-    onStatusChange(_callback: (status: SyncStatusDto) => void) {
-      // No-op for browser HTTP runtime; sync status is not pushed
-      return () => {}
-    },
-    syncData(_direction: 'push' | 'pull' | 'bidirectional') {
-      // Not available in browser HTTP runtime
-      return Promise.resolve({ direction: 'bidirectional', watchlistPushed: 0, watchlistPulled: 0, portfolioPushed: 0, portfolioPulled: 0, errors: ['浏览器模式不支持同步'] })
     }
   },
   industry: {
@@ -224,7 +215,7 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
   },
   security: {
     getLocalNonce() {
-      return window.dividendMonitor.security.getLocalNonce()
+      return requestJson<{ nonce: string }>('/api/security/nonce').then((r) => r.nonce)
     }
   },
   fx: {
@@ -241,6 +232,28 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
     },
     historyDelete(id: string) {
       return requestJson('/api/backtest/history', { method: 'DELETE', body: { id } })
+    }
+  },
+  sync: {
+    onStatusChange(callback: (status: SyncStatusDto) => void) {
+      // The HTTP runtime has no push channel, so poll the sync status
+      // endpoint and forward changes — mirrors the desktop IPC event.
+      let lastSignature = ''
+      const timer = setInterval(() => {
+        requestJson<SyncStatusDto>('/api/sync/status')
+          .then((status) => {
+            const signature = JSON.stringify(status)
+            if (signature !== lastSignature) {
+              lastSignature = signature
+              callback(status)
+            }
+          })
+          .catch(() => {})
+      }, 2000)
+      return () => clearInterval(timer)
+    },
+    syncData(direction: 'push' | 'pull' | 'bidirectional') {
+      return postJson<SyncResultDto>('/api/sync/data', { direction })
     }
   }
 }

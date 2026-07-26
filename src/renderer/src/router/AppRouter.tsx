@@ -3,6 +3,7 @@ import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { BacktestPage } from '@renderer/pages/BacktestPage'
 import { ComparisonPage } from '@renderer/pages/ComparisonPage'
 import { DashboardPage } from '@renderer/pages/DashboardPage'
+import { DividendCenterPage } from '@renderer/pages/DividendCenterPage'
 import { LoginPage } from '@renderer/pages/LoginPage'
 import { StockDetailPage } from '@renderer/pages/StockDetailPage'
 import { UserCenterPage } from '@renderer/pages/UserCenterPage'
@@ -56,6 +57,7 @@ export function AppRouter() {
         <Route path="/stock-detail" element={<StockDetailPage />} />
         <Route path="/stock-detail/:symbol" element={<StockDetailPage />} />
         <Route path="/watchlist" element={<WatchlistPage />} />
+        <Route path="/dividend-center" element={<DividendCenterPage />} />
         <Route path="/comparison" element={<ComparisonPage />} />
         <Route path="/comparison/:symbols" element={<ComparisonPage />} />
         <Route path="/backtest" element={<BacktestPage />} />
