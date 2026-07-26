@@ -21,6 +21,7 @@ export type PortfolioEditorInitialValues = {
   shares: number
   avgCost: number
   openedAt?: string
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH'
 }
 
 export type PortfolioEditorSubmitValues = {
@@ -35,6 +36,7 @@ export type PortfolioEditorSubmitValues = {
   avgCost: number
   tradePrice: number
   openedAt?: string
+  riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH'
 }
 
 type Props = {
@@ -91,6 +93,7 @@ export function PortfolioPositionEditorModal({
     shares: number
     avgCost: number
     openedAt?: string
+    riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH'
   }>()
   const codeInputRef = useRef<InputRef | null>(null)
   const { settings } = useSettings()
@@ -123,7 +126,8 @@ export function PortfolioPositionEditorModal({
       direction: initialValues.direction ?? 'BUY',
       shares: initialValues.shares,
       avgCost: initialValues.avgCost,
-      openedAt: initialValues.openedAt ?? ''
+      openedAt: initialValues.openedAt ?? '',
+      riskLevel: initialValues.riskLevel
     })
     const timer = setTimeout(() => {
       if (mode === 'create') {
@@ -267,7 +271,8 @@ export function PortfolioPositionEditorModal({
         shares: values.shares,
         avgCost: trueCost,
         tradePrice: values.avgCost,
-        openedAt: values.openedAt?.trim() || undefined
+        openedAt: values.openedAt?.trim() || undefined,
+        riskLevel: values.riskLevel
       })
     } catch (error) {
       if (error instanceof Error) {
@@ -307,6 +312,17 @@ export function PortfolioPositionEditorModal({
             options={[
               { label: '买入（增加持仓）', value: 'BUY' },
               { label: '卖出（减少持仓）', value: 'SELL' }
+            ]}
+          />
+        </Form.Item>
+        <Form.Item label="风险等级" name="riskLevel" extra="可选。用于工作台「按风险归类」饼图聚合">
+          <Select
+            allowClear
+            placeholder="未指定"
+            options={[
+              { label: '低风险', value: 'LOW' },
+              { label: '中风险', value: 'MEDIUM' },
+              { label: '高风险', value: 'HIGH' }
             ]}
           />
         </Form.Item>

@@ -1,4 +1,4 @@
-import { Input, message, Modal, Popconfirm } from 'antd'
+import { Col, Input, message, Modal, Popconfirm, Row } from 'antd'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -16,6 +16,7 @@ import { usePortfolio, type PortfolioRow, type PortfolioTransaction } from '@ren
 import { usePortfolioRiskMetrics } from '@renderer/hooks/usePortfolioRiskMetrics'
 import { CorrelationMatrix } from '@renderer/components/dashboard/CorrelationMatrix'
 import { IndustryDistributionPie } from '@renderer/components/industry/IndustryDistributionPie'
+import { PortfolioDistributionPie, type DistributionSlice } from '@renderer/components/dashboard/PortfolioDistributionPie'
 import { useIndustryAnalysis } from '@renderer/hooks/useIndustryAnalysis'
 import { assetApi } from '@renderer/services/assetApi'
 import { useWatchlistGroups } from '@renderer/hooks/useWatchlistGroups'
@@ -111,6 +112,62 @@ export function DashboardPage() {
     if (!activeGroupId) return rows
     return rows.filter((row) => assetKeyToGroupIds.get(row.assetKey ?? '')?.includes(activeGroupId))
   }, [rows, activeGroupId, assetKeyToGroupIds])
+
+  const riskDistribution = useMemo<DistributionSlice[]>(() => {
+    const buckets = new Map<string, number>([
+      ['低风险', 0],
+      ['中风险', 0],
+      ['高风险', 0],
+      ['未指定', 0]
+    ])
+    const colorMap: Record<string, string> = {
+      低风险: '#16a34a',
+      中风险: '#ea580c',
+      高风险: '#dc2626',
+      未指定: '#94a3b8'
+    }
+    for (const row of rows) {
+      const mv = row.marketValue
+      if (!mv || mv <= 0) continue
+      const level = row.riskLevel
+      const label = level === 'LOW' ? '低风险' : level === 'MEDIUM' ? '中风险' : level === 'HIGH' ? '高风险' : '未指定'
+      buckets.set(label, (buckets.get(label) ?? 0) + mv)
+    }
+    return [...buckets.entries()]
+      .filter(([, v]) => v > 0)
+      .map(([name, value]) => ({ name, value, color: colorMap[name] }))
+  }, [rows])
+
+  const groupDistribution = useMemo<DistributionSlice[]>(() => {
+    if (groups.length === 0 && rows.length === 0) return []
+    const groupValues = new Map<string, number>()
+    let orphanValue = 0
+    for (const row of rows) {
+      const mv = row.marketValue
+      if (!mv || mv <= 0) continue
+      const assetKey = row.assetKey ?? ''
+      const ids = assetKey ? assetKeyToGroupIds.get(assetKey) ?? [] : []
+      if (ids.length === 0) {
+        orphanValue += mv
+        continue
+      }
+      const share = mv / ids.length
+      for (const gid of ids) {
+        groupValues.set(gid, (groupValues.get(gid) ?? 0) + share)
+      }
+    }
+    const items: DistributionSlice[] = groups
+      .map((g) => ({
+        name: g.name,
+        value: Math.round(groupValues.get(g.id) ?? 0),
+        color: g.color
+      }))
+      .filter((i) => i.value > 0)
+    if (orphanValue > 0) {
+      items.push({ name: '未分组', value: Math.round(orphanValue), color: '#94a3b8' })
+    }
+    return items
+  }, [rows, groups, assetKeyToGroupIds])
 
   const handleGetAssetGroupIds = useCallback(async (assetKey: string): Promise<string[]> => {
     try {
@@ -243,8 +300,9 @@ export function DashboardPage() {
       name: record.name,
       direction: 'BUY',
       shares: record.netShares,
-      avgCost: record.avgCost,
-      openedAt: record.openedAt
+      avgCost: record.tradePrice ?? record.avgCost,
+      openedAt: record.openedAt,
+      riskLevel: record.riskLevel
     })
     setEditorOpen(true)
   }
@@ -273,6 +331,7 @@ export function DashboardPage() {
         shares: values.shares,
         avgCost: values.avgCost,
         tradePrice: values.tradePrice,
+        riskLevel: values.riskLevel ?? editingRow.riskLevel,
         openedAt: values.openedAt
       })
       await reload()
@@ -292,7 +351,8 @@ export function DashboardPage() {
       direction: values.direction,
       shares: values.shares,
       avgCost: values.avgCost,
-      tradePrice: values.tradePrice
+      tradePrice: values.tradePrice,
+      riskLevel: values.riskLevel
     })
     await reload()
     closeEditor()
@@ -363,7 +423,8 @@ export function DashboardPage() {
       direction: transaction.direction,
       shares: transaction.shares,
       avgCost: transaction.tradePrice ?? transaction.avgCost,
-      openedAt: transaction.openedAt
+      openedAt: transaction.openedAt,
+      riskLevel: record.riskLevel
     })
     setEditorOpen(true)
   }
@@ -700,14 +761,37 @@ export function DashboardPage() {
         dateRange={riskMetrics?.commonDateRange}
       />
 
-      {distribution && distribution.length > 0 && (
+      {((distribution && distribution.length > 0) || riskDistribution.length > 0 || groupDistribution.length > 0) && (
         <div className="page-section">
           <div className="ledger-section-head">
-            <h2>持仓行业分布</h2>
+            <h2>持仓结构分布</h2>
           </div>
-          <div className="ledger-toolbar-card">
-            <IndustryDistributionPie distribution={distribution} />
-          </div>
+          <Row gutter={[16, 16]}>
+            {distribution && distribution.length > 0 && (
+              <Col xs={24} md={12} xl={8}>
+                <div className="ledger-toolbar-card">
+                  <h3 style={{ margin: '0 0 8px', fontSize: 14, color: '#475569' }}>按行业</h3>
+                  <IndustryDistributionPie distribution={distribution} />
+                </div>
+              </Col>
+            )}
+            {riskDistribution.length > 0 && (
+              <Col xs={24} md={12} xl={8}>
+                <div className="ledger-toolbar-card">
+                  <h3 style={{ margin: '0 0 8px', fontSize: 14, color: '#475569' }}>按风险等级</h3>
+                  <PortfolioDistributionPie items={riskDistribution} />
+                </div>
+              </Col>
+            )}
+            {groupDistribution.length > 0 && (
+              <Col xs={24} md={12} xl={8}>
+                <div className="ledger-toolbar-card">
+                  <h3 style={{ margin: '0 0 8px', fontSize: 14, color: '#475569' }}>按自定义分组</h3>
+                  <PortfolioDistributionPie items={groupDistribution} />
+                </div>
+              </Col>
+            )}
+          </Row>
         </div>
       )}
 
