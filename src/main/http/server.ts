@@ -3,10 +3,13 @@ import { LOCAL_HTTP_API_ORIGIN } from '@shared/contracts/api'
 import { handleAssetRoute } from '@main/http/routes/assetRoutes'
 import { handleAuthRoute } from '@main/http/routes/authRoutes'
 import { handleCalculationRoute } from '@main/http/routes/calculationRoutes'
+import { handleDividendRoute } from '@main/http/routes/dividendRoutes'
 import { handleFxRoute } from '@main/http/routes/fxRoutes'
 import { handleIndustryRoute } from '@main/http/routes/industryRoutes'
 import { handlePortfolioRoute } from '@main/http/routes/portfolioRoutes'
+import { handleSecurityRoute } from '@main/http/routes/securityRoutes'
 import { handleSettingsRoute } from '@main/http/routes/settingsRoutes'
+import { handleSyncRoute } from '@main/http/routes/syncRoutes'
 import { handleWatchlistRoute } from '@main/http/routes/watchlistRoutes'
 import { HttpError, asHttpError, sendJson } from '@main/http/httpErrors'
 import { getSecurityHeaders } from '@main/security/contentSecurityPolicy'
@@ -65,7 +68,7 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
   } else {
     response.setHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:3210')
   }
-  response.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
+  response.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Local-Nonce')
 
   if (request.method === 'OPTIONS') {
@@ -79,10 +82,13 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
   const handled =
     (await handleAuthRoute({ pathname, method, body, response, headers: request.headers })) ||
     (await handleAssetRoute({ pathname, method, body, response })) ||
+    (await handleDividendRoute({ pathname, method, body, response })) ||
     (await handleFxRoute({ pathname, method, body, response })) ||
     (await handleIndustryRoute({ pathname, method, body, response })) ||
     (await handleSettingsRoute({ pathname, method, body, response })) ||
     (await handleWatchlistRoute({ pathname, method, body, response })) ||
+    (await handleSecurityRoute({ pathname, method, body, response, headers: request.headers })) ||
+    (await handleSyncRoute({ pathname, method, body, response, headers: request.headers })) ||
     (await handleCalculationRoute({ pathname, method, body, response })) ||
     (await handlePortfolioRoute({ pathname, method, body, response }))
 

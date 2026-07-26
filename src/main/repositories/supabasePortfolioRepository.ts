@@ -39,7 +39,12 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
         direction: String(row['direction'] ?? 'BUY') as PortfolioPositionDto['direction'],
         shares: Number(row['shares'] ?? 0),
         avgCost: Number(row['avg_cost'] ?? 0),
+        tradePrice: row['trade_price'] != null ? Number(row['trade_price']) : undefined,
+        openedAt: row['opened_at'] ? String(row['opened_at']) : undefined,
         riskLevel: (row['risk_level'] as 'LOW' | 'MEDIUM' | 'HIGH' | null) ?? undefined,
+        corporateActionsAppliedUntil: row['corporate_actions_applied_until']
+          ? String(row['corporate_actions_applied_until'])
+          : undefined,
         createdAt: String(row['created_at'] ?? ''),
         updatedAt: String(row['updated_at'] ?? '')
       }))
@@ -83,7 +88,7 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
       // 无 id 时永远 INSERT 新行（与本地 PortfolioRepository 行为一致），
       // 同一 assetKey 允许多笔记录共存，由前端按 assetKey 聚合展示。
       // 有 id 时按 id UPSERT（编辑已有持仓）。
-      await supabase.from('portfolio_positions').upsert({
+      const { error } = await supabase.from('portfolio_positions').upsert({
         id,
         user_id: userId,
         asset_key: assetKey,
@@ -94,14 +99,21 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
         direction,
         shares,
         avg_cost: avgCost,
+        trade_price: request.tradePrice != null ? Number(request.tradePrice) : null,
+        opened_at: request.openedAt?.trim() || null,
         risk_level: riskLevel,
+        corporate_actions_applied_until: '',
         created_at: now,
         updated_at: now
       }, { onConflict: 'id' })
 
+      if (error) throw error
+
       notifySyncStatus({ status: 'synced' })
-    } catch {
-      notifySyncStatus({ status: 'offline-fallback', message: '持仓同步失败，数据仅保存在本地' })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '持仓同步失败'
+      console.warn('[SupabasePortfolioRepository] upsert 同步失败，回落本地:', message)
+      notifySyncStatus({ status: 'offline-fallback', message: `持仓同步失败：${message}。数据已保存在本地，刷新后会显示。` })
     }
 
     await this.localRepo.upsert(request)
@@ -164,8 +176,9 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
     try {
       const userId = await this.getUserId()
       // Delete then insert to ensure consistency
-      await supabase.from('portfolio_positions').delete().eq('user_id', userId).eq('asset_key', assetKey)
-      await supabase.from('portfolio_positions').insert({
+      const delRes = await supabase.from('portfolio_positions').delete().eq('user_id', userId).eq('asset_key', assetKey)
+      if (delRes.error) throw delRes.error
+      const insRes = await supabase.from('portfolio_positions').insert({
         id,
         user_id: userId,
         asset_key: assetKey,
@@ -176,14 +189,47 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
         direction: 'BUY',
         shares,
         avg_cost: avgCost,
+        opened_at: request.openedAt?.trim() || null,
         created_at: now,
         updated_at: now
       })
+      if (insRes.error) throw insRes.error
       notifySyncStatus({ status: 'synced' })
-    } catch {
-      notifySyncStatus({ status: 'offline-fallback', message: '持仓同步失败，数据仅保存在本地' })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '持仓同步失败'
+      console.warn('[SupabasePortfolioRepository] replaceByAsset 同步失败，回落本地:', message)
+      notifySyncStatus({ status: 'offline-fallback', message: `持仓同步失败：${message}。数据已保存在本地，刷新后会显示。` })
     }
 
     await this.localRepo.replaceByAsset(request)
+  }
+
+  async applyCorporateActionAdjustment(
+    id: string,
+    shares: number,
+    avgCost: number,
+    appliedUntil: string
+  ): Promise<void> {
+    const supabase = getSupabaseClient()
+    if (supabase) {
+      try {
+        const userId = await this.getUserId()
+        await supabase
+          .from('portfolio_positions')
+          .update({
+            shares,
+            avg_cost: avgCost,
+            corporate_actions_applied_until: appliedUntil,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', id)
+          .eq('user_id', userId)
+        notifySyncStatus({ status: 'synced' })
+      } catch {
+        notifySyncStatus({ status: 'offline-fallback', message: '除权除息同步失败，数据仅保存在本地' })
+      }
+    }
+
+    await this.localRepo.applyCorporateActionAdjustment(id, shares, avgCost, appliedUntil)
   }
 }

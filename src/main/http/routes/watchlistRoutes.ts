@@ -117,7 +117,7 @@ export async function handleWatchlistRoute({ pathname, method, body, response }:
   }
 
   if (pathname.startsWith('/api/watchlist/asset-groups/') && method === 'GET') {
-    const assetKey = pathname.slice('/api/watchlist/asset-groups/'.length)
+    const assetKey = decodeURIComponent(pathname.slice('/api/watchlist/asset-groups/'.length))
     if (!assetKey) {
       throw new HttpError('资产标识不能为空。', 400)
     }

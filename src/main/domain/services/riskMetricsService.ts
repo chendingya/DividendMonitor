@@ -17,7 +17,8 @@ export function calculateRiskMetrics(
     return undefined
   }
 
-  const closes = priceHistory.map((p) => p.close)
+  // 使用复权价（前复权）计算收益序列，消除除权除息跳空对波动率/夏普的失真
+  const closes = priceHistory.map((p) => p.qfqClose ?? p.close)
   const returns: number[] = []
 
   for (let i = 1; i < closes.length; i++) {

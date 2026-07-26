@@ -4,6 +4,8 @@ import { mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { migrateWatchlistGroupAssetsForeignKey } from '@main/infrastructure/db/migrations/watchlistGroupAssetsMigration'
 import { migratePortfolioRiskLevelColumn } from '@main/infrastructure/db/migrations/portfolioRiskLevelMigration'
+import { migrateCorporateActionsCursorReset } from '@main/infrastructure/db/migrations/corporateActionsCursorResetMigration'
+import { migrateCorporateActionsCursorResetV2 } from '@main/infrastructure/db/migrations/corporateActionsCursorResetV2Migration'
 
 let database: DatabaseSync | null = null
 
@@ -39,6 +41,7 @@ function createBaseSchema(db: DatabaseSync) {
       direction TEXT NOT NULL,
       shares REAL NOT NULL,
       avg_cost REAL NOT NULL,
+      opened_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -82,6 +85,29 @@ function createBaseSchema(db: DatabaseSync) {
     );
 
     CREATE INDEX IF NOT EXISTS idx_price_cache_code ON price_cache(code);
+
+    CREATE TABLE IF NOT EXISTS dividend_events (
+      asset_key TEXT NOT NULL,
+      year INTEGER NOT NULL,
+      fiscal_year INTEGER,
+      announce_date TEXT,
+      record_date TEXT,
+      ex_date TEXT,
+      pay_date TEXT,
+      dividend_per_share REAL NOT NULL,
+      total_dividend_amount REAL,
+      payout_ratio REAL,
+      reference_close_price REAL NOT NULL,
+      bonus_share_per10 REAL,
+      transfer_share_per10 REAL,
+      source TEXT NOT NULL,
+      fetched_at TEXT NOT NULL,
+      PRIMARY KEY (asset_key, ex_date)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_dividend_events_asset_key ON dividend_events(asset_key);
+    CREATE INDEX IF NOT EXISTS idx_dividend_events_ex_date ON dividend_events(ex_date);
+
 
     CREATE TABLE IF NOT EXISTS backtest_results (
       id TEXT PRIMARY KEY,
@@ -195,6 +221,11 @@ function initializeSchema(db: DatabaseSync) {
   migrateWatchlistAssetTypes(db)
   migrateWatchlistGroupAssetsForeignKey(db)
   migratePortfolioRiskLevelColumn(db)
+  migratePortfolioCorporateActionColumn(db)
+  migratePortfolioOpenedAtColumn(db)
+  migratePortfolioTradePriceColumn(db)
+  migrateCorporateActionsCursorReset(db)
+  migrateCorporateActionsCursorResetV2(db)
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_watchlist_items_updated_at
       ON watchlist_items(updated_at DESC);
@@ -221,6 +252,33 @@ export function getDatabase() {
   database = new DatabaseSync(filePath)
   initializeSchema(database)
   return database
+}
+
+function migratePortfolioCorporateActionColumn(db: DatabaseSync) {
+  const columns = db.prepare('PRAGMA table_info(portfolio_positions)').all() as Array<{ name: string }>
+  if (columns.some((col) => col.name === 'corporate_actions_applied_until')) {
+    return
+  }
+
+  db.exec('ALTER TABLE portfolio_positions ADD COLUMN corporate_actions_applied_until TEXT;')
+}
+
+function migratePortfolioOpenedAtColumn(db: DatabaseSync) {
+  const columns = db.prepare('PRAGMA table_info(portfolio_positions)').all() as Array<{ name: string }>
+  if (columns.some((col) => col.name === 'opened_at')) {
+    return
+  }
+
+  db.exec('ALTER TABLE portfolio_positions ADD COLUMN opened_at TEXT;')
+}
+
+function migratePortfolioTradePriceColumn(db: DatabaseSync) {
+  const columns = db.prepare('PRAGMA table_info(portfolio_positions)').all() as Array<{ name: string }>
+  if (columns.some((col) => col.name === 'trade_price')) {
+    return
+  }
+
+  db.exec('ALTER TABLE portfolio_positions ADD COLUMN trade_price REAL;')
 }
 
 export function getDatabaseFilePathForDebug() {

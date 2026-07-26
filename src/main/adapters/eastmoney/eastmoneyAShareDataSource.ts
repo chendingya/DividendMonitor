@@ -301,7 +301,15 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
           source: 'eastmoney'
         }
       })
-      .filter((event) => event.year > 0 && event.dividendPerShare > 0 && event.referenceClosePrice > 0)
+      // 只要存在派息或送转即保留该方案。referenceClosePrice 仅用于复权因子，
+      // 缺失时 adjustmentFactorService 会退化为 factor=1（不影响复权外的逻辑），
+      // 切勿用 referenceClosePrice > 0 过滤，否则会误杀登记日价格缺失的纯现金分红，
+      // 导致这些分红不落库、持仓成本无法自动下调。
+      .filter(
+        (event) =>
+          event.year > 0 &&
+          (event.dividendPerShare > 0 || (event.bonusSharePer10 ?? 0) > 0 || (event.transferSharePer10 ?? 0) > 0)
+      )
       .sort((a, b) => (a.exDate ?? '').localeCompare(b.exDate ?? ''))
 
     const fiscalYearSummary = buildLatestFiscalYearSummary(dividendRecords)

@@ -3,6 +3,9 @@ import { buildAssetKey, resolveAssetQuery } from '@shared/contracts/api'
 import type { AssetDetailSource, AssetSearchSource } from '@main/repositories/assetProviderRegistry'
 import { AssetProviderRegistry } from '@main/repositories/assetProviderRegistry'
 import { AssetSnapshotRepository } from '@main/repositories/assetSnapshotRepository'
+import { computeQfqCloses, computeHfqCloses } from '@main/domain/services/adjustmentFactorService'
+import { DividendRepository } from '@main/repositories/dividendRepository'
+import type { DividendEvent, HistoricalPricePoint } from '@main/domain/entities/Stock'
 
 export class AssetRepository {
   constructor(
@@ -23,6 +26,7 @@ export class AssetRepository {
     if (!skipCache) {
       const cached = this.snapshotRepo.findFreshByKey<AssetDetailSource>(assetKey, identifier.assetType)
       if (cached) {
+        this.persistDividendEvents(assetKey, (cached as { dividendEvents?: DividendEvent[] }).dividendEvents)
         return cached
       }
     }
@@ -30,13 +34,33 @@ export class AssetRepository {
     const provider = this.registry.getProvider(identifier)
     const source = await provider.getDetail(identifier)
 
+    const withPrices = source as { priceHistory?: HistoricalPricePoint[]; dividendEvents?: DividendEvent[] }
+    let enhanced: AssetDetailSource = source
+    if (withPrices.priceHistory && withPrices.priceHistory.length > 0) {
+      const events = withPrices.dividendEvents ?? []
+      const qfq = computeQfqCloses(withPrices.priceHistory, events)
+      enhanced = { ...source, priceHistory: computeHfqCloses(qfq, events) } as AssetDetailSource
+    }
+    this.persistDividendEvents(assetKey, (enhanced as { dividendEvents?: DividendEvent[] }).dividendEvents)
+
     try {
-      this.snapshotRepo.upsert(assetKey, identifier.assetType, JSON.stringify(source))
+      this.snapshotRepo.upsert(assetKey, identifier.assetType, JSON.stringify(enhanced))
     } catch (err) {
       console.warn(`[AssetRepository] Failed to cache ${assetKey}:`, err)
     }
 
-    return source
+    return enhanced
+  }
+
+  private persistDividendEvents(assetKey: string, events?: DividendEvent[]): void {
+    if (!events || events.length === 0) {
+      return
+    }
+    try {
+      new DividendRepository().upsertMany(assetKey, events)
+    } catch (err) {
+      console.warn(`[AssetRepository] Failed to persist dividend events for ${assetKey}:`, err)
+    }
   }
 
   async compare(request: AssetCompareRequestDto): Promise<AssetDetailSource[]> {

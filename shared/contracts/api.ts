@@ -56,7 +56,10 @@ export type PortfolioPositionDto = {
   direction: PortfolioDirectionDto
   shares: number
   avgCost: number
+  tradePrice?: number
+  openedAt?: string
   riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH'
+  corporateActionsAppliedUntil?: string
   updatedAt: string
   createdAt: string
 }
@@ -72,6 +75,8 @@ export type PortfolioPositionUpsertDto = {
   direction?: PortfolioDirectionDto
   shares: number
   avgCost: number
+  tradePrice?: number
+  openedAt?: string
   riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH'
 }
 
@@ -80,6 +85,7 @@ export type PortfolioPositionReplaceByAssetDto = {
   name: string
   shares: number
   avgCost: number
+  openedAt?: string
 }
 
 export const LOCAL_HTTP_API_ORIGIN = 'http://127.0.0.1:3210'
@@ -352,6 +358,13 @@ export type AssetDetailModulesDto = {
   indexValuation?: IndexValuationDto
 }
 
+export type HistoricalPricePointDto = {
+  date: string
+  close: number
+  qfqClose?: number
+  hfqClose?: number
+}
+
 export type AssetDetailDto = {
   assetKey: AssetKey
   assetType: AssetType
@@ -376,6 +389,7 @@ export type AssetDetailDto = {
   yieldBasis: string
   yearlyYields: HistoricalYieldPointDto[]
   dividendEvents: DividendEventDto[]
+  priceHistory?: HistoricalPricePointDto[]
   futureYieldEstimate: FutureYieldEstimateDto
   futureYieldEstimates: FutureYieldEstimateDto[]
   valuation?: ValuationSnapshotDto
@@ -509,6 +523,8 @@ export type SettingsDto = {
   defaultSortMetric: string
   refreshStrategy: 'manual' | 'onLaunch' | 'interval'
   refreshIntervalMinutes: number
+  buyCommissionRate: number
+  buyMinCommission: number
   backtestInitialCapital: number
   backtestIncludeFees: boolean
   backtestFeeRate: number

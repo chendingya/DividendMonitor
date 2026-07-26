@@ -10,6 +10,7 @@ import type {
   WatchlistGroupDto,
   WatchlistGroupUpsertDto
 } from '@shared/contracts/api'
+import type { DividendEvent } from '@main/domain/entities/Stock'
 
 export type WatchlistAssetRecord = {
   assetKey: AssetKey
@@ -45,4 +46,20 @@ export interface IPortfolioRepository {
   remove(id: string): Promise<void>
   removeByAsset(request: AssetQueryDto): Promise<void>
   replaceByAsset(request: PortfolioPositionReplaceByAssetDto): Promise<void>
+  /**
+   * 应用除权除息后回写持仓：更新股数、摊薄后的成本价，以及已应用的除权日游标。
+   */
+  applyCorporateActionAdjustment(
+    id: string,
+    shares: number,
+    avgCost: number,
+    appliedUntil: string
+  ): Promise<void>
+}
+
+export interface IDividendRepository {
+  upsertMany(assetKey: string, events: DividendEvent[]): void
+  listByAsset(assetKey: string): DividendEvent[]
+  listPendingCorporateActions(assetKey: string, sinceExDate?: string): DividendEvent[]
+  listAssetKeysWithEvents(): string[]
 }

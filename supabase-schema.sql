@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS portfolio_positions (
   direction TEXT NOT NULL DEFAULT 'BUY',
   shares REAL NOT NULL,
   avg_cost REAL NOT NULL,
+  corporate_actions_applied_until TEXT NOT NULL DEFAULT '',
+  opened_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -161,3 +163,10 @@ DROP TRIGGER IF EXISTS trigger_watchlist_groups_updated_at ON watchlist_groups;
 CREATE TRIGGER trigger_watchlist_groups_updated_at
   BEFORE UPDATE ON watchlist_groups
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- 8. 迁移：持仓表新增「已应用的除权除息日游标」列（自动除权除息用）
+-- 对已有线上库执行；新库在建表时已包含，IF NOT EXISTS 保证幂等。
+ALTER TABLE portfolio_positions ADD COLUMN IF NOT EXISTS corporate_actions_applied_until TEXT NOT NULL DEFAULT '';
+
+-- 9. 迁移：持仓表新增「买入日期」列（自动除权除息用）
+ALTER TABLE portfolio_positions ADD COLUMN IF NOT EXISTS opened_at TIMESTAMPTZ;

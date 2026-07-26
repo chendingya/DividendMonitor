@@ -33,6 +33,10 @@ export type DividendEvent = {
 export type HistoricalPricePoint = {
   date: string
   close: number
+  // 前复权收盘价（以最新交易日为基准，消除除权除息跳空）
+  qfqClose?: number
+  // 后复权收盘价（以最早交易日为基准，还原历史未除权高价）
+  hfqClose?: number
 }
 
 export type BacktestTransaction = {

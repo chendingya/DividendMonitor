@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { startLocalHttpServer, stopLocalHttpServer } from '@main/http/server'
 import { registerIpcHandlers } from '@main/ipc/channels'
 import { AssetCacheSyncService } from '@main/application/services/assetCacheSyncService'
+import { syncAllDividendEvents } from '@main/application/services/dividendSyncService'
 import { authService } from '@main/infrastructure/supabase/authService'
 import { migrateLegacySession } from '@main/infrastructure/supabase/sessionStorage'
 import { getCspHeader } from '@main/security/contentSecurityPolicy'
@@ -73,6 +74,9 @@ app.whenReady().then(() => {
   // Delay initial cache sync so the UI and user-initiated requests take priority.
   // This also avoids competing with the startup connection burst to push2.
   setTimeout(() => void cacheSync.syncFromWatchlist(), 15_000)
+
+  // 启动后批量同步分红方案（落库），支撑自动除权除息与价格复权
+  setTimeout(() => void syncAllDividendEvents(), 25_000)
 
   if (!isHeadlessRuntime) {
     createWindow()

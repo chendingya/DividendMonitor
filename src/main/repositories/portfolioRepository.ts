@@ -19,7 +19,10 @@ type PortfolioPositionRow = {
   direction: 'BUY' | 'SELL'
   shares: number
   avg_cost: number
+  trade_price: number | null
+  opened_at: string | null
   risk_level: string | null
+  corporate_actions_applied_until: string | null
   created_at: string
   updated_at: string
 }
@@ -45,7 +48,10 @@ function toDto(row: PortfolioPositionRow): PortfolioPositionDto {
     direction: row.direction,
     shares: Number(row.shares),
     avgCost: Number(row.avg_cost),
+    tradePrice: row.trade_price != null ? Number(row.trade_price) : undefined,
+    openedAt: row.opened_at ?? undefined,
     riskLevel: (row.risk_level as 'LOW' | 'MEDIUM' | 'HIGH' | null) ?? undefined,
+    corporateActionsAppliedUntil: row.corporate_actions_applied_until ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
@@ -57,7 +63,7 @@ export class PortfolioRepository implements IPortfolioRepository {
     const rows = db
       .prepare(
         `
-          SELECT id, asset_key, asset_type, market, code, name, direction, shares, avg_cost, risk_level, created_at, updated_at
+          SELECT id, asset_key, asset_type, market, code, name, direction, shares, avg_cost, trade_price, opened_at, risk_level, corporate_actions_applied_until, created_at, updated_at
           FROM portfolio_positions
           ORDER BY updated_at DESC, created_at DESC, id DESC
         `
@@ -91,6 +97,8 @@ export class PortfolioRepository implements IPortfolioRepository {
     const assetKey = request.assetKey?.trim() || buildAssetKey(assetType, market, code)
     const direction = request.direction === 'SELL' ? 'SELL' : 'BUY'
     const riskLevel = request.riskLevel ?? null
+    const openedAt = request.openedAt?.trim() || null
+    const tradePrice = request.tradePrice != null ? Number(request.tradePrice) : null
     const db = getDatabase()
     const existing = db.prepare('SELECT created_at FROM portfolio_positions WHERE id = ?').get(id) as
       | { created_at?: string }
@@ -99,9 +107,9 @@ export class PortfolioRepository implements IPortfolioRepository {
     db.prepare(
       `
         INSERT INTO portfolio_positions (
-          id, asset_key, asset_type, market, code, name, direction, shares, avg_cost, risk_level, created_at, updated_at
+          id, asset_key, asset_type, market, code, name, direction, shares, avg_cost, trade_price, opened_at, risk_level, created_at, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           asset_key = excluded.asset_key,
           asset_type = excluded.asset_type,
@@ -111,10 +119,18 @@ export class PortfolioRepository implements IPortfolioRepository {
           direction = excluded.direction,
           shares = excluded.shares,
           avg_cost = excluded.avg_cost,
+          trade_price = excluded.trade_price,
+          opened_at = excluded.opened_at,
           risk_level = excluded.risk_level,
+          corporate_actions_applied_until =
+            CASE WHEN excluded.avg_cost IS DISTINCT FROM portfolio_positions.avg_cost
+                  OR excluded.opened_at IS DISTINCT FROM portfolio_positions.opened_at
+                 THEN NULL
+                 ELSE portfolio_positions.corporate_actions_applied_until
+            END,
           updated_at = excluded.updated_at
       `
-    ).run(id, assetKey, assetType, market, code, name, direction, shares, avgCost, riskLevel, existing?.created_at ?? now, now)
+    ).run(id, assetKey, assetType, market, code, name, direction, shares, avgCost, tradePrice, openedAt, riskLevel, existing?.created_at ?? now, now)
   }
 
   async remove(id: string): Promise<void> {
@@ -157,15 +173,31 @@ export class PortfolioRepository implements IPortfolioRepository {
       db.prepare(
         `
           INSERT INTO portfolio_positions (
-            id, asset_key, asset_type, market, code, name, direction, shares, avg_cost, created_at, updated_at
+            id, asset_key, asset_type, market, code, name, direction, shares, avg_cost, opened_at, created_at, updated_at
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
-      ).run(id, assetKey, identity.assetType, identity.market, identity.code, name, 'BUY', shares, avgCost, now, now)
+      ).run(id, assetKey, identity.assetType, identity.market, identity.code, name, 'BUY', shares, avgCost, request.openedAt?.trim() || null, now, now)
       db.exec('COMMIT')
     } catch (error) {
       db.exec('ROLLBACK')
       throw error
     }
+  }
+
+  async applyCorporateActionAdjustment(
+    id: string,
+    shares: number,
+    avgCost: number,
+    appliedUntil: string
+  ): Promise<void> {
+    const db = getDatabase()
+    db.prepare(
+      `
+        UPDATE portfolio_positions
+        SET shares = ?, avg_cost = ?, corporate_actions_applied_until = ?, updated_at = ?
+        WHERE id = ?
+      `
+    ).run(shares, avgCost, appliedUntil, new Date().toISOString(), id)
   }
 }
