@@ -185,17 +185,38 @@ export class SupabaseWatchlistGroupRepository implements IWatchlistGroupReposito
 
       if (error) throw error
 
-      return (data ?? []).map((row: Record<string, unknown>) => {
-        const assetKey = String(row['asset_key'])
-        const parsed = parseAssetKey(assetKey)
-        return {
-          assetKey,
-          assetType: (parsed?.assetType ?? 'STOCK') as WatchlistAssetRecord['assetType'],
-          market: (parsed?.market ?? 'A_SHARE') as WatchlistAssetRecord['market'],
-          code: parsed?.code ?? assetKey,
-          name: undefined
-        }
-      })
+      const { data: watchlistKeys, error: watchlistError } = await supabase
+        .from('watchlist_items')
+        .select('asset_key, asset_type, market, code, name')
+        .eq('user_id', userId)
+
+      if (watchlistError) throw watchlistError
+
+      const watchlistMap = new Map<string, { asset_type?: string; market?: string; code?: string; name?: string }>()
+      for (const row of watchlistKeys ?? []) {
+        const rec = row as Record<string, unknown>
+        watchlistMap.set(String(rec['asset_key']), {
+          asset_type: rec['asset_type'] != null ? String(rec['asset_type']) : undefined,
+          market: rec['market'] != null ? String(rec['market']) : undefined,
+          code: rec['code'] != null ? String(rec['code']) : undefined,
+          name: rec['name'] != null ? String(rec['name']) : undefined
+        })
+      }
+
+      return (data ?? [])
+        .filter((row: Record<string, unknown>) => watchlistMap.has(String(row['asset_key'])))
+        .map((row: Record<string, unknown>) => {
+          const assetKey = String(row['asset_key'])
+          const meta = watchlistMap.get(assetKey)
+          const parsed = parseAssetKey(assetKey)
+          return {
+            assetKey,
+            assetType: (meta?.asset_type ?? parsed?.assetType ?? 'STOCK') as WatchlistAssetRecord['assetType'],
+            market: (meta?.market ?? parsed?.market ?? 'A_SHARE') as WatchlistAssetRecord['market'],
+            code: meta?.code ?? parsed?.code ?? assetKey,
+            name: meta?.name ?? undefined
+          }
+        })
     } catch {
       notifySyncStatus({ status: 'offline-fallback', message: '无法读取云端分组资产，使用本地缓存' })
       return this.localRepo.listGroupAssets(groupId)
