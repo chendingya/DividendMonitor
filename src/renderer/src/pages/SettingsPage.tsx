@@ -202,6 +202,36 @@ function SettingsPage() {
                 </div>
               )}
             </div>
+
+            <div>
+              <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>买入佣金</label>
+              <div className="ledger-calc-summary">
+                <div className="ledger-calc-summary-item">
+                  <span>佣金费率</span>
+                  <input
+                    type="number"
+                    className="ledger-date-input"
+                    style={{ width: 130, marginTop: 8 }}
+                    min={0} max={0.01} step={0.0001}
+                    value={local.buyCommissionRate}
+                    onChange={(e) => merge('buyCommissionRate', parseFloat(e.target.value) || 0.0001)}
+                  />
+                </div>
+                <div className="ledger-calc-summary-item">
+                  <span>最低佣金</span>
+                  <input
+                    type="number"
+                    className="ledger-date-input"
+                    style={{ width: 100, marginTop: 8 }}
+                    min={0} max={100} step={1}
+                    value={local.buyMinCommission}
+                    onChange={(e) => merge('buyMinCommission', parseInt(e.target.value, 10) || 5)}
+                  />
+                  <span style={{ marginLeft: 6, color: '#66707a', fontSize: 12, fontWeight: 600 }}>元</span>
+                </div>
+              </div>
+              <p className="ledger-transaction-hint">添加/编辑持仓时自动计算佣金：佣金 = max(成交额 × 费率, 最低佣金)，实际成本价 = (成交额 + 佣金) ÷ 股数。默认万分之一、最低5元（不免五）。</p>
+            </div>
           </div>
         )}
 

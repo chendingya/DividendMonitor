@@ -42,10 +42,17 @@ export async function runDividendReinvestmentBacktestForAsset(
     benchmarkPriceHistory = await fetchBenchmarkPriceHistory(request.benchmarkSymbol)
   }
 
+  const sourcePrices = (source as { priceHistory?: HistoricalPricePoint[] }).priceHistory ?? []
+  // 回测在除权除息语境下应使用前复权价格：送转股时价格连续（不变）、股数增加，与回测模型一致。
+  const adjustedPriceHistory = sourcePrices.map((point) => ({
+    ...point,
+    close: point.qfqClose ?? point.close
+  }))
+
   const result = runBacktest({
     symbol: identifier.code,
     buyDate: request.buyDate,
-    priceHistory: source.priceHistory,
+    priceHistory: adjustedPriceHistory,
     dividendEvents: source.dividendEvents,
     initialCapital: request.initialCapital,
     includeFees: request.includeFees,

@@ -8,6 +8,16 @@ import {
   type PortfolioPosition
 } from '@renderer/services/portfolioStore'
 
+export type PortfolioTransaction = {
+  id: string
+  direction: 'BUY' | 'SELL'
+  shares: number
+  avgCost: number
+  tradePrice?: number
+  openedAt?: string
+  updatedAt: string
+}
+
 export type PortfolioRow = PortfolioPosition & {
   latestPrice?: number
   marketValue?: number
@@ -17,6 +27,7 @@ export type PortfolioRow = PortfolioPosition & {
   netShares: number
   transactionCount: number
   netCostAmount: number
+  transactions: PortfolioTransaction[]
 }
 
 export type PortfolioOpportunity = PortfolioRow & {
@@ -68,6 +79,15 @@ export function usePortfolio() {
       const signedShares = direction === 'SELL' ? -Math.abs(position.shares) : Math.abs(position.shares)
       const key = position.assetKey ? `asset:${position.assetKey}` : position.symbol ? `symbol:${position.symbol}` : `item:${position.id}`
       const current = byKey.get(key)
+      const transaction: PortfolioTransaction = {
+        id: position.id,
+        direction,
+        shares: Math.abs(position.shares),
+        avgCost: position.avgCost,
+        tradePrice: position.tradePrice,
+        openedAt: position.openedAt,
+        updatedAt: position.updatedAt
+      }
 
       if (!current) {
         byKey.set(key, {
@@ -77,6 +97,7 @@ export function usePortfolio() {
           netShares: signedShares,
           transactionCount: 1,
           netCostAmount: signedShares * position.avgCost,
+          transactions: [transaction],
           latestPrice: undefined,
           marketValue: undefined,
           yieldMetric: undefined,
@@ -89,7 +110,11 @@ export function usePortfolio() {
       current.netShares += signedShares
       current.netCostAmount += signedShares * position.avgCost
       current.transactionCount += 1
+      current.transactions.push(transaction)
       current.updatedAt = position.updatedAt > current.updatedAt ? position.updatedAt : current.updatedAt
+      if (position.openedAt && (!current.openedAt || position.openedAt < current.openedAt)) {
+        current.openedAt = position.openedAt
+      }
     }
 
     const merged = [...byKey.values()].map((row) => {

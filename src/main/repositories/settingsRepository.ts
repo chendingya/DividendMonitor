@@ -41,6 +41,12 @@ export function getAllSettings(): SettingsEntity {
     refreshIntervalMinutes: stored['refreshIntervalMinutes'] !== undefined
       ? Number(stored['refreshIntervalMinutes'])
       : DEFAULT_SETTINGS.refreshIntervalMinutes,
+    buyCommissionRate: stored['buyCommissionRate'] !== undefined
+      ? Number(stored['buyCommissionRate'])
+      : DEFAULT_SETTINGS.buyCommissionRate,
+    buyMinCommission: stored['buyMinCommission'] !== undefined
+      ? Number(stored['buyMinCommission'])
+      : DEFAULT_SETTINGS.buyMinCommission,
     backtestInitialCapital: stored['backtestInitialCapital'] !== undefined
       ? Number(stored['backtestInitialCapital'])
       : DEFAULT_SETTINGS.backtestInitialCapital,

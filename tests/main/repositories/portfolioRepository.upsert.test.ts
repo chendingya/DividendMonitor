@@ -12,7 +12,10 @@ const createPortfolioPositionsTable = `
     direction TEXT NOT NULL,
     shares REAL NOT NULL,
     avg_cost REAL NOT NULL,
+    trade_price REAL,
+    opened_at TEXT,
     risk_level TEXT,
+    corporate_actions_applied_until TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -88,7 +91,10 @@ describe('PortfolioRepository — risk_level 字段', () => {
         direction TEXT NOT NULL,
         shares REAL NOT NULL,
         avg_cost REAL NOT NULL,
+        trade_price REAL,
+        opened_at TEXT,
         risk_level TEXT,
+        corporate_actions_applied_until TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );

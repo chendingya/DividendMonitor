@@ -12,7 +12,9 @@ type UpsertRow = {
   direction: string
   shares: number
   avg_cost: number
+  opened_at: string | null
   risk_level: string | null
+  corporate_actions_applied_until: string | null
   created_at: string
   updated_at: string
 }
@@ -145,7 +147,10 @@ describe('SupabasePortfolioRepository upsert — 无 id 多笔同 assetKey', () 
         direction TEXT NOT NULL,
         shares REAL NOT NULL,
         avg_cost REAL NOT NULL,
+        trade_price REAL,
+        opened_at TEXT,
         risk_level TEXT,
+        corporate_actions_applied_until TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );

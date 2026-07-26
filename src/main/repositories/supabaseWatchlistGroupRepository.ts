@@ -203,8 +203,11 @@ export class SupabaseWatchlistGroupRepository implements IWatchlistGroupReposito
   }
 
   async getAssetGroupIds(assetKey: AssetKey): Promise<string[]> {
+    // 本地库是分组-资产关联的可靠写入源（addToGroup/removeFromGroup 始终先写本地），
+    // 优先以本地为准，保证本端操作立即可见；云端数据作为补充合并，兼顾跨端同步。
+    const localIds = await this.localRepo.getAssetGroupIds(assetKey)
     const supabase = getSupabaseClient()
-    if (!supabase) return this.localRepo.getAssetGroupIds(assetKey)
+    if (!supabase) return localIds
 
     try {
       const userId = await this.getUserId()
@@ -216,9 +219,10 @@ export class SupabaseWatchlistGroupRepository implements IWatchlistGroupReposito
 
       if (error) throw error
 
-      return (data ?? []).map((row: Record<string, unknown>) => String(row['group_id']))
+      const supabaseIds = (data ?? []).map((row: Record<string, unknown>) => String(row['group_id']))
+      return Array.from(new Set([...localIds, ...supabaseIds]))
     } catch {
-      return this.localRepo.getAssetGroupIds(assetKey)
+      return localIds
     }
   }
 }

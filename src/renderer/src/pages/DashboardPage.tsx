@@ -12,7 +12,7 @@ import { DashboardMetricCards } from '@renderer/components/dashboard/DashboardMe
 import { PortfolioTable } from '@renderer/components/dashboard/PortfolioTable'
 import { DashboardOpportunities } from '@renderer/components/dashboard/DashboardOpportunities'
 import { DashboardTools } from '@renderer/components/dashboard/DashboardTools'
-import { usePortfolio, type PortfolioRow } from '@renderer/hooks/usePortfolio'
+import { usePortfolio, type PortfolioRow, type PortfolioTransaction } from '@renderer/hooks/usePortfolio'
 import { usePortfolioRiskMetrics } from '@renderer/hooks/usePortfolioRiskMetrics'
 import { CorrelationMatrix } from '@renderer/components/dashboard/CorrelationMatrix'
 import { IndustryDistributionPie } from '@renderer/components/industry/IndustryDistributionPie'
@@ -243,7 +243,8 @@ export function DashboardPage() {
       name: record.name,
       direction: 'BUY',
       shares: record.netShares,
-      avgCost: record.avgCost
+      avgCost: record.avgCost,
+      openedAt: record.openedAt
     })
     setEditorOpen(true)
   }
@@ -270,7 +271,9 @@ export function DashboardPage() {
         name: values.name?.trim() || editingRow.name || '未命名标的',
         direction: values.direction ?? editingRow.direction ?? 'BUY',
         shares: values.shares,
-        avgCost: values.avgCost
+        avgCost: values.avgCost,
+        tradePrice: values.tradePrice,
+        openedAt: values.openedAt
       })
       await reload()
       closeEditor()
@@ -288,7 +291,8 @@ export function DashboardPage() {
       name: values.name,
       direction: values.direction,
       shares: values.shares,
-      avgCost: values.avgCost
+      avgCost: values.avgCost,
+      tradePrice: values.tradePrice
     })
     await reload()
     closeEditor()
@@ -343,6 +347,39 @@ export function DashboardPage() {
           content: `确认删除 ${record.name} 的当前资产记录`,
           onConfirm: () => onRemove(record.id)
         })
+    })
+  }
+
+  function onEditTransaction(record: PortfolioRow, transaction: PortfolioTransaction) {
+    setEditorMode('edit')
+    setEditingRow({ ...record, id: transaction.id })
+    setEditorInitialValues({
+      assetKey: record.assetKey,
+      assetType: record.assetType,
+      market: record.market,
+      code: record.code,
+      symbol: record.symbol ?? '',
+      name: record.name,
+      direction: transaction.direction,
+      shares: transaction.shares,
+      avgCost: transaction.tradePrice ?? transaction.avgCost,
+      openedAt: transaction.openedAt
+    })
+    setEditorOpen(true)
+  }
+
+  function onRemoveTransaction(record: PortfolioRow, transaction: PortfolioTransaction) {
+    Modal.confirm({
+      title: '确认删除此笔交易？',
+      content: `将删除 ${record.name} 的一笔${transaction.direction === 'BUY' ? '买入' : '卖出'}记录（${transaction.shares.toFixed(2)} 股 @ ${transaction.avgCost.toFixed(4)}）。`,
+      okText: '确认删除',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        await removePortfolioPositionInBackend(transaction.id)
+        await reload()
+        apiMessage.success('已删除该笔交易')
+      }
     })
   }
 
@@ -649,6 +686,8 @@ export function DashboardPage() {
         onGoToDetail={(row) => goToDetail(row)}
         onEdit={openEdit}
         onRemove={onRemoveRow}
+        onEditTransaction={onEditTransaction}
+        onRemoveTransaction={onRemoveTransaction}
       />
 
       <DashboardOpportunities

@@ -13,6 +13,8 @@ export type PortfolioPosition = {
   direction?: 'BUY' | 'SELL'
   shares: number
   avgCost: number
+  tradePrice?: number
+  openedAt?: string
   updatedAt: string
 }
 
@@ -95,6 +97,8 @@ function normalizePosition(position: PortfolioPosition): PortfolioPosition | nul
     direction: position.direction === 'SELL' ? 'SELL' : 'BUY',
     shares,
     avgCost,
+    tradePrice: position.tradePrice,
+    openedAt: position.openedAt?.trim() || undefined,
     updatedAt: position.updatedAt || new Date().toISOString()
   }
 }
@@ -159,7 +163,9 @@ function toBackendRequest(position: PortfolioPosition) {
     name: position.name,
     direction: position.direction === 'SELL' ? 'SELL' : 'BUY',
     shares: position.shares,
-    avgCost: position.avgCost
+    avgCost: position.avgCost,
+    tradePrice: position.tradePrice,
+    openedAt: position.openedAt?.trim() || undefined
   } as const
 }
 
@@ -175,6 +181,8 @@ function fromDto(position: PortfolioPositionDto): PortfolioPosition {
     direction: position.direction,
     shares: position.shares,
     avgCost: position.avgCost,
+    tradePrice: position.tradePrice,
+    openedAt: position.openedAt,
     updatedAt: position.updatedAt
   }
 }
@@ -217,7 +225,9 @@ export async function upsertPortfolioPositionInBackend(input: Omit<PortfolioPosi
     name: normalizeName(input.name),
     direction: input.direction === 'SELL' ? 'SELL' : 'BUY',
     shares: input.shares,
-    avgCost: input.avgCost
+    avgCost: input.avgCost,
+    tradePrice: input.tradePrice,
+    openedAt: input.openedAt?.trim() || undefined
   })
 }
 
@@ -276,6 +286,7 @@ export function upsertPortfolioPosition(input: Omit<PortfolioPosition, 'updatedA
     symbol: assetIdentity?.symbol,
     name: normalizeName(input.name),
     direction: input.direction === 'SELL' ? 'SELL' : 'BUY',
+    openedAt: input.openedAt?.trim() || undefined,
     updatedAt: new Date().toISOString()
   }
   const index = positions.findIndex((item) => item.id === next.id)

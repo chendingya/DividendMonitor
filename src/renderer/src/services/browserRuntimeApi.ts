@@ -38,6 +38,8 @@ const defaultMockSettings: SettingsDto = {
   defaultSortMetric: 'estimatedFutureYield',
   refreshStrategy: 'manual',
   refreshIntervalMinutes: 30,
+  buyCommissionRate: 0.0001,
+  buyMinCommission: 5,
   backtestInitialCapital: 100000,
   backtestIncludeFees: false,
   backtestFeeRate: 0.0003,

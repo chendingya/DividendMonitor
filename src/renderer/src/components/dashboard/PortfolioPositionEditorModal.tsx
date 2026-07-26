@@ -1,7 +1,8 @@
 import { Form, Input, InputNumber, message, Modal, Select } from 'antd'
 import type { InputRef } from 'antd'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AssetSearchItemDto, AssetType, MarketCode } from '@shared/contracts/api'
+import { useSettings } from '@renderer/hooks/useSettings'
 
 type AssetApi = {
   search(request: { keyword: string; assetTypes?: AssetType[] }): Promise<AssetSearchItemDto[]>
@@ -19,6 +20,7 @@ export type PortfolioEditorInitialValues = {
   direction?: 'BUY' | 'SELL'
   shares: number
   avgCost: number
+  openedAt?: string
 }
 
 export type PortfolioEditorSubmitValues = {
@@ -31,6 +33,8 @@ export type PortfolioEditorSubmitValues = {
   direction: 'BUY' | 'SELL'
   shares: number
   avgCost: number
+  tradePrice: number
+  openedAt?: string
 }
 
 type Props = {
@@ -86,8 +90,24 @@ export function PortfolioPositionEditorModal({
     direction: 'BUY' | 'SELL'
     shares: number
     avgCost: number
+    openedAt?: string
   }>()
   const codeInputRef = useRef<InputRef | null>(null)
+  const { settings } = useSettings()
+  const commissionRate = settings?.buyCommissionRate ?? 0.0001
+  const minCommission = settings?.buyMinCommission ?? 5
+
+  const watchedShares = Form.useWatch('shares', form)
+  const watchedPrice = Form.useWatch('avgCost', form)
+  const commissionInfo = useMemo(() => {
+    const shares = watchedShares ?? 0
+    const price = watchedPrice ?? 0
+    if (shares <= 0 || price <= 0) return null
+    const tradeAmount = price * shares
+    const commission = Math.max(tradeAmount * commissionRate, minCommission)
+    const trueCost = (tradeAmount + commission) / shares
+    return { tradeAmount, commission, trueCost }
+  }, [watchedShares, watchedPrice, commissionRate, minCommission])
 
   useEffect(() => {
     if (!open) {
@@ -102,7 +122,8 @@ export function PortfolioPositionEditorModal({
       name: initialValues.name ?? '',
       direction: initialValues.direction ?? 'BUY',
       shares: initialValues.shares,
-      avgCost: initialValues.avgCost
+      avgCost: initialValues.avgCost,
+      openedAt: initialValues.openedAt ?? ''
     })
     const timer = setTimeout(() => {
       if (mode === 'create') {
@@ -230,6 +251,11 @@ export function PortfolioPositionEditorModal({
         }
       }
 
+      // 佣金：max(成交额×费率, 最低佣金)，费率与最低佣金从设置读取
+      const tradeAmount = values.avgCost * values.shares
+      const commission = Math.max(tradeAmount * commissionRate, minCommission)
+      const trueCost = (tradeAmount + commission) / values.shares
+
       await onSubmit({
         assetKey: resolvedAssetKey || undefined,
         assetType: resolvedAssetType,
@@ -239,7 +265,9 @@ export function PortfolioPositionEditorModal({
         name: resolvedName || (mode === 'edit' ? initialValues.name ?? '未命名标的' : `未命名资产-${new Date().toISOString().slice(0, 10)}`),
         direction: values.direction,
         shares: values.shares,
-        avgCost: values.avgCost
+        avgCost: trueCost,
+        tradePrice: values.avgCost,
+        openedAt: values.openedAt?.trim() || undefined
       })
     } catch (error) {
       if (error instanceof Error) {
@@ -318,8 +346,21 @@ export function PortfolioPositionEditorModal({
         <Form.Item label="持仓股数" name="shares" rules={[{ required: true, message: '请输入持仓股数' }]}>
           <InputNumber min={0.01} precision={2} style={{ width: '100%' }} />
         </Form.Item>
-        <Form.Item label="持仓成本价" name="avgCost" rules={[{ required: true, message: '请输入成本价' }]}>
-          <InputNumber min={0.01} precision={4} style={{ width: '100%' }} />
+        <Form.Item
+          label="成交价"
+          name="avgCost"
+          rules={[{ required: true, message: '请输入成交价' }]}
+          extra="系统按设置中的佣金费率自动计算佣金，实际存入成本价 = (成交额 + 佣金) ÷ 股数"
+        >
+          <InputNumber min={0.01} precision={4} style={{ width: '100%' }} placeholder="每股成交单价" />
+        </Form.Item>
+        {commissionInfo && (
+          <div style={{ margin: '-16px 0 16px', padding: '8px 12px', background: '#f6f8fa', borderRadius: 6, fontSize: 13, color: '#66707a' }}>
+            成交额 ¥{commissionInfo.tradeAmount.toFixed(2)} · 佣金 ¥{commissionInfo.commission.toFixed(2)} · 实际成本价 <span style={{ color: '#0052d0', fontWeight: 600 }}>¥{commissionInfo.trueCost.toFixed(3)}</span>
+          </div>
+        )}
+        <Form.Item label="买入日期" name="openedAt" extra="可选。填写后自动除权除息只扣除该日期之后的分红。">
+          <Input type="date" />
         </Form.Item>
       </Form>
     </Modal>

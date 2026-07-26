@@ -11,6 +11,8 @@ export type SettingsEntity = {
   defaultSortMetric: SortMetric
   refreshStrategy: RefreshStrategy
   refreshIntervalMinutes: number
+  buyCommissionRate: number
+  buyMinCommission: number
   backtestInitialCapital: number
   backtestIncludeFees: boolean
   backtestFeeRate: number
@@ -27,6 +29,8 @@ export const DEFAULT_SETTINGS: SettingsEntity = {
   defaultSortMetric: 'estimatedFutureYield',
   refreshStrategy: 'manual',
   refreshIntervalMinutes: 30,
+  buyCommissionRate: 0.0001,
+  buyMinCommission: 5,
   backtestInitialCapital: 100000,
   backtestIncludeFees: false,
   backtestFeeRate: 0.0003,
