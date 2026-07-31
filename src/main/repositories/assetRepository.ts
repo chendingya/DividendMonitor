@@ -4,7 +4,7 @@ import type { AssetDetailSource, AssetSearchSource } from '@main/repositories/as
 import { AssetProviderRegistry } from '@main/repositories/assetProviderRegistry'
 import { AssetSnapshotRepository } from '@main/repositories/assetSnapshotRepository'
 import { computeQfqCloses, computeHfqCloses } from '@main/domain/services/adjustmentFactorService'
-import { DividendRepository } from '@main/repositories/dividendRepository'
+import { getDividendRepository } from '@main/repositories/repositoryFactory'
 import type { DividendEvent, HistoricalPricePoint } from '@main/domain/entities/Stock'
 
 export class AssetRepository {
@@ -57,7 +57,7 @@ export class AssetRepository {
       return
     }
     try {
-      new DividendRepository().upsertMany(assetKey, events)
+      getDividendRepository().upsertMany(assetKey, events)
     } catch (err) {
       console.warn(`[AssetRepository] Failed to persist dividend events for ${assetKey}:`, err)
     }

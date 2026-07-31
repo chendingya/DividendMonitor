@@ -1,6 +1,5 @@
 import type { UpcomingDividendDto } from '@shared/contracts/api'
-import { getPortfolioRepository } from '@main/repositories/repositoryFactory'
-import { DividendRepository } from '@main/repositories/dividendRepository'
+import { getPortfolioRepository, getDividendRepository } from '@main/repositories/repositoryFactory'
 
 export async function listUpcomingDividends(): Promise<UpcomingDividendDto[]> {
   const portfolioRepo = getPortfolioRepository()
@@ -33,7 +32,7 @@ export async function listUpcomingDividends(): Promise<UpcomingDividendDto[]> {
     .map(([key]) => key)
   if (heldAssetKeys.length === 0) return []
 
-  const dividendRepo = new DividendRepository()
+  const dividendRepo = getDividendRepository()
   const currentYear = new Date().getFullYear()
   const events = dividendRepo.listUpcomingByAssetKeys(heldAssetKeys, currentYear)
 

@@ -10,6 +10,9 @@ const { portfolioListMock, upcomingMock, mockPositions, mockEvents } = vi.hoiste
 vi.mock('@main/repositories/repositoryFactory', () => ({
   getPortfolioRepository: () => ({
     list: portfolioListMock
+  }),
+  getDividendRepository: () => ({
+    listUpcomingByAssetKeys: upcomingMock
   })
 }))
 

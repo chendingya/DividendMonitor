@@ -63,5 +63,6 @@ export interface IDividendRepository {
   listByAsset(assetKey: string): DividendEvent[]
   listPendingCorporateActions(assetKey: string, sinceExDate?: string): DividendEvent[]
   listAssetKeysWithEvents(): string[]
+  listAll(options?: { fromDate?: string; toDate?: string; assetKeys?: string[] }): DividendEventWithAsset[]
   listUpcomingByAssetKeys(assetKeys: string[], sinceYear?: number): DividendEventWithAsset[]
 }

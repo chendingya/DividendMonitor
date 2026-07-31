@@ -1,5 +1,4 @@
-import { getPortfolioRepository } from '@main/repositories/repositoryFactory'
-import { DividendRepository } from '@main/repositories/dividendRepository'
+import { getPortfolioRepository, getDividendRepository } from '@main/repositories/repositoryFactory'
 import { AssetRepository } from '@main/repositories/assetRepository'
 
 export type CorporateActionAdjustment = {
@@ -29,7 +28,7 @@ export type CorporateActionAdjustment = {
  */
 export async function applyCorporateActionsToPositions(): Promise<CorporateActionAdjustment[]> {
   const portfolioRepo = getPortfolioRepository()
-  const dividendRepo = new DividendRepository()
+  const dividendRepo = getDividendRepository()
   const positions = await portfolioRepo.list()
   const today = new Date().toISOString().slice(0, 10)
   const adjustments: CorporateActionAdjustment[] = []

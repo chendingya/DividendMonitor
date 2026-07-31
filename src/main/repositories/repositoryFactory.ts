@@ -10,12 +10,16 @@ import { SupabasePriceCacheRepository } from '@main/repositories/supabasePriceCa
 import type { IPriceCacheRepository } from '@main/repositories/priceCacheRepository'
 import { WatchlistGroupRepository } from '@main/repositories/watchlistGroupRepository'
 import { SupabaseWatchlistGroupRepository } from '@main/repositories/supabaseWatchlistGroupRepository'
+import { DividendRepository } from '@main/repositories/dividendRepository'
+import { SupabaseDividendRepository } from '@main/repositories/supabaseDividendRepository'
+import type { IDividendRepository } from '@main/repositories/interfaces'
 
 let watchlistInstance: IWatchlistRepository | null = null
 let portfolioInstance: IPortfolioRepository | null = null
 let assetSnapshotInstance: AssetSnapshotRepository | null = null
 let priceCacheInstance: IPriceCacheRepository | null = null
 let watchlistGroupInstance: IWatchlistGroupRepository | null = null
+let dividendInstance: IDividendRepository | null = null
 
 export function getWatchlistRepository(mode?: AppRuntimeMode): IWatchlistRepository {
   const runtimeMode = mode ?? getRuntimeMode()
@@ -79,4 +83,18 @@ export function getWatchlistGroupRepository(mode?: AppRuntimeMode): IWatchlistGr
     watchlistGroupInstance = new WatchlistGroupRepository()
   }
   return watchlistGroupInstance
+}
+
+export function getDividendRepository(mode?: AppRuntimeMode): IDividendRepository {
+  const runtimeMode = mode ?? getRuntimeMode()
+  if (runtimeMode === 'online') {
+    if (!(dividendInstance instanceof SupabaseDividendRepository)) {
+      dividendInstance = new SupabaseDividendRepository()
+    }
+    return dividendInstance
+  }
+  if (!(dividendInstance instanceof DividendRepository)) {
+    dividendInstance = new DividendRepository()
+  }
+  return dividendInstance
 }

@@ -1,4 +1,4 @@
-import { DividendRepository } from '@main/repositories/dividendRepository'
+import { getDividendRepository } from '@main/repositories/repositoryFactory'
 import { getPortfolioRepository } from '@main/repositories/repositoryFactory'
 import type {
   DividendHistoryRequest,
@@ -24,7 +24,7 @@ export type {
  * 未填写买入日期的持仓不参与统计（无法确定持有期间）。
  */
 export async function listDividendHistory(request?: DividendHistoryRequest): Promise<DividendHistoryResult> {
-  const dividendRepo = new DividendRepository()
+  const dividendRepo = getDividendRepository()
   const portfolioRepo = getPortfolioRepository()
   const positions = await portfolioRepo.list()
 
