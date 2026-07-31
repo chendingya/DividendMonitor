@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { DatePicker, Empty, Spin, Table, message } from 'antd'
+import { DatePicker, Empty, Spin, Table, Tag, message } from 'antd'
 import * as echarts from 'echarts'
 import dayjs from 'dayjs'
 import { AppCard } from '@renderer/components/app/AppCard'
 import { dividendApi, type DividendHistoryResult } from '@renderer/services/dividendApi'
+import type { UpcomingDividendDto, DividendForecastDto } from '@shared/contracts/api'
 
 const currency = new Intl.NumberFormat('zh-CN', {
   style: 'currency',
@@ -169,6 +170,10 @@ export function DividendCenterPage() {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<DividendHistoryResult | null>(null)
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null] | null>(null)
+  const [upcoming, setUpcoming] = useState<UpcomingDividendDto[]>([])
+  const [forecast, setForecast] = useState<DividendForecastDto | null>(null)
+  const [forecastLoading, setForecastLoading] = useState(false)
+  const [forecastError, setForecastError] = useState<string | null>(null)
 
   useEffect(() => {
     let disposed = false
@@ -194,17 +199,45 @@ export function DividendCenterPage() {
     return () => { disposed = true }
   }, [dateRange])
 
+  useEffect(() => {
+    let cancelled = false
+    setForecastLoading(true)
+    setForecastError(null)
+    Promise.all([dividendApi.listUpcoming(), dividendApi.getForecast()])
+      .then(([u, f]) => {
+        if (cancelled) return
+        setUpcoming(u)
+        setForecast(f)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setForecastError(err instanceof Error ? err.message : String(err))
+      })
+      .finally(() => {
+        if (!cancelled) setForecastLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [])
+
   const summaryCards = useMemo(() => {
     if (!data) return []
     const currentYear = new Date().getFullYear()
     const thisYearAmount = data.yearlySummary.find((y) => y.year === currentYear)?.totalAmount ?? 0
-    return [
+    const cards = [
       { label: '累计分红（估算）', value: currency.format(data.totalAmount), primary: true },
       { label: `${currentYear}年分红`, value: currency.format(thisYearAmount), primary: false },
       { label: '分红事件数', value: `${data.items.length} 次`, primary: false },
       { label: '涉及标的', value: `${data.assetSummary.length} 只`, primary: false }
     ]
-  }, [data])
+    if (forecast) {
+      cards.push(
+        { label: `${forecast.year}全年估算`, value: currency.format(forecast.annualEstimatedTotal), primary: true },
+        { label: `待入账（${forecast.details.upcoming.length}笔）`, value: currency.format(forecast.upcomingPlanned), primary: false },
+        { label: '剩余估算', value: currency.format(forecast.remainingEstimated), primary: false }
+      )
+    }
+    return cards
+  }, [data, forecast])
 
   return (
     <div className="ledger-page" style={{ padding: '28px 32px' }}>
@@ -238,7 +271,7 @@ export function DividendCenterPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           {/* 汇总面板 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
             {summaryCards.map((card) => (
               <SummaryPanel key={card.label} label={card.label} value={card.value} primary={card.primary} />
             ))}
@@ -296,6 +329,47 @@ export function DividendCenterPage() {
                 { title: '最近除权日', dataIndex: 'latestExDate' }
               ]}
             />
+          </AppCard>
+
+          {/* 即将到账 */}
+          <AppCard title="即将到账（已公告未除权除息）">
+            {forecastLoading ? (
+              <Spin />
+            ) : forecastError ? (
+              <Empty description={`加载失败：${forecastError}`} />
+            ) : upcoming.length === 0 ? (
+              <Empty description="当前无已公告未派发的分红预案" />
+            ) : (
+              <Table
+                dataSource={upcoming}
+                rowKey={(r) => `${r.assetKey}-${r.announceDate ?? ''}`}
+                pagination={false}
+                size="small"
+                columns={[
+                  { title: '标的', dataIndex: 'name', width: 140 },
+                  { title: '代码', dataIndex: 'code', width: 100 },
+                  { title: '持仓', dataIndex: 'heldShares', width: 90, align: 'right' as const },
+                  { title: '预案公告日', dataIndex: 'announceDate', width: 120, render: (v?: string) => v ?? '—' },
+                  { title: '计划除权日', dataIndex: 'expectedExDate', width: 120, render: (v?: string) => v ?? '待定' },
+                  {
+                    title: '方案进度',
+                    dataIndex: 'announcementProgress',
+                    width: 130,
+                    render: (text: string, r: UpcomingDividendDto) => (
+                      <Tag color={r.status === 'PLANNED' ? 'blue' : 'gold'}>{text}</Tag>
+                    )
+                  },
+                  { title: '每股分红', dataIndex: 'dividendPerShare', width: 110, align: 'right' as const, render: (v: number) => v?.toFixed(4) },
+                  {
+                    title: '估算金额',
+                    dataIndex: 'estimatedAmount',
+                    width: 130,
+                    align: 'right' as const,
+                    render: (v: number) => currency.format(v)
+                  }
+                ]}
+              />
+            )}
           </AppCard>
 
           {/* 明细表 */}
