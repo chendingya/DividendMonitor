@@ -28,6 +28,8 @@ export type DividendEvent = {
   bonusSharePer10?: number
   transferSharePer10?: number
   source: string
+  status?: 'IMPLEMENTED' | 'PLANNED' | 'IN_PROGRESS'
+  announcementProgress?: string
 }
 
 export type HistoricalPricePoint = {
