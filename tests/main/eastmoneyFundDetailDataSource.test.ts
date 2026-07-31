@@ -129,7 +129,8 @@ describe('eastmoney fund detail parsers', () => {
         payDate: '2023-12-15',
         dividendPerShare: 0.015,
         referenceClosePrice: 1.163,
-        source: 'eastmoney-fund'
+        source: 'eastmoney-fund',
+        status: 'IMPLEMENTED'
       },
       {
         year: 2024,
@@ -138,7 +139,8 @@ describe('eastmoney fund detail parsers', () => {
         payDate: '2024-07-18',
         dividendPerShare: 0.012,
         referenceClosePrice: 1.764,
-        source: 'eastmoney-fund'
+        source: 'eastmoney-fund',
+        status: 'IMPLEMENTED'
       }
     ])
   })

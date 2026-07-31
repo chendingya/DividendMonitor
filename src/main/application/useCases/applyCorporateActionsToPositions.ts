@@ -62,7 +62,8 @@ export async function applyCorporateActionsToPositions(): Promise<CorporateActio
         (event) =>
           event.exDate != null &&
           event.exDate <= today &&
-          event.exDate >= openedAt
+          event.exDate >= openedAt &&
+          (event.status === undefined || event.status === 'IMPLEMENTED')
       )
     if (pending.length === 0) {
       continue

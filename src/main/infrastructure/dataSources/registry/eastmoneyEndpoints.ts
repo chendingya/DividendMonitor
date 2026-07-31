@@ -241,7 +241,8 @@ export function parseFundDividendEvents(html: string, priceHistory: HistoricalPr
       payDate,
       dividendPerShare,
       referenceClosePrice: toReferenceClosePrice(recordDate ?? exDate, priceHistory, fallbackPrice),
-      source: 'eastmoney-fund'
+      source: 'eastmoney-fund',
+      status: 'IMPLEMENTED'
     })
   }
 

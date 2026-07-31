@@ -12,9 +12,10 @@ import type {
   StockDividendRecord
 } from '@main/infrastructure/dataSources/types/sourceTypes'
 import { extractYear, toIsoDate, toNumber } from '@main/adapters/eastmoney/eastmoneyUtils'
-import type { HistoricalPricePoint } from '@main/domain/entities/Stock'
+import type { DividendEvent, HistoricalPricePoint } from '@main/domain/entities/Stock'
 import { fetchSinaDailyKline } from '@main/adapters/sina/sinaKlineDataSource'
 import { getPriceCacheRepository } from '@main/repositories/repositoryFactory'
+import { mapAssignProgressToStatus } from '@main/adapters/eastmoney/mapAssignProgressToStatus'
 
 function isAShareSymbol(symbol: string) {
   // A-share stock codes: 6xxxxx (Shanghai), 000xxx-004xxx (Shenzhen main/SME), 300xxx-301xxx (ChiNext)
@@ -88,6 +89,58 @@ function buildLatestFiscalYearSummary(records: StockDividendRecord[]) {
     lastYearTotalDividendAmount,
     lastAnnualPayoutRatio
   }
+}
+
+export function mapDividendRecordsToEvents(
+  records: StockDividendRecord[],
+  ctx: { priceHistory?: HistoricalPricePoint[]; fallbackPrice?: number }
+): DividendEvent[] {
+  const priceHistory = ctx.priceHistory ?? []
+  return records
+    .map((record): DividendEvent => {
+      const dividendPerShare = (toNumber(record.PRETAX_BONUS_RMB) ?? 0) / 10
+      const totalShares = toNumber(record.TOTAL_SHARES)
+      const totalDividendAmount = calculateDividendAmount(record)
+      const netProfit =
+        totalShares != null && (toNumber(record.BASIC_EPS) ?? 0) > 0 ? totalShares * (toNumber(record.BASIC_EPS) ?? 0) : undefined
+      const payoutRatio =
+        totalDividendAmount != null && netProfit != null && netProfit > 0 ? totalDividendAmount / netProfit : undefined
+      const recordDate = toIsoDate(record.EQUITY_RECORD_DATE)
+      const exDate = toIsoDate(record.EX_DIVIDEND_DATE)
+      const referenceClosePrice =
+        findReferenceClosePrice(priceHistory, recordDate ?? exDate) ??
+        (dividendPerShare > 0 && (toNumber(record.DIVIDENT_RATIO) ?? 0) > 0
+          ? dividendPerShare / (toNumber(record.DIVIDENT_RATIO) ?? 0)
+          : ctx.fallbackPrice ?? 0)
+
+      return {
+        year:
+          extractYear(record.EX_DIVIDEND_DATE) ??
+          extractYear(record.NOTICE_DATE) ??
+          extractYear(record.PLAN_NOTICE_DATE) ??
+          0,
+        fiscalYear: extractYear(record.REPORT_DATE),
+        announceDate: toIsoDate(record.PLAN_NOTICE_DATE),
+        recordDate,
+        exDate,
+        payDate: exDate,
+        dividendPerShare,
+        totalDividendAmount,
+        payoutRatio,
+        referenceClosePrice,
+        bonusSharePer10: toNumber(record.BONUS_RATIO),
+        transferSharePer10: toNumber(record.BONUS_IT_RATIO),
+        source: 'eastmoney',
+        status: mapAssignProgressToStatus(record.ASSIGN_PROGRESS),
+        announcementProgress: record.ASSIGN_PROGRESS
+      }
+    })
+    .filter(
+      (event) =>
+        event.year > 0 &&
+        (event.dividendPerShare > 0 || (event.bonusSharePer10 ?? 0) > 0 || (event.transferSharePer10 ?? 0) > 0)
+    )
+    .sort((a, b) => (a.exDate ?? '').localeCompare(b.exDate ?? ''))
 }
 
 export class EastmoneyAShareDataSource implements AShareDataSource {
@@ -267,50 +320,10 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
         ? sinaKlines
         : eastmoneyKlines
 
-    const dividendEvents = dividendRecords
-      .filter((record) => (record.ASSIGN_PROGRESS ?? '').includes('实施'))
-      .map((record) => {
-        const dividendPerShare = (toNumber(record.PRETAX_BONUS_RMB) ?? 0) / 10
-        const totalShares = toNumber(record.TOTAL_SHARES)
-        const totalDividendAmount = calculateDividendAmount(record)
-        const netProfit =
-          totalShares != null && (toNumber(record.BASIC_EPS) ?? 0) > 0 ? totalShares * (toNumber(record.BASIC_EPS) ?? 0) : undefined
-        const payoutRatio =
-          totalDividendAmount != null && netProfit != null && netProfit > 0 ? totalDividendAmount / netProfit : undefined
-        const recordDate = toIsoDate(record.EQUITY_RECORD_DATE)
-        const exDate = toIsoDate(record.EX_DIVIDEND_DATE)
-        const referenceClosePrice =
-          findReferenceClosePrice(priceHistory, recordDate ?? exDate) ??
-          (dividendPerShare > 0 && (toNumber(record.DIVIDENT_RATIO) ?? 0) > 0
-            ? dividendPerShare / (toNumber(record.DIVIDENT_RATIO) ?? 0)
-            : 0)
-
-        return {
-          year: extractYear(record.EX_DIVIDEND_DATE) ?? extractYear(record.NOTICE_DATE) ?? 0,
-          fiscalYear: extractYear(record.REPORT_DATE),
-          announceDate: toIsoDate(record.PLAN_NOTICE_DATE),
-          recordDate,
-          exDate,
-          payDate: exDate,
-          dividendPerShare,
-          totalDividendAmount,
-          payoutRatio,
-          referenceClosePrice,
-          bonusSharePer10: toNumber(record.BONUS_RATIO),
-          transferSharePer10: toNumber(record.BONUS_IT_RATIO),
-          source: 'eastmoney'
-        }
-      })
-      // 只要存在派息或送转即保留该方案。referenceClosePrice 仅用于复权因子，
-      // 缺失时 adjustmentFactorService 会退化为 factor=1（不影响复权外的逻辑），
-      // 切勿用 referenceClosePrice > 0 过滤，否则会误杀登记日价格缺失的纯现金分红，
-      // 导致这些分红不落库、持仓成本无法自动下调。
-      .filter(
-        (event) =>
-          event.year > 0 &&
-          (event.dividendPerShare > 0 || (event.bonusSharePer10 ?? 0) > 0 || (event.transferSharePer10 ?? 0) > 0)
-      )
-      .sort((a, b) => (a.exDate ?? '').localeCompare(b.exDate ?? ''))
+    const dividendEvents = mapDividendRecordsToEvents(dividendRecords, {
+      priceHistory,
+      fallbackPrice: 0
+    })
 
     const fiscalYearSummary = buildLatestFiscalYearSummary(dividendRecords)
     const snapshot = snapshotResult.status === 'fulfilled' ? snapshotResult.value : {}
