@@ -7,7 +7,8 @@ function makeEvent(year: number, perShare: number): DividendEvent {
     year,
     dividendPerShare: perShare,
     referenceClosePrice: 1.0,
-    source: 'eastmoney-fund'
+    source: 'eastmoney-fund',
+    status: 'IMPLEMENTED'
   } as DividendEvent
 }
 

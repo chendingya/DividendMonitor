@@ -7,7 +7,7 @@ function price(dates: string[], closes: number[]): HistoricalPricePoint[] {
 }
 
 function cashEvent(overrides: Partial<DividendEvent>): DividendEvent {
-  return { year: 2023, dividendPerShare: 0, referenceClosePrice: 0, source: 'test', ...overrides }
+  return { year: 2023, dividendPerShare: 0, referenceClosePrice: 0, source: 'test', status: 'IMPLEMENTED', ...overrides }
 }
 
 describe('computeEventFactor', () => {

@@ -16,6 +16,8 @@ type DividendEventRow = {
   bonus_share_per10: number | null
   transfer_share_per10: number | null
   source: string
+  status: string
+  announcement_progress: string | null
 }
 
 function toEvent(row: DividendEventRow): DividendEvent {
@@ -32,8 +34,14 @@ function toEvent(row: DividendEventRow): DividendEvent {
     referenceClosePrice: row.reference_close_price,
     bonusSharePer10: row.bonus_share_per10 ?? undefined,
     transferSharePer10: row.transfer_share_per10 ?? undefined,
-    source: row.source
+    source: row.source,
+    status: row.status as DividendEvent['status'],
+    announcementProgress: row.announcement_progress ?? undefined
   }
+}
+
+function toEventWithAsset(row: DividendEventRow): DividendEventWithAsset {
+  return { ...toEvent(row), assetKey: row.asset_key }
 }
 
 export class DividendRepository {
@@ -47,13 +55,13 @@ export class DividendRepository {
       INSERT INTO dividend_events (
         asset_key, year, fiscal_year, announce_date, record_date, ex_date, pay_date,
         dividend_per_share, total_dividend_amount, payout_ratio, reference_close_price,
-        bonus_share_per10, transfer_share_per10, source, fetched_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(asset_key, ex_date) DO UPDATE SET
+        bonus_share_per10, transfer_share_per10, source, fetched_at, status, announcement_progress
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(asset_key, announce_date, fiscal_year) DO UPDATE SET
         year = excluded.year,
         fiscal_year = excluded.fiscal_year,
-        announce_date = excluded.announce_date,
         record_date = excluded.record_date,
+        ex_date = excluded.ex_date,
         pay_date = excluded.pay_date,
         dividend_per_share = excluded.dividend_per_share,
         total_dividend_amount = excluded.total_dividend_amount,
@@ -62,16 +70,22 @@ export class DividendRepository {
         bonus_share_per10 = excluded.bonus_share_per10,
         transfer_share_per10 = excluded.transfer_share_per10,
         source = excluded.source,
-        fetched_at = excluded.fetched_at
+        fetched_at = excluded.fetched_at,
+        status = excluded.status,
+        announcement_progress = excluded.announcement_progress
     `)
     db.exec('BEGIN')
     try {
       for (const event of events) {
+        const announceDate = event.announceDate ?? event.exDate
+        if (!announceDate) {
+          throw new Error(`DividendEvent upsert: missing announce_date and ex_date for asset ${assetKey}`)
+        }
         stmt.run(
           assetKey,
           event.year,
           event.fiscalYear ?? null,
-          event.announceDate ?? null,
+          announceDate,
           event.recordDate ?? null,
           event.exDate ?? null,
           event.payDate ?? null,
@@ -82,7 +96,9 @@ export class DividendRepository {
           event.bonusSharePer10 ?? null,
           event.transferSharePer10 ?? null,
           event.source,
-          fetchedAt
+          fetchedAt,
+          event.status ?? 'IMPLEMENTED',
+          event.announcementProgress ?? null
         )
       }
       db.exec('COMMIT')
@@ -95,7 +111,7 @@ export class DividendRepository {
   listByAsset(assetKey: string): DividendEvent[] {
     const db = getDatabase()
     const rows = db
-      .prepare('SELECT * FROM dividend_events WHERE asset_key = ? ORDER BY ex_date ASC')
+      .prepare('SELECT * FROM dividend_events WHERE asset_key = ? ORDER BY ex_date ASC, announce_date ASC')
       .all(assetKey) as DividendEventRow[]
     return rows.map(toEvent)
   }
@@ -104,10 +120,10 @@ export class DividendRepository {
     const db = getDatabase()
     const rows = sinceExDate
       ? (db
-          .prepare('SELECT * FROM dividend_events WHERE asset_key = ? AND ex_date > ? ORDER BY ex_date ASC')
+          .prepare('SELECT * FROM dividend_events WHERE asset_key = ? AND ex_date > ? AND status = \'IMPLEMENTED\' ORDER BY ex_date ASC')
           .all(assetKey, sinceExDate) as DividendEventRow[])
       : (db
-          .prepare('SELECT * FROM dividend_events WHERE asset_key = ? ORDER BY ex_date ASC')
+          .prepare('SELECT * FROM dividend_events WHERE asset_key = ? AND status = \'IMPLEMENTED\' ORDER BY ex_date ASC')
           .all(assetKey) as DividendEventRow[])
     return rows.map(toEvent)
   }
@@ -142,7 +158,22 @@ export class DividendRepository {
     const rows = db
       .prepare(`SELECT * FROM dividend_events ${whereClause} ORDER BY ex_date DESC`)
       .all(...params) as DividendEventRow[]
-    return rows.map((row) => ({ ...toEvent(row), assetKey: row.asset_key }))
+    return rows.map(toEventWithAsset)
+  }
+
+  listUpcomingByAssetKeys(assetKeys: string[], sinceYear?: number): DividendEventWithAsset[] {
+    if (assetKeys.length === 0) return []
+    const db = getDatabase()
+    const placeholders = assetKeys.map(() => '?').join(',')
+    const params: (string | number)[] = [...assetKeys]
+    let sql = `SELECT * FROM dividend_events WHERE status != 'IMPLEMENTED' AND asset_key IN (${placeholders})`
+    if (sinceYear !== undefined) {
+      sql += ` AND year >= ?`
+      params.push(sinceYear)
+    }
+    sql += ` ORDER BY announce_date DESC`
+    const rows = db.prepare(sql).all(...params) as DividendEventRow[]
+    return rows.map(toEventWithAsset)
   }
 }
 

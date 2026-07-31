@@ -11,6 +11,7 @@ import type {
   WatchlistGroupUpsertDto
 } from '@shared/contracts/api'
 import type { DividendEvent } from '@main/domain/entities/Stock'
+import type { DividendEventWithAsset } from '@main/repositories/dividendRepository'
 
 export type WatchlistAssetRecord = {
   assetKey: AssetKey
@@ -62,4 +63,5 @@ export interface IDividendRepository {
   listByAsset(assetKey: string): DividendEvent[]
   listPendingCorporateActions(assetKey: string, sinceExDate?: string): DividendEvent[]
   listAssetKeysWithEvents(): string[]
+  listUpcomingByAssetKeys(assetKeys: string[], sinceYear?: number): DividendEventWithAsset[]
 }

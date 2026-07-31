@@ -6,6 +6,7 @@ import { migrateWatchlistGroupAssetsForeignKey } from '@main/infrastructure/db/m
 import { migratePortfolioRiskLevelColumn } from '@main/infrastructure/db/migrations/portfolioRiskLevelMigration'
 import { migrateCorporateActionsCursorReset } from '@main/infrastructure/db/migrations/corporateActionsCursorResetMigration'
 import { migrateCorporateActionsCursorResetV2 } from '@main/infrastructure/db/migrations/corporateActionsCursorResetV2Migration'
+import { migrateDividendEventStatus } from '@main/infrastructure/db/migrations/dividendEventStatusMigration'
 
 let database: DatabaseSync | null = null
 
@@ -87,10 +88,11 @@ function createBaseSchema(db: DatabaseSync) {
     CREATE INDEX IF NOT EXISTS idx_price_cache_code ON price_cache(code);
 
     CREATE TABLE IF NOT EXISTS dividend_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
       asset_key TEXT NOT NULL,
       year INTEGER NOT NULL,
       fiscal_year INTEGER,
-      announce_date TEXT,
+      announce_date TEXT NOT NULL,
       record_date TEXT,
       ex_date TEXT,
       pay_date TEXT,
@@ -102,11 +104,14 @@ function createBaseSchema(db: DatabaseSync) {
       transfer_share_per10 REAL,
       source TEXT NOT NULL,
       fetched_at TEXT NOT NULL,
-      PRIMARY KEY (asset_key, ex_date)
+      status TEXT NOT NULL DEFAULT 'IMPLEMENTED',
+      announcement_progress TEXT,
+      UNIQUE(asset_key, announce_date, fiscal_year)
     );
 
     CREATE INDEX IF NOT EXISTS idx_dividend_events_asset_key ON dividend_events(asset_key);
     CREATE INDEX IF NOT EXISTS idx_dividend_events_ex_date ON dividend_events(ex_date);
+    CREATE INDEX IF NOT EXISTS idx_dividend_events_status ON dividend_events(status);
 
 
     CREATE TABLE IF NOT EXISTS backtest_results (
@@ -226,6 +231,7 @@ function initializeSchema(db: DatabaseSync) {
   migratePortfolioTradePriceColumn(db)
   migrateCorporateActionsCursorReset(db)
   migrateCorporateActionsCursorResetV2(db)
+  migrateDividendEventStatus(db)
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_watchlist_items_updated_at
       ON watchlist_items(updated_at DESC);

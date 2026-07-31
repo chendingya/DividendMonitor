@@ -7,6 +7,9 @@ const { migrateWatchlistGroupAssetsForeignKey } = await import(
 const { migratePortfolioRiskLevelColumn } = await import(
   '@main/infrastructure/db/migrations/portfolioRiskLevelMigration'
 )
+const { migrateDividendEventStatus } = await import(
+  '@main/infrastructure/db/migrations/dividendEventStatusMigration'
+)
 
 describe('db migrations', () => {
   let db: DatabaseSync
@@ -107,5 +110,37 @@ describe('db migrations', () => {
       risk_level: string
     }
     expect(updated.risk_level).toBe('LOW')
+  })
+
+  it('dividend_events 含 status 列且默认 IMPLEMENTED', () => {
+    db.exec(`
+      CREATE TABLE dividend_events (
+        asset_key TEXT NOT NULL,
+        year INTEGER NOT NULL,
+        fiscal_year INTEGER,
+        announce_date TEXT,
+        record_date TEXT,
+        ex_date TEXT,
+        pay_date TEXT,
+        dividend_per_share REAL NOT NULL,
+        total_dividend_amount REAL,
+        payout_ratio REAL,
+        reference_close_price REAL NOT NULL,
+        bonus_share_per10 REAL,
+        transfer_share_per10 REAL,
+        source TEXT NOT NULL,
+        fetched_at TEXT NOT NULL,
+        PRIMARY KEY (asset_key, ex_date)
+      );
+    `)
+    db.prepare(`INSERT INTO dividend_events (asset_key, year, announce_date, ex_date, dividend_per_share, reference_close_price, source, fetched_at) VALUES (?,?,?,?,?,?,?,?)`)
+      .run('STOCK:A_SHARE:600519', 2024, '2024-07-01', '2024-07-15', 0.5, 1500, 'eastmoney', '2024-08-01T00:00:00Z')
+
+    migrateDividendEventStatus(db)
+
+    const cols = db.prepare('PRAGMA table_info(dividend_events)').all() as Array<{ name: string; dflt_value: string | null }>
+    const s = cols.find((c) => c.name === 'status')
+    expect(s).toBeDefined()
+    expect(s?.dflt_value).toBe("'IMPLEMENTED'")
   })
 })
