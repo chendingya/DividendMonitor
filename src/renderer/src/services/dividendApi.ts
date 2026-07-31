@@ -1,59 +1,26 @@
-import { requestJson } from '@renderer/services/httpClient'
-
-export type DividendHistoryRequest = {
-  fromDate?: string
-  toDate?: string
-  assetKeys?: string[]
-}
-
-export type DividendHistoryItem = {
-  assetKey: string
-  assetName: string
-  code: string
-  year: number
-  exDate: string
-  dividendPerShare: number
-  bonusSharePer10?: number
-  transferSharePer10?: number
-  referenceClosePrice: number
-  heldShares: number
-  estimatedDividendAmount: number
-}
-
-export type DividendYearlySummary = {
-  year: number
-  totalAmount: number
-  eventCount: number
-  assetCount: number
-}
-
-export type DividendMonthlyTrend = {
-  month: string
-  amount: number
-}
-
-export type DividendAssetSummary = {
-  assetKey: string
-  assetName: string
-  code: string
-  totalAmount: number
-  eventCount: number
-  latestExDate: string
-}
-
-export type DividendHistoryResult = {
-  items: DividendHistoryItem[]
-  yearlySummary: DividendYearlySummary[]
-  monthlyTrend: DividendMonthlyTrend[]
-  assetSummary: DividendAssetSummary[]
-  totalAmount: number
-}
+import { getDividendDesktopApi } from '@renderer/services/desktopApi'
+import type {
+  DividendHistoryRequest,
+  DividendHistoryResult,
+  UpcomingDividendDto,
+  DividendForecastDto
+} from '@shared/contracts/api'
 
 export const dividendApi = {
   getHistory(request?: DividendHistoryRequest): Promise<DividendHistoryResult> {
-    return requestJson<DividendHistoryResult>('/api/dividend/history', {
-      method: 'POST',
-      body: request ?? {}
-    })
+    return getDividendDesktopApi().getHistory(request)
+  },
+  listUpcoming(): Promise<UpcomingDividendDto[]> {
+    return getDividendDesktopApi().listUpcoming()
+  },
+  getForecast(): Promise<DividendForecastDto> {
+    return getDividendDesktopApi().getForecast()
   }
 }
+
+export type {
+  DividendHistoryRequest,
+  DividendHistoryResult,
+  UpcomingDividendDto,
+  DividendForecastDto
+} from '@shared/contracts/api'

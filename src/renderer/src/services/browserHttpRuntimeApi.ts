@@ -6,6 +6,9 @@ import type {
   AuthSessionDto,
   BacktestResultDto,
   ComparisonRowDto,
+  DividendForecastDto,
+  DividendHistoryRequest,
+  DividendHistoryResult,
   DividendMonitorApi,
   HistoricalYieldResponseDto,
   FutureYieldResponseDto,
@@ -16,6 +19,7 @@ import type {
   StockSearchItemDto,
   SyncResultDto,
   SyncStatusDto,
+  UpcomingDividendDto,
   WatchlistAddRequestDto,
   WatchlistEntryDto,
   WatchlistGroupAssetActionDto,
@@ -254,6 +258,17 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
     },
     syncData(direction: 'push' | 'pull' | 'bidirectional') {
       return postJson<SyncResultDto>('/api/sync/data', { direction })
+    }
+  },
+  dividend: {
+    getHistory(request?: DividendHistoryRequest): Promise<DividendHistoryResult> {
+      return postJson<DividendHistoryResult>('/api/dividend/history', request ?? {})
+    },
+    listUpcoming(): Promise<UpcomingDividendDto[]> {
+      return postJson<UpcomingDividendDto[]>('/api/dividend/upcoming', {})
+    },
+    getForecast(): Promise<DividendForecastDto> {
+      return postJson<DividendForecastDto>('/api/dividend/forecast', {})
     }
   }
 }

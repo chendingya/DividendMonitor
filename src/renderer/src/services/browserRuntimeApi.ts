@@ -7,10 +7,14 @@ import type {
   AssetSearchItemDto,
   AssetSearchRequestDto,
   BacktestResultDto,
+  DividendForecastDto,
+  DividendHistoryRequest,
+  DividendHistoryResult,
   DividendMonitorApi,
   FutureYieldResponseDto,
   HistoricalYieldResponseDto,
   SettingsDto,
+  UpcomingDividendDto,
   WatchlistEntryDto,
   WatchlistGroupAssetActionDto,
   WatchlistGroupDto,
@@ -1425,6 +1429,24 @@ export const browserRuntimeApi: DividendMonitorApi = {
     },
     async historyDelete(_id: string) {
       return true
+    }
+  },
+  dividend: {
+    async getHistory(_request?: DividendHistoryRequest): Promise<DividendHistoryResult> {
+      return { items: [], yearlySummary: [], monthlyTrend: [], assetSummary: [], totalAmount: 0 }
+    },
+    async listUpcoming(): Promise<UpcomingDividendDto[]> {
+      return []
+    },
+    async getForecast(): Promise<DividendForecastDto> {
+      return {
+        year: new Date().getFullYear(),
+        annualEstimatedTotal: 0,
+        yearToDateActual: 0,
+        upcomingPlanned: 0,
+        remainingEstimated: 0,
+        details: { upcoming: [] }
+      }
     }
   }
 }

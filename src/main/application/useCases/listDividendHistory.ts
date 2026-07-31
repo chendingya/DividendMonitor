@@ -1,54 +1,22 @@
 import { DividendRepository } from '@main/repositories/dividendRepository'
 import { getPortfolioRepository } from '@main/repositories/repositoryFactory'
+import type {
+  DividendHistoryRequest,
+  DividendHistoryResult,
+  DividendHistoryItem,
+  DividendYearlySummary,
+  DividendMonthlyTrend,
+  DividendAssetSummary
+} from '@shared/contracts/api'
 
-export type DividendHistoryRequest = {
-  fromDate?: string
-  toDate?: string
-  assetKeys?: string[]
-}
-
-export type DividendHistoryItem = {
-  assetKey: string
-  assetName: string
-  code: string
-  year: number
-  exDate: string
-  dividendPerShare: number
-  bonusSharePer10?: number
-  transferSharePer10?: number
-  referenceClosePrice: number
-  heldShares: number
-  estimatedDividendAmount: number
-}
-
-export type DividendYearlySummary = {
-  year: number
-  totalAmount: number
-  eventCount: number
-  assetCount: number
-}
-
-export type DividendMonthlyTrend = {
-  month: string
-  amount: number
-}
-
-export type DividendAssetSummary = {
-  assetKey: string
-  assetName: string
-  code: string
-  totalAmount: number
-  eventCount: number
-  latestExDate: string
-}
-
-export type DividendHistoryResult = {
-  items: DividendHistoryItem[]
-  yearlySummary: DividendYearlySummary[]
-  monthlyTrend: DividendMonthlyTrend[]
-  assetSummary: DividendAssetSummary[]
-  totalAmount: number
-}
+export type {
+  DividendHistoryRequest,
+  DividendHistoryResult,
+  DividendHistoryItem,
+  DividendYearlySummary,
+  DividendMonthlyTrend,
+  DividendAssetSummary
+} from '@shared/contracts/api'
 
 /**
  * 分红统计中心：汇总所有持仓标的的分红事件，按年/月/个股维度聚合。

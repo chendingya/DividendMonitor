@@ -125,3 +125,13 @@ export function getFxDesktopApi() {
 
   return api.fx
 }
+
+export function getDividendDesktopApi(): DividendMonitorApi['dividend'] {
+  const api = getRuntimeApi()
+
+  if (!api.dividend) {
+    throw new Error('Runtime API is missing the dividend namespace.')
+  }
+
+  return api.dividend
+}

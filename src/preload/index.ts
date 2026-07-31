@@ -5,6 +5,7 @@ import type {
   AssetSearchRequestDto,
   AssetBacktestRequestDto,
   AuthSessionDto,
+  DividendHistoryRequest,
   PortfolioPositionUpsertDto,
   PortfolioPositionReplaceByAssetDto,
   SyncStatusDto,
@@ -108,6 +109,11 @@ const api = {
   },
   fx: {
     getUsdCnyRate: () => ipcRenderer.invoke('fx:usd-cny-rate')
+  },
+  dividend: {
+    getHistory: (request?: DividendHistoryRequest) => ipcRenderer.invoke('dividend:history', request),
+    listUpcoming: () => ipcRenderer.invoke('dividend:upcoming'),
+    getForecast: () => ipcRenderer.invoke('dividend:forecast')
   }
 }
 
