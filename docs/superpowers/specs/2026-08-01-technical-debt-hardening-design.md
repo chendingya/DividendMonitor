@@ -118,7 +118,9 @@ export function useFetch<T>(fetcher: () => Promise<T>, deps: DependencyList): {
 ```
 
 - mountedRef 防泄漏；error 复位逻辑与现状一致
-- 迁移 12 个 hooks：`useAssetBacktest / useAssetComparison / useAssetDetail / useBacktest / useComparison / useIndustryAnalysis / usePortfolio / usePortfolioRiskMetrics / useSettings / useStockDetail / useWatchlist / useWatchlistGroups` — 逐一核对 fetcher 签名与 deps，替换样板；**对外 API 完全不变**（含 mutation 状态如 `mutatingAssetKey`）
+- 迁移 10 个 hooks：`useSettings / useAssetDetail / useStockDetail / useAssetComparison / useComparison / useAssetBacktest / useBacktest / useIndustryAnalysis / useWatchlist / useWatchlistGroups` — 逐一核对 fetcher 签名与 deps，替换样板；**对外 API 完全不变**（含 mutation 状态如 `mutatingAssetKey`、`saving`）
+- **不迁移**（特殊模式，强行抽象收益低）：`usePortfolio`（双数据源 + 大量派生计算 + 自有 refreshing 语义）、`usePortfolioRiskMetrics`（条件早退 + lastKeyRef 防重复请求 + loading 初始 false）、`useIndustryBenchmark`（无三态的小 hook）
+- `reload` 语义：默认 rethrow（与 useWatchlist 现状一致）；`useSettings` 传 `{ rethrow: false }` 保持其不抛错现状
 - `useStockDetail` 不清理（按用户选择，仅迁移样板）
 
 ### 4.2 `PageState` 三态组件（新建 `src/renderer/src/components/app/PageState.tsx`）
@@ -136,7 +138,9 @@ export function useFetch<T>(fetcher: () => Promise<T>, deps: DependencyList): {
 - 正常 → `children`
 - `PageStateBlock` 保留（局部空态场景继续使用）
 
-迁移 9 个页面：`WatchlistPage / StockDetailPage / ComparisonPage / BacktestPage / BacktestHistoryPage / AssetSearchPage / IndustryAnalysisPage / SettingsPage` 页面级三段式替换为 `PageState` wrapper；`DividendCenterPage` 表格内局部 `Spin/Empty` 保留，仅页面级三态统一。
+迁移 7 个页面：`WatchlistPage / StockDetailPage / ComparisonPage / BacktestPage / BacktestHistoryPage / IndustryAnalysisPage / SettingsPage` 页面级三段式替换为 `PageState` wrapper（整页内容由数据决定，适合 wrapper）。
+
+**不迁移**（搜索框/工具栏常驻、仅结果区有状态，属局部三态，wrapper 会吞掉常驻布局）：`AssetSearchPage`、`DividendCenterPage`；二者已使用 `PageStateBlock`/`Empty`/`Spin`，保持现状。`BacktestHistoryPage` 与 `SettingsPage` 的三态外已有 `.ledger-page` 包装，迁移时保留外层 div。
 
 ## 5. 测试策略
 
@@ -188,5 +192,6 @@ export function useFetch<T>(fetcher: () => Promise<T>, deps: DependencyList): {
 - SourceGateway RequestCache 升级为 SQLite 持久化 — 本次务实小步不做
 - `indexCodeResolver` 落盘 — TTL 24h 非估值结果，不做
 - `useStockDetail` 与 `useAssetDetail` 合并清理
-- DividendCenterPage 局部 Spin/Empty 迁移
+- `usePortfolio` / `usePortfolioRiskMetrics` / `useIndustryBenchmark` 迁移
+- `AssetSearchPage` / `DividendCenterPage` 局部三态迁移（搜索框常驻场景）
 - 新增 React 渲染测试基础设施（jsdom/@testing-library）
