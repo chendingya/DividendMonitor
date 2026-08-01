@@ -91,7 +91,7 @@ function createBaseSchema(db: DatabaseSync) {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       asset_key TEXT NOT NULL,
       year INTEGER NOT NULL,
-      fiscal_year INTEGER,
+      fiscal_year INTEGER NOT NULL,
       announce_date TEXT NOT NULL,
       record_date TEXT,
       ex_date TEXT,
@@ -108,10 +108,6 @@ function createBaseSchema(db: DatabaseSync) {
       announcement_progress TEXT,
       UNIQUE(asset_key, announce_date, fiscal_year)
     );
-
-    CREATE INDEX IF NOT EXISTS idx_dividend_events_asset_key ON dividend_events(asset_key);
-    CREATE INDEX IF NOT EXISTS idx_dividend_events_ex_date ON dividend_events(ex_date);
-    CREATE INDEX IF NOT EXISTS idx_dividend_events_status ON dividend_events(status);
 
 
     CREATE TABLE IF NOT EXISTS backtest_results (
@@ -232,6 +228,15 @@ function initializeSchema(db: DatabaseSync) {
   migrateCorporateActionsCursorReset(db)
   migrateCorporateActionsCursorResetV2(db)
   migrateDividendEventStatus(db)
+  migrateDividendFiscalYearNotNull(db)
+  // dividend_events 索引必须在迁移之后创建：旧库（无 status 列）在迁移前建
+  // status 索引会因 "no such column" 抛错，且 CREATE INDEX IF NOT EXISTS
+  // 只跳过已存在的索引、不会校验列是否存在。
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_dividend_events_asset_key ON dividend_events(asset_key);
+    CREATE INDEX IF NOT EXISTS idx_dividend_events_ex_date ON dividend_events(ex_date);
+    CREATE INDEX IF NOT EXISTS idx_dividend_events_status ON dividend_events(status);
+  `)
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_watchlist_items_updated_at
       ON watchlist_items(updated_at DESC);
@@ -255,8 +260,11 @@ export function getDatabase() {
   const filePath = getDatabaseFilePath()
   mkdirSync(dirname(filePath), { recursive: true })
 
-  database = new DatabaseSync(filePath)
-  initializeSchema(database)
+  // 先初始化成功再赋值缓存：若初始化抛错，下次调用可重试，
+  // 避免留下半初始化的数据库连接。
+  const db = new DatabaseSync(filePath)
+  initializeSchema(db)
+  database = db
   return database
 }
 
@@ -285,6 +293,85 @@ function migratePortfolioTradePriceColumn(db: DatabaseSync) {
   }
 
   db.exec('ALTER TABLE portfolio_positions ADD COLUMN trade_price REAL;')
+}
+
+/**
+ * 补丁迁移：fiscal_year 参与唯一键 (asset_key, announce_date, fiscal_year)，
+ * NULL 在唯一索引中互不相同会导致重复行且云端 NOT NULL 约束拒绝写入，
+ * 因此回填为 year、按新唯一键去重后重建为 NOT NULL 列。
+ */
+function migrateDividendFiscalYearNotNull(db: DatabaseSync) {
+  try {
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='dividend_events'").all() as Array<{ name: string }>
+    if (tables.length === 0) return
+
+    const cols = db.prepare('PRAGMA table_info(dividend_events)').all() as Array<{ name: string; notnull: number }>
+    const fiscalYearCol = cols.find((c) => c.name === 'fiscal_year')
+    if (!fiscalYearCol || Number(fiscalYearCol.notnull) === 1) {
+      return
+    }
+
+    db.exec(`
+      BEGIN;
+
+      UPDATE dividend_events SET fiscal_year = year WHERE fiscal_year IS NULL;
+
+      DELETE FROM dividend_events
+      WHERE rowid NOT IN (
+        SELECT MIN(rowid) FROM dividend_events
+        GROUP BY asset_key, announce_date, fiscal_year
+      );
+
+      CREATE TABLE dividend_events_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        asset_key TEXT NOT NULL,
+        year INTEGER NOT NULL,
+        fiscal_year INTEGER NOT NULL,
+        announce_date TEXT NOT NULL,
+        record_date TEXT,
+        ex_date TEXT,
+        pay_date TEXT,
+        dividend_per_share REAL NOT NULL,
+        total_dividend_amount REAL,
+        payout_ratio REAL,
+        reference_close_price REAL NOT NULL,
+        bonus_share_per10 REAL,
+        transfer_share_per10 REAL,
+        source TEXT NOT NULL,
+        fetched_at TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'IMPLEMENTED',
+        announcement_progress TEXT,
+        UNIQUE(asset_key, announce_date, fiscal_year)
+      );
+
+      INSERT INTO dividend_events_new (
+        asset_key, year, fiscal_year, announce_date, record_date, ex_date, pay_date,
+        dividend_per_share, total_dividend_amount, payout_ratio, reference_close_price,
+        bonus_share_per10, transfer_share_per10, source, fetched_at, status, announcement_progress
+      )
+      SELECT
+        asset_key, year, fiscal_year,
+        COALESCE(announce_date, ex_date, '1970-01-01') AS announce_date,
+        record_date, ex_date, pay_date,
+        dividend_per_share, total_dividend_amount, payout_ratio, reference_close_price,
+        bonus_share_per10, transfer_share_per10, source, fetched_at, status, announcement_progress
+      FROM dividend_events;
+
+      DROP TABLE dividend_events;
+      ALTER TABLE dividend_events_new RENAME TO dividend_events;
+      CREATE INDEX IF NOT EXISTS idx_dividend_events_asset_key ON dividend_events(asset_key);
+      CREATE INDEX IF NOT EXISTS idx_dividend_events_ex_date ON dividend_events(ex_date);
+      CREATE INDEX IF NOT EXISTS idx_dividend_events_status ON dividend_events(status);
+      COMMIT;
+    `)
+  } catch (err) {
+    console.warn('[DividendMigration] fiscal_year 归一化迁移失败，跳过:', err)
+    try {
+      db.exec('ROLLBACK')
+    } catch {
+      // 无活跃事务时忽略
+    }
+  }
 }
 
 export function getDatabaseFilePathForDebug() {

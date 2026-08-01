@@ -51,6 +51,7 @@ describe('getDividendForecast', () => {
       code: '600519',
       name: '贵州茅台',
       heldShares: 1000,
+      year: 2026,
       announceDate: undefined,
       dividendPerShare: 0.5,
       announcementProgress: '董事会预案',
@@ -122,5 +123,83 @@ describe('getDividendForecast', () => {
     const result = await getDividendForecast(2026)
     expect(result.annualEstimatedTotal).toBe(0)
     expect(result.remainingEstimated).toBe(0)
+  })
+
+  it('多资产并行估算，单资产失败不影响其它资产', async () => {
+    mockPositions.length = 0
+    mockPositions.push(
+      {
+        id: '1',
+        assetKey: 'STOCK:A_SHARE:600519',
+        assetType: 'STOCK',
+        market: 'A_SHARE',
+        code: '600519',
+        name: '贵州茅台',
+        direction: 'BUY',
+        shares: 1000,
+        avgCost: 1500,
+        openedAt: '2023-01-01',
+        updatedAt: '2023-01-01',
+        createdAt: '2023-01-01'
+      },
+      {
+        id: '2',
+        assetKey: 'STOCK:A_SHARE:000001',
+        assetType: 'STOCK',
+        market: 'A_SHARE',
+        code: '000001',
+        name: '平安银行',
+        direction: 'BUY',
+        shares: 2000,
+        avgCost: 12,
+        openedAt: '2023-01-01',
+        updatedAt: '2023-01-01',
+        createdAt: '2023-01-01'
+      }
+    )
+    futureYieldMock.mockImplementation((query: { code: string }) =>
+      query.code === '600519'
+        ? Promise.resolve(mockFutureYield)
+        : Promise.reject(new Error('network error'))
+    )
+
+    const result = await getDividendForecast(2026)
+    expect(result.annualEstimatedTotal).toBe(500)
+  })
+
+  it('无公告日的预案事件按 year 归入当年，跨年不重复计入', async () => {
+    mockUpcoming.length = 0
+    mockUpcoming.push(
+      {
+        assetKey: 'STOCK:A_SHARE:600519',
+        assetType: 'STOCK',
+        code: '600519',
+        name: '贵州茅台',
+        heldShares: 1000,
+        year: 2026,
+        announceDate: '2026-03-28',
+        dividendPerShare: 0.5,
+        announcementProgress: '预案',
+        status: 'PLANNED',
+        estimatedAmount: 500
+      },
+      {
+        assetKey: 'ETF:A_SHARE:510300',
+        assetType: 'ETF',
+        code: '510300',
+        name: '沪深300ETF',
+        heldShares: 100,
+        year: 2025,
+        announceDate: undefined,
+        dividendPerShare: 0.1,
+        announcementProgress: '预案',
+        status: 'PLANNED',
+        estimatedAmount: 10
+      }
+    )
+
+    const result = await getDividendForecast(2026)
+    expect(result.upcomingPlanned).toBe(500)
+    expect(result.details.upcoming.length).toBe(1)
   })
 })

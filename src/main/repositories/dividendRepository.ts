@@ -4,7 +4,7 @@ import type { DividendEvent } from '@main/domain/entities/Stock'
 type DividendEventRow = {
   asset_key: string
   year: number
-  fiscal_year: number | null
+  fiscal_year: number
   announce_date: string | null
   record_date: string | null
   ex_date: string | null
@@ -84,7 +84,7 @@ export class DividendRepository {
         stmt.run(
           assetKey,
           event.year,
-          event.fiscalYear ?? null,
+          event.fiscalYear ?? event.year,
           announceDate,
           event.recordDate ?? null,
           event.exDate ?? null,
@@ -138,7 +138,7 @@ export class DividendRepository {
 
   listAll(options?: { fromDate?: string; toDate?: string; assetKeys?: string[] }): DividendEventWithAsset[] {
     const db = getDatabase()
-    const conditions: string[] = []
+    const conditions: string[] = ["status = 'IMPLEMENTED'"]
     const params: string[] = []
 
     if (options?.fromDate) {
@@ -168,7 +168,12 @@ export class DividendRepository {
     const params: (string | number)[] = [...assetKeys]
     let sql = `SELECT * FROM dividend_events WHERE status != 'IMPLEMENTED' AND asset_key IN (${placeholders})`
     if (sinceYear !== undefined) {
-      sql += ` AND year >= ?`
+      // sinceYear 只按 year 过滤会把"去年 12 月公告、今年派发"的预案误排除，
+      // 因此补充时间兜底：近期公告且除息日未过的预案也计入即将到账。
+      sql += ` AND (
+        year >= ?
+        OR (announce_date IS NOT NULL AND announce_date >= date('now', '-1 year') AND (ex_date IS NULL OR ex_date >= date('now')))
+      )`
       params.push(sinceYear)
     }
     sql += ` ORDER BY announce_date DESC`

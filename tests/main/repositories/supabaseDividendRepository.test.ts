@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 type DividendRow = {
   asset_key: string
   year: number
-  fiscal_year: number | null
+  fiscal_year: number
   announce_date: string
   record_date: string | null
   ex_date: string | null
@@ -60,7 +60,7 @@ function setupMemoryDb(): DatabaseSync {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       asset_key TEXT NOT NULL,
       year INTEGER NOT NULL,
-      fiscal_year INTEGER,
+      fiscal_year INTEGER NOT NULL,
       announce_date TEXT NOT NULL,
       record_date TEXT,
       ex_date TEXT,
@@ -304,5 +304,71 @@ describe('SupabaseDividendRepository', () => {
 
     await new Promise((resolve) => setImmediate(resolve))
     expect(captures.length).toBe(0)
+  })
+
+  it('基金式事件无 fiscalYear 时推云 fiscal_year 归一化为 year', async () => {
+    const { supabaseMock, captures } = createSupabaseMock()
+    vi.doMock('@main/infrastructure/supabase/supabaseClient', () => ({
+      getSupabaseClient: () => supabaseMock,
+      resetSupabaseClient: () => {}
+    }))
+
+    const { SupabaseDividendRepository } = await import('@main/repositories/supabaseDividendRepository')
+    repo = new SupabaseDividendRepository()
+
+    repo.upsertMany('ETF:A_SHARE:510300', [
+      {
+        year: 2024,
+        exDate: '2024-06-20',
+        dividendPerShare: 0.1,
+        referenceClosePrice: 3.5,
+        source: 'eastmoney',
+        status: 'IMPLEMENTED'
+      }
+    ])
+
+    await vi.waitFor(() => expect(captures.length).toBe(1))
+    const row = (captures[0]!.rows as DividendRow[])[0]
+    expect(row.fiscal_year).toBe(2024)
+    expect(row.announce_date).toBe('2024-06-20')
+  })
+
+  it('同一资产短时间内重复 upsert 只推送一次（在飞去重 + 60s 冷却）', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      const { supabaseMock, captures } = createSupabaseMock()
+      vi.doMock('@main/infrastructure/supabase/supabaseClient', () => ({
+        getSupabaseClient: () => supabaseMock,
+        resetSupabaseClient: () => {}
+      }))
+
+      const { SupabaseDividendRepository } = await import('@main/repositories/supabaseDividendRepository')
+      repo = new SupabaseDividendRepository()
+
+      const event = {
+        year: 2024,
+        fiscalYear: 2023,
+        announceDate: '2024-06-28',
+        dividendPerShare: 0.5,
+        referenceClosePrice: 1500,
+        source: 'eastmoney',
+        status: 'IMPLEMENTED'
+      }
+
+      repo.upsertMany('STOCK:A_SHARE:600519', [event])
+      await vi.waitFor(() => expect(captures.length).toBe(1))
+
+      // 冷却期内（< 60s）再次 upsert 只落本地，不触发云端推送
+      repo.upsertMany('STOCK:A_SHARE:600519', [event])
+      await new Promise((resolve) => setImmediate(resolve))
+      expect(captures.length).toBe(1)
+
+      // 超过冷却期后再次 upsert 触发新推送
+      vi.setSystemTime(Date.now() + 60_000)
+      repo.upsertMany('STOCK:A_SHARE:600519', [event])
+      await vi.waitFor(() => expect(captures.length).toBe(2))
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

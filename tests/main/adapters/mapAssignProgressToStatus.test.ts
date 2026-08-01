@@ -6,6 +6,10 @@ describe('mapAssignProgressToStatus', () => {
     expect(mapAssignProgressToStatus('实施')).toBe('IMPLEMENTED')
     expect(mapAssignProgressToStatus('实施分配')).toBe('IMPLEMENTED')
   })
+  it('停止实施/停止预案 → 非 IMPLEMENTED', () => {
+    expect(mapAssignProgressToStatus('停止实施')).toBe('IN_PROGRESS')
+    expect(mapAssignProgressToStatus('停止预案')).toBe('IN_PROGRESS')
+  })
   it('预案 → PLANNED', () => {
     expect(mapAssignProgressToStatus('董事会预案')).toBe('PLANNED')
     expect(mapAssignProgressToStatus('预案')).toBe('PLANNED')

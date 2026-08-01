@@ -17,7 +17,7 @@ function newSchema(): DatabaseSync {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       asset_key TEXT NOT NULL,
       year INTEGER NOT NULL,
-      fiscal_year INTEGER,
+      fiscal_year INTEGER NOT NULL,
       announce_date TEXT NOT NULL,
       record_date TEXT,
       ex_date TEXT,
@@ -195,5 +195,84 @@ describe('DividendRepository — 预案/实施 schema', () => {
     const upcoming = repo.listUpcomingByAssetKeys(['STOCK:A_SHARE:600519'], 2026)
     expect(upcoming.length).toBe(1)
     expect(upcoming[0].year).toBe(2026)
+  })
+
+  it('基金式事件（无 announceDate/fiscalYear）重复 upsert 不产生重复行（fiscal_year 归一化为 year）', () => {
+    const fundEvent = (exDate: string, dividendPerShare: number) => ({
+      year: Number(exDate.slice(0, 4)),
+      exDate,
+      dividendPerShare,
+      referenceClosePrice: 3.5,
+      source: 'eastmoney',
+      status: 'IMPLEMENTED'
+    })
+    repo.upsertMany('ETF:A_SHARE:510300', [fundEvent('2024-06-20', 0.1)])
+    repo.upsertMany('ETF:A_SHARE:510300', [fundEvent('2024-06-20', 0.12)])
+    const rows = memoryDb.prepare('SELECT COUNT(*) as n, fiscal_year, dividend_per_share FROM dividend_events WHERE asset_key = ?').get('ETF:A_SHARE:510300') as any
+    expect(rows.n).toBe(1)
+    expect(rows.fiscal_year).toBe(2024)
+    expect(rows.dividend_per_share).toBe(0.12)
+  })
+
+  it('listAll 仅返回 IMPLEMENTED 事件，预案/进行中事件不混入已到账统计', () => {
+    repo.upsertMany('STOCK:A_SHARE:600519', [
+      {
+        year: 2024,
+        fiscalYear: 2023,
+        announceDate: '2024-06-28',
+        exDate: '2024-06-29',
+        dividendPerShare: 0.5,
+        referenceClosePrice: 1500,
+        source: 'eastmoney',
+        status: 'IMPLEMENTED'
+      },
+      {
+        year: 2026,
+        fiscalYear: 2025,
+        announceDate: '2026-03-28',
+        exDate: '2026-04-15',
+        dividendPerShare: 0.6,
+        referenceClosePrice: 1600,
+        source: 'eastmoney',
+        status: 'IN_PROGRESS',
+        announcementProgress: '股东大会通过'
+      },
+      {
+        year: 2027,
+        fiscalYear: 2026,
+        announceDate: '2027-03-28',
+        dividendPerShare: 0.7,
+        referenceClosePrice: 1700,
+        source: 'eastmoney',
+        status: 'PLANNED',
+        announcementProgress: '预案'
+      }
+    ])
+    const all = repo.listAll({ assetKeys: ['STOCK:A_SHARE:600519'] })
+    expect(all.length).toBe(1)
+    expect(all[0].status).toBe('IMPLEMENTED')
+  })
+
+  it('listUpcomingByAssetKeys 去年公告、今年派发的预案不被 sinceYear 误排除', () => {
+    const today = new Date()
+    const exDate = new Date(today.getTime() + 10 * 24 * 3600 * 1000).toISOString().slice(0, 10)
+    const announceDate = new Date(today.getTime() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10)
+    const announceYear = Number(announceDate.slice(0, 4))
+    repo.upsertMany('STOCK:A_SHARE:600519', [
+      {
+        year: announceYear,
+        announceDate,
+        exDate,
+        dividendPerShare: 0.6,
+        referenceClosePrice: 1600,
+        source: 'eastmoney',
+        status: 'IN_PROGRESS',
+        announcementProgress: '股东大会通过'
+      }
+    ])
+    const currentYear = today.getFullYear()
+    const upcoming = repo.listUpcomingByAssetKeys(['STOCK:A_SHARE:600519'], currentYear)
+    expect(upcoming.length).toBe(1)
+    expect(upcoming[0].exDate).toBe(exDate)
   })
 })

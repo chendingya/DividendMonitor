@@ -68,4 +68,45 @@ describe('migrateDividendEventStatus', () => {
     const cnt = db.prepare('SELECT COUNT(*) as n FROM dividend_events').get() as any
     expect(cnt.n).toBe(1)
   })
+
+  it('fiscal_year 为 NULL 时迁移归一化为 year 且新列 NOT NULL', () => {
+    const db = buildLegacySchema()
+    db.prepare(`INSERT INTO dividend_events (asset_key, year, announce_date, ex_date, dividend_per_share, reference_close_price, source, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run('STOCK:A_SHARE:600519', 2024, '2024-07-01', '2024-07-15', 0.5, 1500, 'eastmoney', '2024-08-01T00:00:00Z')
+
+    migrateDividendEventStatus(db)
+
+    const cols = db.prepare('PRAGMA table_info(dividend_events)').all() as Array<{ name: string; notnull: number }>
+    const fiscalYearCol = cols.find((c) => c.name === 'fiscal_year')
+    expect(fiscalYearCol?.notnull).toBe(1)
+
+    const row = db.prepare('SELECT fiscal_year FROM dividend_events WHERE asset_key = ?').get('STOCK:A_SHARE:600519') as any
+    expect(row.fiscal_year).toBe(2024)
+  })
+
+  it('同公告日多行（不同 ex_date）迁移按新唯一键去重不崩溃', () => {
+    const db = buildLegacySchema()
+    db.prepare(`INSERT INTO dividend_events (asset_key, year, announce_date, ex_date, dividend_per_share, reference_close_price, source, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run('STOCK:A_SHARE:600519', 2024, '2024-07-01', '2024-07-15', 0.5, 1500, 'eastmoney', '2024-08-01T00:00:00Z')
+    db.prepare(`INSERT INTO dividend_events (asset_key, year, announce_date, ex_date, dividend_per_share, reference_close_price, source, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run('STOCK:A_SHARE:600519', 2024, '2024-07-01', '2024-08-15', 0.5, 1500, 'eastmoney', '2024-08-02T00:00:00Z')
+
+    expect(() => migrateDividendEventStatus(db)).not.toThrow()
+
+    const cnt = db.prepare('SELECT COUNT(*) as n FROM dividend_events').get() as any
+    expect(cnt.n).toBe(1)
+  })
+
+  it('同公告日多行（fiscal_year 不同）迁移时全部保留', () => {
+    const db = buildLegacySchema()
+    db.prepare(`INSERT INTO dividend_events (asset_key, year, announce_date, fiscal_year, ex_date, dividend_per_share, reference_close_price, source, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run('STOCK:A_SHARE:600519', 2024, '2024-07-01', 2023, '2024-07-15', 0.5, 1500, 'eastmoney', '2024-08-01T00:00:00Z')
+    db.prepare(`INSERT INTO dividend_events (asset_key, year, announce_date, fiscal_year, ex_date, dividend_per_share, reference_close_price, source, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run('STOCK:A_SHARE:600519', 2024, '2024-07-01', 2024, '2024-08-15', 0.5, 1500, 'eastmoney', '2024-08-02T00:00:00Z')
+
+    migrateDividendEventStatus(db)
+
+    const cnt = db.prepare('SELECT COUNT(*) as n FROM dividend_events').get() as any
+    expect(cnt.n).toBe(2)
+  })
 })

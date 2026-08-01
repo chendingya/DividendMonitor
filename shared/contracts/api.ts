@@ -300,6 +300,7 @@ export type UpcomingDividendDto = {
   code: string
   name: string
   heldShares: number
+  year: number
   announceDate?: string
   expectedExDate?: string
   expectedPayDate?: string

@@ -46,6 +46,7 @@ export async function listUpcomingDividends(): Promise<UpcomingDividendDto[]> {
         code: info.code,
         name: info.name,
         heldShares: info.shares,
+        year: e.year,
         announceDate: e.announceDate,
         expectedExDate: e.exDate,
         expectedPayDate: e.payDate,

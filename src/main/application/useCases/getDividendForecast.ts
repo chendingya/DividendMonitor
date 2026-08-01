@@ -33,15 +33,26 @@ export async function getDividendForecast(year?: number): Promise<DividendForeca
   }
 
   let annualEstimatedTotal = 0
-  for (const [assetKey, shares] of assetShares.entries()) {
-    if (shares <= 0) continue
-    try {
-      const fy = await estimateFutureYieldForAsset(parseAssetKey(assetKey))
-      const baseline = fy.estimates.find((e) => e.method === 'baseline')
-      const perShare = baseline?.isAvailable ? (baseline?.estimatedDividendPerShare ?? 0) : 0
-      annualEstimatedTotal += perShare * shares
-    } catch {
-      continue
+  const assetKeys = [...assetShares.entries()]
+    .filter(([, shares]) => shares > 0)
+    .map(([assetKey]) => assetKey)
+
+  // 分批并发抓取，避免大持仓下串行 N 次网络请求导致页面长时间无响应。
+  const BATCH_SIZE = 5
+  for (let i = 0; i < assetKeys.length; i += BATCH_SIZE) {
+    const batch = assetKeys.slice(i, i + BATCH_SIZE)
+    const results = await Promise.allSettled(
+      batch.map(async (assetKey) => {
+        const fy = await estimateFutureYieldForAsset(parseAssetKey(assetKey))
+        const baseline = fy.estimates.find((e) => e.method === 'baseline')
+        const perShare = baseline?.isAvailable ? (baseline?.estimatedDividendPerShare ?? 0) : 0
+        return perShare * assetShares.get(assetKey)!
+      })
+    )
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        annualEstimatedTotal += result.value
+      }
     }
   }
 
@@ -53,9 +64,11 @@ export async function getDividendForecast(year?: number): Promise<DividendForeca
     history.yearlySummary.find((y) => y.year === targetYear)?.totalAmount ?? 0
 
   const upcoming: UpcomingDividendDto[] = await listUpcomingDividends()
-  const upcomingFiltered = upcoming.filter(
-    (u) => !u.announceDate || String(u.announceDate).slice(0, 4) === String(targetYear)
-  )
+  // 无公告日的预案事件（基金/ETF）按 year 归入当年，避免每年重复计入。
+  const upcomingFiltered = upcoming.filter((u) => {
+    const yearStr = u.announceDate ? String(u.announceDate).slice(0, 4) : String(u.year)
+    return yearStr === String(targetYear)
+  })
   const upcomingPlanned = upcomingFiltered.reduce((acc, u) => acc + u.estimatedAmount, 0)
 
   const remainingEstimated = Math.max(
