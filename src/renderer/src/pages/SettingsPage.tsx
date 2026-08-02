@@ -5,6 +5,8 @@ import type { SettingsDto } from '@shared/contracts/api'
 import { PageState } from '@renderer/components/app/PageState'
 import { AppCard } from '@renderer/components/app/AppCard'
 import { backupApi } from '@renderer/services/backupApi'
+import { getSyncDesktopApi } from '@renderer/services/desktopApi'
+import { useAuth } from '@renderer/contexts/AuthContext'
 
 const SORT_METRIC_OPTIONS = [
   { value: 'estimatedFutureYield', label: '估算未来股息率' },
@@ -15,6 +17,7 @@ const SORT_METRIC_OPTIONS = [
 
 function SettingsPage() {
   const { settings, loading, error, saving, save, reset } = useSettings()
+  const { mode } = useAuth()
   const [local, setLocal] = useState<SettingsDto | null>(null)
   const [dirty, setDirty] = useState(false)
   const [activeTab, setActiveTab] = useState<'general' | 'backtest' | 'preciousMetal'>('general')
@@ -77,11 +80,39 @@ function SettingsPage() {
           if (result.canceled) {
             return
           }
+          if (mode === 'online') {
+            confirmPushRestoredDataToCloud()
+            return
+          }
           void message.success('已恢复备份，正在刷新页面')
           window.location.reload()
         } catch (err) {
           void message.error(err instanceof Error ? err.message : '恢复备份失败')
         }
+      }
+    })
+  }
+
+  function confirmPushRestoredDataToCloud() {
+    Modal.confirm({
+      title: '将恢复的数据推送到云端？',
+      content:
+        '在线模式下数据从云端读取。推送会用恢复后的本地数据覆盖云端（自选、持仓、设置、分红记录与回测历史），确认推送？',
+      okText: '推送并刷新',
+      cancelText: '暂不推送',
+      onOk: async () => {
+        try {
+          const syncApi = getSyncDesktopApi()
+          await syncApi.syncData('push')
+          void message.success('已恢复备份并推送到云端')
+        } catch (syncError) {
+          void message.error('推送云端失败，可在用户中心手动同步')
+        }
+        window.location.reload()
+      },
+      onCancel: () => {
+        void message.info('已恢复本地备份；云端数据未变，可在用户中心手动同步')
+        window.location.reload()
       }
     })
   }
@@ -252,7 +283,7 @@ function SettingsPage() {
 
                   <AppCard title="数据备份">
                     <p style={{ color: '#66707a', fontSize: 13, marginBottom: 12 }}>
-                      备份为本地 SQLite 完整副本（自选、持仓、设置、分红记录与回测历史）。恢复将覆盖全部本地数据；云端数据不受影响。
+                      备份为本地 SQLite 完整副本（自选、持仓、设置、分红记录与回测历史）。恢复将覆盖全部本地数据；在线模式下界面数据来自云端，恢复后可按提示将数据推送到云端。
                     </p>
                     <Space>
                       <Button onClick={handleBackup}>导出备份</Button>
