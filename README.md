@@ -18,13 +18,29 @@
 
 ## 界面预览
 
-| 工作台（组合总览） | 个股详情（估值与分红） |
-|:---:|:---:|
-| ![工作台](docs/screenshots/dashboard.png) | ![个股详情](docs/screenshots/stock-detail.png) |
+### 工作台
 
-| 分红统计中心 | 分红复投回测 | 行业分析 |
+| 首页 | 持仓相关性矩阵 | 持仓结构分类汇总 |
 |:---:|:---:|:---:|
-| ![分红统计中心](docs/screenshots/dividend-center.png) | ![回测](docs/screenshots/backtest.png) | ![行业分析](docs/screenshots/industry-analysis.png) |
+| ![首页](docs/screenshots/首页.png) | ![相关性矩阵](docs/screenshots/相关性矩阵.png) | ![自定义持仓结构分类汇总](docs/screenshots/自定义持仓结构分类汇总.png) |
+
+### 个股详情
+
+| 价格走势与估值水平 | 历史收益与未来收益估算 | 估值趋势 |
+|:---:|:---:|:---:|
+| ![价格走势与估值水平](docs/screenshots/价格走势与估值水平.png) | ![历史收益与未来收益估算](docs/screenshots/历史收益与未来收益估算.png) | ![估值趋势](docs/screenshots/估值趋势.png) |
+
+### 分红与回测
+
+| 分红估算与统计 | 年度与月度分红 | 分红复投回测 |
+|:---:|:---:|:---:|
+| ![分红估算与统计](docs/screenshots/分红估算与统计.png) | ![年度月度分红](docs/screenshots/年度月度分红.png) | ![简单分红复投回测](docs/screenshots/简单分红复投回测.png) |
+
+### 自选与设置
+
+| 自选池 | 资产详情 | 云端同步与用户设置 |
+|:---:|:---:|:---:|
+| ![自选池](docs/screenshots/自选池.png) | ![资产详情](docs/screenshots/资产详情.png) | ![云端本地同步与用户设置](docs/screenshots/云端本地同步与用户设置.png) |
 
 > 截图使用演示账号与公开行情数据，不含任何个人持仓信息。
 

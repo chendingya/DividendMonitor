@@ -18,13 +18,29 @@ DividendMonitor (收息佬) is an Electron desktop application that helps long-t
 
 ## Screenshots
 
-| Dashboard (Portfolio Overview) | Stock Detail (Valuation & Dividends) |
-|:---:|:---:|
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Stock Detail](docs/screenshots/stock-detail.png) |
+### Dashboard
 
-| Dividend Center | Dividend Reinvestment Backtest | Industry Analysis |
+| Overview | Correlation Matrix | Portfolio Structure |
 |:---:|:---:|:---:|
-| ![Dividend Center](docs/screenshots/dividend-center.png) | ![Backtest](docs/screenshots/backtest.png) | ![Industry Analysis](docs/screenshots/industry-analysis.png) |
+| ![Overview](docs/screenshots/首页.png) | ![Correlation Matrix](docs/screenshots/相关性矩阵.png) | ![Portfolio Structure](docs/screenshots/自定义持仓结构分类汇总.png) |
+
+### Stock Detail
+
+| Price & Valuation | History & Future Yield | Valuation Trend |
+|:---:|:---:|:---:|
+| ![Price & Valuation](docs/screenshots/价格走势与估值水平.png) | ![History & Future Yield](docs/screenshots/历史收益与未来收益估算.png) | ![Valuation Trend](docs/screenshots/估值趋势.png) |
+
+### Dividends & Backtest
+
+| Dividend Estimation | Yearly & Monthly Dividends | Reinvestment Backtest |
+|:---:|:---:|:---:|
+| ![Dividend Estimation](docs/screenshots/分红估算与统计.png) | ![Yearly & Monthly Dividends](docs/screenshots/年度月度分红.png) | ![Backtest](docs/screenshots/简单分红复投回测.png) |
+
+### Watchlist & Settings
+
+| Watchlist | Asset Detail | Cloud Sync & Settings |
+|:---:|:---:|:---:|
+| ![Watchlist](docs/screenshots/自选池.png) | ![Asset Detail](docs/screenshots/资产详情.png) | ![Cloud Sync & Settings](docs/screenshots/云端本地同步与用户设置.png) |
 
 > Screenshots use a demo account with public market data; no personal portfolio information is shown.
 
