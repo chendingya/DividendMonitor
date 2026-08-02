@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import * as echarts from 'echarts'
 import type { AssetDetailDto, ValuationWindowKeyDto } from '@shared/contracts/api'
 import { AppCard } from '@renderer/components/app/AppCard'
+import { ChartExportButton } from '@renderer/components/app/ChartExportButton'
 import {
   buildPercentileGuideLines,
   buildPercentileSeries,
@@ -49,12 +50,15 @@ function MetricTrendPanel({
   percentileSeries,
   valuationWindow
 }: MetricTrendPanelProps) {
+  const instanceRef = useRef<echarts.ECharts | null>(null)
+
   useEffect(() => {
     if (!chartRef.current || axisDates.length === 0) {
       return
     }
 
     const chart = echarts.init(chartRef.current)
+    instanceRef.current = chart
     chart.setOption({
       animation: false,
       grid: {
@@ -175,13 +179,16 @@ function MetricTrendPanel({
     return () => {
       resizeObserver.disconnect()
       chart.dispose()
+      instanceRef.current = null
     }
   }, [axisDates, chartRef, percentileColor, percentileLabel, percentileSeries, title, valuationWindow, valueColor, valueLabel, valueSeries])
 
   return (
     <div>
       <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#1f2328' }}>{title}</div>
-      <div ref={chartRef as RefObject<HTMLDivElement>} style={{ width: '100%', height: 320 }} />
+      <div ref={chartRef as RefObject<HTMLDivElement>} style={{ width: '100%', height: 320, position: 'relative' }}>
+        <ChartExportButton instanceRef={instanceRef} filename="valuation-trend" />
+      </div>
     </div>
   )
 }

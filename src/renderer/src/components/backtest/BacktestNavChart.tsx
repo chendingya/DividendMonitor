@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import * as echarts from 'echarts'
 import type { BacktestResultDto } from '@shared/contracts/api'
 import { AppCard } from '@renderer/components/app/AppCard'
+import { ChartExportButton } from '@renderer/components/app/ChartExportButton'
 
 function buildReturnSeries(result: BacktestResultDto) {
   const points: Array<{ date: string; pct: number }> = []
@@ -60,6 +61,7 @@ function buildReturnSeries(result: BacktestResultDto) {
 
 export function BacktestNavChart({ result }: { result: BacktestResultDto }) {
   const chartRef = useRef<HTMLDivElement | null>(null)
+  const instanceRef = useRef<echarts.ECharts | null>(null)
 
   useEffect(() => {
     if (!chartRef.current) return
@@ -69,6 +71,7 @@ export function BacktestNavChart({ result }: { result: BacktestResultDto }) {
     const returns = strategyPoints.map((p) => Number(p.pct.toFixed(2)))
 
     const chart = echarts.init(chartRef.current)
+    instanceRef.current = chart
 
     const series: Array<Record<string, unknown>> = [
       {
@@ -171,6 +174,7 @@ export function BacktestNavChart({ result }: { result: BacktestResultDto }) {
     return () => {
       resizeObserver.disconnect()
       chart.dispose()
+      instanceRef.current = null
     }
   }, [result])
 
@@ -184,7 +188,9 @@ export function BacktestNavChart({ result }: { result: BacktestResultDto }) {
           虚线为基准指数（{result.benchmarkSymbol ?? '基准'}）同期累计收益率。
         </div>
       )}
-      <div ref={chartRef} style={{ width: '100%', height: 380 }} />
+      <div ref={chartRef} style={{ width: '100%', height: 380, position: 'relative' }}>
+        <ChartExportButton instanceRef={instanceRef} filename="backtest-nav" />
+      </div>
     </AppCard>
   )
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as echarts from 'echarts'
 import type { HistoricalPricePointDto } from '@shared/contracts/api'
 import { AppCard } from '@renderer/components/app/AppCard'
+import { ChartExportButton } from '@renderer/components/app/ChartExportButton'
 
 type AdjustmentType = 'NONE' | 'QFTA' | 'HFTA'
 
@@ -13,6 +14,7 @@ const LABELS: Record<AdjustmentType, string> = {
 
 export function PriceTrendChart({ data }: { data?: HistoricalPricePointDto[] }) {
   const chartRef = useRef<HTMLDivElement | null>(null)
+  const instanceRef = useRef<echarts.ECharts | null>(null)
   const [adjustment, setAdjustment] = useState<AdjustmentType>('QFTA')
 
   const points = useMemo(() => data ?? [], [data])
@@ -29,6 +31,7 @@ export function PriceTrendChart({ data }: { data?: HistoricalPricePointDto[] }) 
     }
 
     const chart = echarts.init(chartRef.current)
+    instanceRef.current = chart
     chart.setOption({
       animation: false,
       grid: { left: 56, right: 16, top: 16, bottom: 56 },
@@ -67,6 +70,7 @@ export function PriceTrendChart({ data }: { data?: HistoricalPricePointDto[] }) 
     return () => {
       resizeObserver.disconnect()
       chart.dispose()
+      instanceRef.current = null
     }
   }, [axisDates, values, adjustment])
 
@@ -92,7 +96,9 @@ export function PriceTrendChart({ data }: { data?: HistoricalPricePointDto[] }) 
           </button>
         ))}
       </div>
-      <div ref={chartRef} style={{ width: '100%', height: 320 }} />
+      <div ref={chartRef} style={{ width: '100%', height: 320, position: 'relative' }}>
+        <ChartExportButton instanceRef={instanceRef} filename="price-trend" />
+      </div>
     </AppCard>
   )
 }

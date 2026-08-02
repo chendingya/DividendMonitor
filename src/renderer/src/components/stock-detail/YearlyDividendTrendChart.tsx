@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import * as echarts from 'echarts'
 import type { HistoricalYieldPointDto } from '@shared/contracts/api'
 import { AppCard } from '@renderer/components/app/AppCard'
+import { ChartExportButton } from '@renderer/components/app/ChartExportButton'
 
 type YearlyDividendTrendChartProps = {
   items: HistoricalYieldPointDto[]
@@ -9,6 +10,7 @@ type YearlyDividendTrendChartProps = {
 
 export function YearlyDividendTrendChart({ items }: YearlyDividendTrendChartProps) {
   const chartRef = useRef<HTMLDivElement | null>(null)
+  const instanceRef = useRef<echarts.ECharts | null>(null)
 
   const sortedItems = useMemo(() => [...items].sort((a, b) => a.year - b.year), [items])
 
@@ -18,6 +20,7 @@ export function YearlyDividendTrendChart({ items }: YearlyDividendTrendChartProp
     }
 
     const chart = echarts.init(chartRef.current)
+    instanceRef.current = chart
     const labels = sortedItems.map((item) => `${item.year}`)
     const yields = sortedItems.map((item) => Number((item.yield * 100).toFixed(2)))
     const events = sortedItems.map((item) => item.events)
@@ -121,6 +124,7 @@ export function YearlyDividendTrendChart({ items }: YearlyDividendTrendChartProp
     return () => {
       resizeObserver.disconnect()
       chart.dispose()
+      instanceRef.current = null
     }
   }, [sortedItems])
 
@@ -130,7 +134,9 @@ export function YearlyDividendTrendChart({ items }: YearlyDividendTrendChartProp
       <div style={{ marginBottom: 10, color: '#8b949e', fontSize: 12 }}>
         分红次数按自然年去重统计（同日同方案重复记录只计一次）。
       </div>
-      <div ref={chartRef} style={{ width: '100%', height: 320 }} />
+      <div ref={chartRef} style={{ width: '100%', height: 320, position: 'relative' }}>
+        <ChartExportButton instanceRef={instanceRef} filename="yearly-dividend-trend" />
+      </div>
     </AppCard>
   )
 }
