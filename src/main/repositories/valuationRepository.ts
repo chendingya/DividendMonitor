@@ -6,14 +6,10 @@ import type {
   ValuationSnapshotSource
 } from '@main/adapters/contracts'
 import type { ValuationMetric, ValuationTrendPoint } from '@main/domain/services/valuationService'
-
-type CacheEntry = {
-  expiresAt: number
-  value: StockValuationSource | undefined
-}
+import { TimedCache } from '@main/infrastructure/cache/timedCache'
+import { ValuationCacheRepository } from '@main/repositories/valuationCacheRepository'
 
 const VALUATION_CACHE_TTL_MS = 15 * 60 * 1000
-const valuationCache = new Map<string, CacheEntry>()
 
 function buildMetric(snapshot: ValuationSnapshotSource | undefined, history: ValuationTrendPoint[]): ValuationMetric | undefined {
   const currentValue = snapshot?.currentValue ?? history[0]?.value
@@ -32,12 +28,23 @@ function buildMetric(snapshot: ValuationSnapshotSource | undefined, history: Val
 }
 
 export class ValuationRepository {
-  constructor(private readonly dataSource: ValuationDataSource = createValuationDataSource()) {}
+  private readonly memoryCache = new TimedCache<string, StockValuationSource>(VALUATION_CACHE_TTL_MS)
+
+  constructor(
+    private readonly dataSource: ValuationDataSource = createValuationDataSource(),
+    private readonly diskCache: ValuationCacheRepository = new ValuationCacheRepository()
+  ) {}
 
   async getStockValuation(symbol: string): Promise<StockValuationSource | undefined> {
-    const cached = valuationCache.get(symbol)
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.value
+    const memoryHit = this.memoryCache.getFresh(symbol)
+    if (memoryHit) {
+      return memoryHit.value
+    }
+
+    const diskHit = this.diskCache.findFreshByKey<StockValuationSource>(symbol, VALUATION_CACHE_TTL_MS)
+    if (diskHit) {
+      this.memoryCache.set(symbol, diskHit)
+      return diskHit
     }
 
     // SourceGateway handles provider-level concurrency, so Promise.all here is safe.
@@ -53,10 +60,12 @@ export class ValuationRepository {
     // Only cache successful results. Caching undefined would block retries
     // for the full TTL duration after a transient failure.
     if (valuation) {
-      valuationCache.set(symbol, {
-        expiresAt: Date.now() + VALUATION_CACHE_TTL_MS,
-        value: valuation
-      })
+      this.memoryCache.set(symbol, valuation)
+      try {
+        this.diskCache.upsert(symbol, JSON.stringify(valuation))
+      } catch {
+        // 磁盘缓存写失败不阻断主流程
+      }
     }
 
     return valuation
