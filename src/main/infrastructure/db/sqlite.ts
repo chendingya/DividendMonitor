@@ -10,7 +10,7 @@ import { migrateDividendEventStatus } from '@main/infrastructure/db/migrations/d
 
 let database: DatabaseSync | null = null
 
-function getDatabaseFilePath() {
+export function getDatabaseFilePath() {
   return join(app.getPath('userData'), 'db', 'dividend-monitor.sqlite')
 }
 
@@ -275,6 +275,14 @@ export function getDatabase() {
   initializeSchema(db)
   database = db
   return database
+}
+
+export function closeDatabase(): void {
+  if (!database) {
+    return
+  }
+  database.close()
+  database = null
 }
 
 function migratePortfolioCorporateActionColumn(db: DatabaseSync) {
