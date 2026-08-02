@@ -34,40 +34,71 @@ export function exportRowsAsCsv(rows: Array<Record<string, unknown>>, filename: 
   URL.revokeObjectURL(url)
 }
 
-export function exportChartAsPng(instance: echarts.ECharts | null, filename: string, label?: string): void {
-  if (!instance) {
-    return
-  }
-
-  const labelText = label?.trim()
-  if (labelText) {
-    instance.setOption({
-      graphic: [
-        {
-          type: 'text',
-          left: 12,
-          top: 8,
-          style: {
-            text: labelText,
-            fontSize: 14,
-            fontWeight: 600,
-            fill: '#2c2f31',
-            textShadowBlur: 4,
-            textShadowColor: 'rgba(255, 255, 255, 0.9)'
-          }
-        }
-      ]
-    })
-  }
-
-  const url = instance.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' })
-
-  if (labelText) {
-    instance.setOption({ graphic: [] })
-  }
-
+function downloadDataUrl(url: string, filename: string): void {
   const anchor = document.createElement('a')
   anchor.href = url
   anchor.download = `${filename}.png`
   anchor.click()
+}
+
+/**
+ * 在图表图片上方合成独立标题条（白底 + 标的名称/代码文字），
+ * 文字位于图表区域之外，不遮挡任何图表内容。
+ * 返回合成后的 data URL。
+ */
+function composeHeaderLabel(baseUrl: string, label: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => {
+      try {
+        const headerHeight = Math.round(image.naturalWidth * 0.033)
+        const canvas = document.createElement('canvas')
+        canvas.width = image.naturalWidth
+        canvas.height = image.naturalHeight + headerHeight
+
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          reject(new Error('canvas 2d context unavailable'))
+          return
+        }
+
+        ctx.fillStyle = '#ffffff'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.drawImage(image, 0, headerHeight)
+
+        const fontSize = Math.round(headerHeight * 0.36)
+        ctx.fillStyle = '#2c2f31'
+        ctx.font = `600 ${fontSize}px system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif`
+        ctx.textBaseline = 'middle'
+        ctx.fillText(label, Math.round(fontSize * 0.8), headerHeight / 2)
+
+        resolve(canvas.toDataURL('image/png'))
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error('failed to compose export image'))
+      }
+    }
+    image.onerror = () => reject(new Error('failed to load chart image'))
+    image.src = baseUrl
+  })
+}
+
+export async function exportChartAsPng(instance: echarts.ECharts | null, filename: string, label?: string): Promise<void> {
+  if (!instance) {
+    return
+  }
+
+  const baseUrl = instance.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' })
+  const labelText = label?.trim()
+
+  if (!labelText) {
+    downloadDataUrl(baseUrl, filename)
+    return
+  }
+
+  try {
+    const composedUrl = await composeHeaderLabel(baseUrl, labelText)
+    downloadDataUrl(composedUrl, filename)
+  } catch {
+    downloadDataUrl(baseUrl, filename)
+  }
 }

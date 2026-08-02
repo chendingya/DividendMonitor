@@ -407,6 +407,7 @@ body {
   left: 0;
   bottom: 0;
   width: 192px;
+  height: 100vh;
   margin: 0;
   padding: 18px 14px;
   border-radius: 0 30px 30px 0;
@@ -415,6 +416,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  overflow: hidden;
 }
 
 .ledger-sidebar-brand {
@@ -458,6 +460,24 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(171, 173, 175, 0.35) transparent;
+}
+
+.ledger-sidebar-nav::-webkit-scrollbar {
+  width: 5px;
+}
+
+.ledger-sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(171, 173, 175, 0.35);
+  border-radius: 999px;
+}
+
+.ledger-sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .ledger-nav-group {
