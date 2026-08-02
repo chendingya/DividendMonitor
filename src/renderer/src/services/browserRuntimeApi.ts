@@ -1414,10 +1414,10 @@ export const browserRuntimeApi: DividendMonitorApi = {
   },
   backup: {
     async createBackup() {
-      return { canceled: true }
+      throw new Error('浏览器预览模式不支持备份恢复')
     },
     async restoreBackup() {
-      return { canceled: true }
+      throw new Error('浏览器预览模式不支持备份恢复')
     }
   },
   security: {

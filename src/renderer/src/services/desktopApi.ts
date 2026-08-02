@@ -135,3 +135,13 @@ export function getDividendDesktopApi(): DividendMonitorApi['dividend'] {
 
   return api.dividend
 }
+
+export function getBackupDesktopApi(): DividendMonitorApi['backup'] {
+  const api = getRuntimeApi()
+
+  if (!api.backup) {
+    throw new Error('Runtime API is missing the backup namespace.')
+  }
+
+  return api.backup
+}

@@ -105,10 +105,10 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
   },
   backup: {
     createBackup() {
-      return Promise.resolve({ canceled: true })
+      throw new Error('浏览器预览模式不支持备份恢复')
     },
     restoreBackup() {
-      return Promise.resolve({ canceled: true })
+      throw new Error('浏览器预览模式不支持备份恢复')
     }
   },
   asset: {
