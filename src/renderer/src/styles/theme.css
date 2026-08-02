@@ -511,11 +511,6 @@ body {
   opacity: 0.65;
 }
 
-.ledger-nav-item.ledger-nav-item-sub {
-  height: 44px;
-  padding-left: 34px;
-}
-
 .ledger-chart-export-button {
   position: absolute;
   top: 8px;

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { message } from 'antd'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { buildAssetSearchPath } from '@renderer/services/routeContext'
@@ -12,13 +12,11 @@ type AppIconName =
   | 'watchlist'
   | 'comparison'
   | 'backtest'
-  | 'history'
   | 'user'
   | 'search'
   | 'notification'
   | 'message'
   | 'settings'
-  | 'more'
 
 type BreadcrumbItem = {
   label: string
@@ -53,10 +51,6 @@ const navGroups: NavGroup[] = [
       { key: '/settings', label: '设置', icon: 'settings' as const }
     ]
   }
-]
-
-const moreItems: NavItem[] = [
-  { key: '/backtest-history', label: '回测历史', icon: 'history' as const }
 ]
 
 function matchNavKey(pathname: string, items: NavItem[]): string | undefined {
@@ -131,25 +125,6 @@ function AppShellIcon({ name, className }: { name: AppIconName; className?: stri
     )
   }
 
-  if (name === 'history') {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.8" />
-        <path d="M12 7v5l3.5 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    )
-  }
-
-  if (name === 'more') {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="5" cy="12" r="1.6" fill="currentColor" />
-        <circle cx="12" cy="12" r="1.6" fill="currentColor" />
-        <circle cx="19" cy="12" r="1.6" fill="currentColor" />
-      </svg>
-    )
-  }
-
   if (name === 'user') {
     return (
       <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -198,25 +173,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         return key
       }
     }
-    if (matchNavKey(location.pathname, moreItems)) {
-      return 'more'
-    }
     return '/'
   }, [location.pathname])
 
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
-  const [moreOpen, setMoreOpen] = useState(false)
-  const moreRef = useRef<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (moreRef.current && !moreRef.current.contains(event.target as Node)) {
-        setMoreOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
 
   const breadcrumbItems = useMemo<BreadcrumbItem[]>(() => {
     const symbol = new URLSearchParams(location.search).get('symbol')?.trim()
@@ -330,36 +290,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             )
           })}
 
-          <div ref={moreRef}>
-            <button
-              type="button"
-              className={`ledger-nav-item ${selectedKey === 'more' ? 'is-active' : ''}`}
-              onClick={() => setMoreOpen((open) => !open)}
-            >
-              <span className="ledger-nav-icon">
-                <AppShellIcon name="more" className="ledger-icon-svg" />
-              </span>
-              <span>更多</span>
-            </button>
-            {moreOpen
-              ? moreItems.map((item) => (
-                  <button
-                    key={item.key}
-                    type="button"
-                    className={`ledger-nav-item ledger-nav-item-sub ${selectedKey === item.key ? 'is-active' : ''}`}
-                    onClick={() => {
-                      navigate(item.key)
-                      setMoreOpen(false)
-                    }}
-                  >
-                    <span className="ledger-nav-icon">
-                      <AppShellIcon name={item.icon} className="ledger-icon-svg" />
-                    </span>
-                    <span>{item.label}</span>
-                  </button>
-                ))
-              : null}
-          </div>
         </nav>
 
         <div className="ledger-sidebar-footer">
