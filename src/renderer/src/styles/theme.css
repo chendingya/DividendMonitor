@@ -460,6 +460,31 @@ body {
   gap: 6px;
 }
 
+.ledger-nav-group {
+  height: 30px;
+  border: none;
+  background: transparent;
+  color: var(--text-faint, #8b949e);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ledger-nav-group:hover {
+  color: var(--text-soft, #66707a);
+}
+
+.ledger-nav-group-caret {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
 .ledger-nav-item {
   height: 46px;
   border: none;

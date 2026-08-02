@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
-import { message } from 'antd'
+import { Dropdown, message } from 'antd'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { buildAssetSearchPath } from '@renderer/services/routeContext'
 import { useAuth } from '@renderer/contexts/AuthContext'
@@ -12,26 +12,56 @@ type AppIconName =
   | 'watchlist'
   | 'comparison'
   | 'backtest'
+  | 'history'
   | 'user'
   | 'search'
   | 'notification'
   | 'message'
   | 'settings'
+  | 'more'
 
 type BreadcrumbItem = {
   label: string
   to?: string
 }
 
-const menuItems = [
-  { key: '/', label: '投资组合', icon: 'dashboard' as const },
-  { key: '/stock-detail', label: '股息', icon: 'dividend' as const },
-  { key: '/watchlist', label: '自选', icon: 'watchlist' as const },
-  { key: '/dividend-center', label: '分红统计', icon: 'dividend-center' as const },
-  { key: '/comparison', label: '数据分析', icon: 'comparison' as const },
-  { key: '/backtest', label: '回测', icon: 'backtest' as const },
-  { key: '/user-center', label: '用户中心', icon: 'user' as const }
+type NavItem = {
+  key: string
+  label: string
+  icon: AppIconName
+}
+
+type NavGroup = {
+  title: string
+  items: NavItem[]
+}
+
+const navGroups: NavGroup[] = [
+  {
+    title: '投资',
+    items: [
+      { key: '/', label: '投资组合', icon: 'dashboard' as const },
+      { key: '/watchlist', label: '自选', icon: 'watchlist' as const },
+      { key: '/backtest', label: '回测', icon: 'backtest' as const },
+      { key: '/dividend-center', label: '分红统计', icon: 'dividend-center' as const }
+    ]
+  },
+  {
+    title: '系统',
+    items: [
+      { key: '/user-center', label: '用户中心', icon: 'user' as const },
+      { key: '/settings', label: '设置', icon: 'settings' as const }
+    ]
+  }
 ]
+
+const moreItems: NavItem[] = [
+  { key: '/backtest-history', label: '回测历史', icon: 'history' as const }
+]
+
+function matchNavKey(pathname: string, items: NavItem[]): string | undefined {
+  return items.find((item) => pathname === item.key || pathname.startsWith(`${item.key}/`))?.key
+}
 
 function AppShellIcon({ name, className }: { name: AppIconName; className?: string }) {
   if (name === 'dashboard') {
@@ -101,6 +131,25 @@ function AppShellIcon({ name, className }: { name: AppIconName; className?: stri
     )
   }
 
+  if (name === 'history') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="8.5" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M12 7v5l3.5 2" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+
+  if (name === 'more') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="5" cy="12" r="1.6" fill="currentColor" />
+        <circle cx="12" cy="12" r="1.6" fill="currentColor" />
+        <circle cx="19" cy="12" r="1.6" fill="currentColor" />
+      </svg>
+    )
+  }
+
   if (name === 'user') {
     return (
       <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -143,9 +192,19 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [topbarKeyword, setTopbarKeyword] = useState('')
 
   const selectedKey = useMemo(() => {
-    const matched = menuItems.find((item) => location.pathname === item.key || location.pathname.startsWith(`${item.key}/`))
-    return matched?.key ?? '/'
+    for (const group of navGroups) {
+      const key = matchNavKey(location.pathname, group.items)
+      if (key) {
+        return key
+      }
+    }
+    if (matchNavKey(location.pathname, moreItems)) {
+      return 'more'
+    }
+    return '/'
   }, [location.pathname])
+
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
 
   const breadcrumbItems = useMemo<BreadcrumbItem[]>(() => {
     const symbol = new URLSearchParams(location.search).get('symbol')?.trim()
@@ -225,19 +284,61 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="ledger-sidebar-nav">
-          {menuItems.map((item) => (
+          {navGroups.map((group) => {
+            const isCollapsed = Boolean(collapsedGroups[group.title])
+            return (
+              <div key={group.title}>
+                <button
+                  type="button"
+                  className="ledger-nav-group"
+                  onClick={() =>
+                    setCollapsedGroups((prev) => ({ ...prev, [group.title]: !prev[group.title] }))
+                  }
+                  aria-expanded={!isCollapsed}
+                >
+                  <span>{group.title}</span>
+                  <span className="ledger-nav-group-caret">{isCollapsed ? '▸' : '▾'}</span>
+                </button>
+                {!isCollapsed
+                  ? group.items.map((item) => (
+                      <button
+                        key={item.key}
+                        type="button"
+                        className={`ledger-nav-item ${selectedKey === item.key ? 'is-active' : ''}`}
+                        onClick={() => navigate(item.key)}
+                      >
+                        <span className="ledger-nav-icon">
+                          <AppShellIcon name={item.icon} className="ledger-icon-svg" />
+                        </span>
+                        <span>{item.label}</span>
+                      </button>
+                    ))
+                  : null}
+              </div>
+            )
+          })}
+
+          <Dropdown
+            placement="bottomLeft"
+            menu={{
+              items: moreItems.map((item) => ({
+                key: item.key,
+                label: item.label,
+                icon: <AppShellIcon name={item.icon} className="ledger-icon-svg" />
+              })),
+              onClick: ({ key }) => navigate(key)
+            }}
+          >
             <button
-              key={item.key}
               type="button"
-              className={`ledger-nav-item ${selectedKey === item.key ? 'is-active' : ''}`}
-              onClick={() => navigate(item.key)}
+              className={`ledger-nav-item ${selectedKey === 'more' ? 'is-active' : ''}`}
             >
               <span className="ledger-nav-icon">
-                <AppShellIcon name={item.icon} className="ledger-icon-svg" />
+                <AppShellIcon name="more" className="ledger-icon-svg" />
               </span>
-              <span>{item.label}</span>
+              <span>更多</span>
             </button>
-          ))}
+          </Dropdown>
         </nav>
 
         <div className="ledger-sidebar-footer">
