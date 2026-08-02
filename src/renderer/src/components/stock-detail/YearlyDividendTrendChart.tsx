@@ -6,9 +6,10 @@ import { ChartExportButton } from '@renderer/components/app/ChartExportButton'
 
 type YearlyDividendTrendChartProps = {
   items: HistoricalYieldPointDto[]
+  assetLabel?: string
 }
 
-export function YearlyDividendTrendChart({ items }: YearlyDividendTrendChartProps) {
+export function YearlyDividendTrendChart({ items, assetLabel }: YearlyDividendTrendChartProps) {
   const chartRef = useRef<HTMLDivElement | null>(null)
   const instanceRef = useRef<echarts.ECharts | null>(null)
 
@@ -136,7 +137,7 @@ export function YearlyDividendTrendChart({ items }: YearlyDividendTrendChartProp
       </div>
       <div style={{ position: 'relative' }}>
         <div ref={chartRef} style={{ width: '100%', height: 320 }} />
-        <ChartExportButton instanceRef={instanceRef} filename="yearly-dividend-trend" />
+        <ChartExportButton instanceRef={instanceRef} filename="yearly-dividend-trend" label={assetLabel} />
       </div>
     </AppCard>
   )

@@ -12,7 +12,7 @@ const LABELS: Record<AdjustmentType, string> = {
   HFTA: '后复权'
 }
 
-export function PriceTrendChart({ data }: { data?: HistoricalPricePointDto[] }) {
+export function PriceTrendChart({ data, assetLabel }: { data?: HistoricalPricePointDto[]; assetLabel?: string }) {
   const chartRef = useRef<HTMLDivElement | null>(null)
   const instanceRef = useRef<echarts.ECharts | null>(null)
   const [adjustment, setAdjustment] = useState<AdjustmentType>('QFTA')
@@ -98,7 +98,7 @@ export function PriceTrendChart({ data }: { data?: HistoricalPricePointDto[] }) 
       </div>
       <div style={{ position: 'relative' }}>
         <div ref={chartRef} style={{ width: '100%', height: 320 }} />
-        <ChartExportButton instanceRef={instanceRef} filename="price-trend" />
+        <ChartExportButton instanceRef={instanceRef} filename="price-trend" label={assetLabel} />
       </div>
     </AppCard>
   )

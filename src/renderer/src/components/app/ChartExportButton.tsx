@@ -6,14 +6,15 @@ import { exportChartAsPng } from '@renderer/utils/chartExport'
 type ChartExportButtonProps = {
   instanceRef: MutableRefObject<echarts.ECharts | null>
   filename: string
+  label?: string
 }
 
-export function ChartExportButton({ instanceRef, filename }: ChartExportButtonProps) {
+export function ChartExportButton({ instanceRef, filename, label }: ChartExportButtonProps) {
   return (
     <Tooltip title="导出图片">
       <button
         type="button"
-        onClick={() => exportChartAsPng(instanceRef.current, filename)}
+        onClick={() => exportChartAsPng(instanceRef.current, filename, label)}
         style={{
           position: 'absolute',
           top: 8,

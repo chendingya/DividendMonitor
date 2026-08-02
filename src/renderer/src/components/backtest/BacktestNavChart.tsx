@@ -190,7 +190,7 @@ export function BacktestNavChart({ result }: { result: BacktestResultDto }) {
       )}
       <div style={{ position: 'relative' }}>
         <div ref={chartRef} style={{ width: '100%', height: 380 }} />
-        <ChartExportButton instanceRef={instanceRef} filename="backtest-nav" />
+        <ChartExportButton instanceRef={instanceRef} filename="backtest-nav" label={`回测 ${result.symbol}`} />
       </div>
     </AppCard>
   )

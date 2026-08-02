@@ -292,7 +292,7 @@ export function StockDetailPage() {
                 </Col>
               </Row>
 
-              {!isPreciousMetal && <PriceTrendChart data={data.priceHistory} />}
+              {!isPreciousMetal && <PriceTrendChart data={data.priceHistory} assetLabel={`${data.name} ${displayCode}`} />}
 
               {hasFundProfile ? (
                 <AppCard title="基金画像">
@@ -462,7 +462,7 @@ export function StockDetailPage() {
               </Row>
               ) : null}
 
-              {!isPreciousMetal ? <YearlyDividendTrendChart items={data.yearlyYields} /> : null}
+              {!isPreciousMetal ? <YearlyDividendTrendChart items={data.yearlyYields} assetLabel={`${data.name} ${displayCode}`} /> : null}
 
               {hasValuation ? <ValuationTrendChart detail={data} valuationWindow={valuationWindow} /> : null}
 

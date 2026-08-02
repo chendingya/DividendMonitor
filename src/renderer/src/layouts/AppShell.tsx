@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { useMemo, useState } from 'react'
-import { Dropdown, message } from 'antd'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { message } from 'antd'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { buildAssetSearchPath } from '@renderer/services/routeContext'
 import { useAuth } from '@renderer/contexts/AuthContext'
@@ -205,6 +205,18 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [location.pathname])
 
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
+  const [moreOpen, setMoreOpen] = useState(false)
+  const moreRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (moreRef.current && !moreRef.current.contains(event.target as Node)) {
+        setMoreOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   const breadcrumbItems = useMemo<BreadcrumbItem[]>(() => {
     const symbol = new URLSearchParams(location.search).get('symbol')?.trim()
@@ -318,27 +330,38 @@ export function AppShell({ children }: { children: ReactNode }) {
             )
           })}
 
-          <Dropdown
-            placement="bottomLeft"
-            menu={{
-              items: moreItems.map((item) => ({
-                key: item.key,
-                label: item.label,
-                icon: <AppShellIcon name={item.icon} className="ledger-icon-svg" />
-              })),
-              onClick: ({ key }) => navigate(key)
-            }}
-          >
+          <div ref={moreRef} style={{ position: 'relative' }}>
             <button
               type="button"
               className={`ledger-nav-item ${selectedKey === 'more' ? 'is-active' : ''}`}
+              onClick={() => setMoreOpen((open) => !open)}
             >
               <span className="ledger-nav-icon">
                 <AppShellIcon name="more" className="ledger-icon-svg" />
               </span>
               <span>更多</span>
             </button>
-          </Dropdown>
+            {moreOpen ? (
+              <div className="ledger-more-popover">
+                {moreItems.map((item) => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className={`ledger-more-item ${selectedKey === item.key ? 'is-active' : ''}`}
+                    onClick={() => {
+                      navigate(item.key)
+                      setMoreOpen(false)
+                    }}
+                  >
+                    <span className="ledger-nav-icon">
+                      <AppShellIcon name={item.icon} className="ledger-icon-svg" />
+                    </span>
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </nav>
 
         <div className="ledger-sidebar-footer">

@@ -34,12 +34,38 @@ export function exportRowsAsCsv(rows: Array<Record<string, unknown>>, filename: 
   URL.revokeObjectURL(url)
 }
 
-export function exportChartAsPng(instance: echarts.ECharts | null, filename: string): void {
+export function exportChartAsPng(instance: echarts.ECharts | null, filename: string, label?: string): void {
   if (!instance) {
     return
   }
 
+  const labelText = label?.trim()
+  if (labelText) {
+    instance.setOption({
+      graphic: [
+        {
+          type: 'text',
+          left: 12,
+          top: 8,
+          style: {
+            text: labelText,
+            fontSize: 14,
+            fontWeight: 600,
+            fill: '#2c2f31',
+            textShadowBlur: 4,
+            textShadowColor: 'rgba(255, 255, 255, 0.9)'
+          }
+        }
+      ]
+    })
+  }
+
   const url = instance.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#fff' })
+
+  if (labelText) {
+    instance.setOption({ graphic: [] })
+  }
+
   const anchor = document.createElement('a')
   anchor.href = url
   anchor.download = `${filename}.png`

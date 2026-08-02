@@ -36,6 +36,7 @@ type MetricTrendPanelProps = {
   valueSeries: Array<number | null>
   percentileSeries: Array<number | null>
   valuationWindow: ValuationWindowKeyDto
+  assetLabel?: string
 }
 
 function MetricTrendPanel({
@@ -48,7 +49,8 @@ function MetricTrendPanel({
   axisDates,
   valueSeries,
   percentileSeries,
-  valuationWindow
+  valuationWindow,
+  assetLabel
 }: MetricTrendPanelProps) {
   const instanceRef = useRef<echarts.ECharts | null>(null)
 
@@ -188,7 +190,7 @@ function MetricTrendPanel({
       <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#1f2328' }}>{title}</div>
       <div style={{ position: 'relative' }}>
         <div ref={chartRef as RefObject<HTMLDivElement>} style={{ width: '100%', height: 320 }} />
-        <ChartExportButton instanceRef={instanceRef} filename="valuation-trend" />
+        <ChartExportButton instanceRef={instanceRef} filename="valuation-trend" label={assetLabel} />
       </div>
     </div>
   )
@@ -282,6 +284,7 @@ export function ValuationTrendChart({ detail, valuationWindow }: ValuationTrendC
           valueSeries={peValues}
           percentileSeries={pePercentileValues}
           valuationWindow={valuationWindow}
+          assetLabel={`${detail.name} ${detail.code}`}
         />
       ) : null}
       {metricVisibility.pb ? (
@@ -297,6 +300,7 @@ export function ValuationTrendChart({ detail, valuationWindow }: ValuationTrendC
             valueSeries={pbValues}
             percentileSeries={pbPercentileValues}
             valuationWindow={valuationWindow}
+            assetLabel={`${detail.name} ${detail.code}`}
           />
         </div>
       ) : null}

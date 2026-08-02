@@ -360,6 +360,7 @@ export function DashboardPage() {
       shares: values.shares,
       avgCost: values.avgCost,
       tradePrice: values.tradePrice,
+      openedAt: values.openedAt,
       riskLevel: values.riskLevel
     })
     await reload()
