@@ -722,6 +722,10 @@ export interface DividendMonitorApi {
     update(partial: Record<string, unknown>): Promise<SettingsDto>
     reset(): Promise<SettingsDto>
   }
+  backup: {
+    createBackup(): Promise<{ canceled: boolean; path?: string; size?: number }>
+    restoreBackup(): Promise<{ canceled: boolean; restored?: boolean }>
+  }
   industry: {
     getAnalysis(industryName?: string, assetKeys?: string[]): Promise<IndustryAnalysisDto[]>
     getDistribution(): Promise<IndustryDistributionItemDto[]>

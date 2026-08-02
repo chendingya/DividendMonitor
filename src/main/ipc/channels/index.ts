@@ -10,6 +10,7 @@ import { registerSyncChannels } from '@main/ipc/channels/syncChannels'
 import { registerWatchlistChannels } from '@main/ipc/channels/watchlistChannels'
 import { registerIndustryChannels } from '@main/ipc/channels/industryChannels'
 import { registerSettingsChannels } from '@main/ipc/channels/settingsChannels'
+import { registerBackupChannels } from '@main/ipc/channels/backupChannels'
 import { getNonce } from '@main/security/localNonce'
 
 export function registerIpcHandlers() {
@@ -21,6 +22,7 @@ export function registerIpcHandlers() {
   registerIndustryChannels()
   registerPortfolioChannels()
   registerSettingsChannels()
+  registerBackupChannels()
   registerStockChannels()
   registerSyncChannels()
   registerWatchlistChannels()

@@ -103,6 +103,14 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
       return requestJson('/api/settings', { method: 'DELETE' })
     }
   },
+  backup: {
+    createBackup() {
+      return Promise.resolve({ canceled: true })
+    },
+    restoreBackup() {
+      return Promise.resolve({ canceled: true })
+    }
+  },
   asset: {
     search(request: AssetSearchRequestDto) {
       return postJson('/api/asset/search', request)

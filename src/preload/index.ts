@@ -99,6 +99,10 @@ const api = {
     update: (partial: Record<string, unknown>) => ipcRenderer.invoke('settings:update', partial),
     reset: () => ipcRenderer.invoke('settings:reset')
   },
+  backup: {
+    createBackup: () => ipcRenderer.invoke('backup:create'),
+    restoreBackup: () => ipcRenderer.invoke('backup:restore')
+  },
   backtest: {
     historyList: () => ipcRenderer.invoke('backtest:history-list'),
     historySave: (result: unknown, name?: string, dcaConfig?: string) => ipcRenderer.invoke('backtest:history-save', result, name, dcaConfig),

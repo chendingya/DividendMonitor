@@ -1412,6 +1412,14 @@ export const browserRuntimeApi: DividendMonitorApi = {
       return mockSettingsStore
     }
   },
+  backup: {
+    async createBackup() {
+      return { canceled: true }
+    },
+    async restoreBackup() {
+      return { canceled: true }
+    }
+  },
   security: {
     async getLocalNonce() { return '' }
   },
