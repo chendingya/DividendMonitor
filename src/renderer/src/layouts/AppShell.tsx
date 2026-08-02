@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useMemo, useState } from 'react'
-import { message } from 'antd'
+import { Menu, message } from 'antd'
+import type { MenuProps } from 'antd'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { buildAssetSearchPath } from '@renderer/services/routeContext'
 import { useAuth } from '@renderer/contexts/AuthContext'
@@ -10,7 +11,6 @@ type AppIconName =
   | 'dividend'
   | 'dividend-center'
   | 'watchlist'
-  | 'comparison'
   | 'backtest'
   | 'user'
   | 'search'
@@ -29,32 +29,56 @@ type NavItem = {
   icon: AppIconName
 }
 
-type NavGroup = {
-  title: string
-  items: NavItem[]
-}
-
-const navGroups: NavGroup[] = [
+const menuItems: MenuProps['items'] = [
   {
-    title: '投资',
-    items: [
-      { key: '/', label: '投资组合', icon: 'dashboard' as const },
-      { key: '/watchlist', label: '自选', icon: 'watchlist' as const },
-      { key: '/backtest', label: '回测', icon: 'backtest' as const },
-      { key: '/dividend-center', label: '分红统计', icon: 'dividend-center' as const }
+    key: '/',
+    label: '投资组合',
+    icon: <AppShellIcon name="dashboard" className="ledger-icon-svg" />
+  },
+  {
+    key: '/watchlist',
+    label: '自选',
+    icon: <AppShellIcon name="watchlist" className="ledger-icon-svg" />
+  },
+  {
+    key: 'backtest',
+    label: '回测',
+    icon: <AppShellIcon name="backtest" className="ledger-icon-svg" />,
+    children: [
+      { key: '/backtest', label: '回测' },
+      { key: '/backtest-history', label: '回测历史' }
     ]
   },
   {
-    title: '系统',
-    items: [
-      { key: '/user-center', label: '用户中心', icon: 'user' as const },
-      { key: '/settings', label: '设置', icon: 'settings' as const }
-    ]
+    key: '/dividend-center',
+    label: '分红统计',
+    icon: <AppShellIcon name="dividend-center" className="ledger-icon-svg" />
+  },
+  { type: 'divider' },
+  {
+    key: '/user-center',
+    label: '用户中心',
+    icon: <AppShellIcon name="user" className="ledger-icon-svg" />
+  },
+  {
+    key: '/settings',
+    label: '设置',
+    icon: <AppShellIcon name="settings" className="ledger-icon-svg" />
   }
 ]
 
-function matchNavKey(pathname: string, items: NavItem[]): string | undefined {
-  return items.find((item) => pathname === item.key || pathname.startsWith(`${item.key}/`))?.key
+const NAV_ROUTES: NavItem[] = [
+  { key: '/', label: '投资组合', icon: 'dashboard' },
+  { key: '/watchlist', label: '自选', icon: 'watchlist' },
+  { key: '/backtest', label: '回测', icon: 'backtest' },
+  { key: '/backtest-history', label: '回测历史', icon: 'backtest' },
+  { key: '/dividend-center', label: '分红统计', icon: 'dividend-center' },
+  { key: '/user-center', label: '用户中心', icon: 'user' },
+  { key: '/settings', label: '设置', icon: 'settings' }
+]
+
+function matchNavKey(pathname: string): string {
+  return NAV_ROUTES.find((item) => pathname === item.key || pathname.startsWith(`${item.key}/`))?.key ?? '/'
 }
 
 function AppShellIcon({ name, className }: { name: AppIconName; className?: string }) {
@@ -93,15 +117,6 @@ function AppShellIcon({ name, className }: { name: AppIconName; className?: stri
     return (
       <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M5.5 3.5h13a1.5 1.5 0 0 1 1.5 1.5v15l-8-3-8 3V5a1.5 1.5 0 0 1 1.5-1.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-      </svg>
-    )
-  }
-
-  if (name === 'comparison') {
-    return (
-      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M4 5.5h16M4 12h9m-9 6.5h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <circle cx="16.5" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.8" />
       </svg>
     )
   }
@@ -166,17 +181,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [, messageHolder] = message.useMessage()
   const [topbarKeyword, setTopbarKeyword] = useState('')
 
-  const selectedKey = useMemo(() => {
-    for (const group of navGroups) {
-      const key = matchNavKey(location.pathname, group.items)
-      if (key) {
-        return key
-      }
-    }
-    return '/'
-  }, [location.pathname])
-
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
+  const selectedKey = useMemo(() => matchNavKey(location.pathname), [location.pathname])
 
   const breadcrumbItems = useMemo<BreadcrumbItem[]>(() => {
     const symbol = new URLSearchParams(location.search).get('symbol')?.trim()
@@ -256,40 +261,14 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
 
         <nav className="ledger-sidebar-nav">
-          {navGroups.map((group) => {
-            const isCollapsed = Boolean(collapsedGroups[group.title])
-            return (
-              <div key={group.title}>
-                <button
-                  type="button"
-                  className="ledger-nav-group"
-                  onClick={() =>
-                    setCollapsedGroups((prev) => ({ ...prev, [group.title]: !prev[group.title] }))
-                  }
-                  aria-expanded={!isCollapsed}
-                >
-                  <span>{group.title}</span>
-                  <span className="ledger-nav-group-caret">{isCollapsed ? '▸' : '▾'}</span>
-                </button>
-                {!isCollapsed
-                  ? group.items.map((item) => (
-                      <button
-                        key={item.key}
-                        type="button"
-                        className={`ledger-nav-item ${selectedKey === item.key ? 'is-active' : ''}`}
-                        onClick={() => navigate(item.key)}
-                      >
-                        <span className="ledger-nav-icon">
-                          <AppShellIcon name={item.icon} className="ledger-icon-svg" />
-                        </span>
-                        <span>{item.label}</span>
-                      </button>
-                    ))
-                  : null}
-              </div>
-            )
-          })}
-
+          <Menu
+            mode="inline"
+            items={menuItems}
+            selectedKeys={[selectedKey]}
+            defaultOpenKeys={['backtest']}
+            onClick={({ key }) => navigate(key)}
+            style={{ background: 'transparent', borderInlineEnd: 'none' }}
+          />
         </nav>
 
         <div className="ledger-sidebar-footer">

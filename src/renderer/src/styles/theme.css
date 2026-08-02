@@ -457,9 +457,6 @@ body {
 }
 
 .ledger-sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -480,35 +477,76 @@ body {
   background: transparent;
 }
 
-.ledger-nav-group {
-  height: 44px;
-  margin-top: 6px;
-  border: none;
-  border-top: 1px solid rgba(171, 173, 175, 0.16);
-  border-radius: 0;
+/* antd Menu 覆写：保留 antd 布局逻辑，视觉融入 ledger 风格 */
+.ledger-sidebar-nav .ant-menu {
   background: transparent;
-  color: var(--text-soft, #66707a);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 18px;
+  border-inline-end: none !important;
+}
+
+.ledger-sidebar-nav .ant-menu-item,
+.ledger-sidebar-nav .ant-menu-submenu-title {
+  height: 46px;
+  line-height: 46px;
+  margin-block: 3px;
+  border-radius: 999px;
   font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  user-select: none;
-  transition: color 160ms ease, background-color 160ms ease;
+  color: var(--text-soft, #66707a);
+  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
 }
 
-.ledger-nav-group:hover {
+.ledger-sidebar-nav .ant-menu-item .ant-menu-item-icon,
+.ledger-sidebar-nav .ant-menu-submenu-title .ant-menu-item-icon {
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.ledger-sidebar-nav .ant-menu-item:hover,
+.ledger-sidebar-nav .ant-menu-submenu-title:hover {
+  background: rgba(228, 233, 237, 0.88) !important;
+  color: var(--primary, #0052d0) !important;
+}
+
+.ledger-sidebar-nav .ant-menu-item-selected {
+  background: linear-gradient(135deg, #2866eb, var(--primary)) !important;
+  color: #fff !important;
+  box-shadow: 0 14px 26px rgba(0, 82, 208, 0.22) !important;
+}
+
+.ledger-sidebar-nav .ant-menu-item-selected .ant-menu-item-icon {
+  color: #fff;
+}
+
+.ledger-sidebar-nav .ant-menu-submenu-selected > .ant-menu-submenu-title {
   color: var(--primary, #0052d0);
-  background: rgba(228, 233, 237, 0.55);
-  border-radius: 999px;
 }
 
-.ledger-nav-group-caret {
-  font-size: 11px;
-  opacity: 0.65;
+.ledger-sidebar-nav .ant-menu-inline .ant-menu-item {
+  width: auto;
+  margin-inline: 0;
+}
+
+.ledger-sidebar-nav .ant-menu-inline .ant-menu-sub .ant-menu-item {
+  height: 40px;
+  line-height: 40px;
+  padding-left: 40px !important;
+}
+
+.ledger-sidebar-nav .ant-menu-item-divider {
+  border-color: rgba(171, 173, 175, 0.16);
+  margin-block: 8px;
+}
+
+.ledger-sidebar-nav .ant-menu-submenu .ant-menu-submenu-arrow {
+  color: var(--text-soft, #66707a);
+}
+
+.ledger-icon-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .ledger-chart-export-button {
@@ -568,29 +606,6 @@ body {
   width: 100%;
   height: 100%;
   display: block;
-}
-
-.ledger-nav-item:hover {
-  background: rgba(228, 233, 237, 0.88);
-  color: var(--primary);
-}
-
-.ledger-nav-item:focus-visible {
-  outline: 2px solid rgba(0, 82, 208, 0.42);
-  outline-offset: 2px;
-}
-
-.ledger-nav-item.is-active {
-  background: linear-gradient(135deg, #2866eb, var(--primary));
-  color: #fff;
-  box-shadow: 0 14px 26px rgba(0, 82, 208, 0.22);
-}
-
-.ledger-nav-icon {
-  width: 18px;
-  height: 18px;
-  color: currentColor;
-  opacity: 0.95;
 }
 
 .ledger-sidebar-footer {
