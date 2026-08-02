@@ -25,6 +25,8 @@ export async function getAssetDetail(query: AssetQueryDto): Promise<AssetDetailD
 
   return {
     ...detail,
+    // 数据更新时间语义：磁盘快照命中 → 快照抓取时刻；未命中（实时拉取）→ 本次拉取时刻。
+    // 数据源不提供更精确的源站时间戳，故不引入三级 fallback。
     fetchedAt: snapshot?.fetchedAt ?? new Date().toISOString()
   }
 }
