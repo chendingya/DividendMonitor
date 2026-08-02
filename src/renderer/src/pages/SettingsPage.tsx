@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { message, Skeleton, Alert } from 'antd'
+import { message } from 'antd'
 import { useSettings } from '@renderer/hooks/useSettings'
 import type { SettingsDto } from '@shared/contracts/api'
+import { PageState } from '@renderer/components/app/PageState'
 
 const SORT_METRIC_OPTIONS = [
   { value: 'estimatedFutureYield', label: '估算未来股息率' },
@@ -50,316 +51,300 @@ function SettingsPage() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="ledger-page">
-        <Skeleton active paragraph={{ rows: 8 }} />
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="ledger-page">
-        <Alert message="加载设置失败" description={error} type="error" showIcon />
-      </div>
-    )
-  }
-
-  if (!local) {
-    return (
-      <div className="ledger-page">
-        <div className="page-state-block">
-          <p className="page-state-title">无法加载设置</p>
-          <p className="page-state-description">请稍后重试。</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="ledger-page">
-      <section className="ledger-watchlist-header">
-        <div className="ledger-watchlist-copy">
-          <h1 className="ledger-hero-title" style={{ fontSize: 34 }}>设置</h1>
-          <p className="ledger-hero-subtitle">自定义默认参数，应用于各页面的初始行为和回测计算。</p>
-        </div>
-      </section>
-
-      <div className="ledger-toolbar-card">
-        <div className="ledger-segmented-control">
-          <button
-            type="button"
-            className={`ledger-filter-chip ${activeTab === 'general' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('general')}
-          >
-            通用
-          </button>
-          <button
-            type="button"
-            className={`ledger-filter-chip ${activeTab === 'backtest' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('backtest')}
-          >
-            回测
-          </button>
-          <button
-            type="button"
-            className={`ledger-filter-chip ${activeTab === 'preciousMetal' ? 'is-active' : ''}`}
-            onClick={() => setActiveTab('preciousMetal')}
-          >
-            贵金属显示
-          </button>
-        </div>
-
-        {activeTab === 'general' && (
-          <div className="ledger-section" style={{ gap: 22 }}>
-            <div>
-              <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>默认年份范围</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <select
-                  value={local.defaultYearRange[0]}
-                  onChange={(e) => merge('defaultYearRange', [parseInt(e.target.value, 10), local.defaultYearRange[1]])}
-                  style={{
-                    height: 40, padding: '0 14px', borderRadius: 999,
-                    border: '1px solid rgba(211,217,224,0.92)',
-                    background: 'rgba(243,245,247,0.92)', fontWeight: 600, fontSize: 13
-                  }}
-                >
-                  {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - i).map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
-                <span style={{ color: '#66707a', fontSize: 13, fontWeight: 600 }}>—</span>
-                <select
-                  value={local.defaultYearRange[1]}
-                  onChange={(e) => merge('defaultYearRange', [local.defaultYearRange[0], parseInt(e.target.value, 10)])}
-                  style={{
-                    height: 40, padding: '0 14px', borderRadius: 999,
-                    border: '1px solid rgba(211,217,224,0.92)',
-                    background: 'rgba(243,245,247,0.92)', fontWeight: 600, fontSize: 13
-                  }}
-                >
-                  {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - i).map((y) => (
-                    <option key={y} value={y}>{y}</option>
-                  ))}
-                </select>
+      <PageState loading={loading} error={error}>
+        {!local ? (
+          <div className="page-state-block">
+            <p className="page-state-title">无法加载设置</p>
+            <p className="page-state-description">请稍后重试。</p>
+          </div>
+        ) : (
+          <>
+            <section className="ledger-watchlist-header">
+              <div className="ledger-watchlist-copy">
+                <h1 className="ledger-hero-title" style={{ fontSize: 34 }}>设置</h1>
+                <p className="ledger-hero-subtitle">自定义默认参数，应用于各页面的初始行为和回测计算。</p>
               </div>
-            </div>
+            </section>
 
-            <div>
-              <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>默认排序指标</label>
-              <select
-                value={local.defaultSortMetric}
-                onChange={(e) => merge('defaultSortMetric', e.target.value)}
-                style={{
-                  height: 40, padding: '0 14px', borderRadius: 999,
-                  border: '1px solid rgba(211,217,224,0.92)',
-                  background: 'rgba(243,245,247,0.92)', fontWeight: 600, fontSize: 13
-                }}
-              >
-                {SORT_METRIC_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>数据刷新策略</label>
+            <div className="ledger-toolbar-card">
               <div className="ledger-segmented-control">
                 <button
                   type="button"
-                  className={`ledger-filter-chip ${local.refreshStrategy === 'manual' ? 'is-active' : ''}`}
-                  onClick={() => merge('refreshStrategy', 'manual')}
+                  className={`ledger-filter-chip ${activeTab === 'general' ? 'is-active' : ''}`}
+                  onClick={() => setActiveTab('general')}
                 >
-                  手动刷新
+                  通用
                 </button>
                 <button
                   type="button"
-                  className={`ledger-filter-chip ${local.refreshStrategy === 'onLaunch' ? 'is-active' : ''}`}
-                  onClick={() => merge('refreshStrategy', 'onLaunch')}
+                  className={`ledger-filter-chip ${activeTab === 'backtest' ? 'is-active' : ''}`}
+                  onClick={() => setActiveTab('backtest')}
                 >
-                  打开时自动
+                  回测
                 </button>
                 <button
                   type="button"
-                  className={`ledger-filter-chip ${local.refreshStrategy === 'interval' ? 'is-active' : ''}`}
-                  onClick={() => merge('refreshStrategy', 'interval')}
+                  className={`ledger-filter-chip ${activeTab === 'preciousMetal' ? 'is-active' : ''}`}
+                  onClick={() => setActiveTab('preciousMetal')}
                 >
-                  定时刷新
+                  贵金属显示
                 </button>
               </div>
-              {local.refreshStrategy === 'interval' && (
-                <div style={{ marginTop: 10 }}>
-                  <input
-                    type="number"
-                    className="ledger-date-input"
-                    style={{ width: 100 }}
-                    min={1} max={1440}
-                    value={local.refreshIntervalMinutes}
-                    onChange={(e) => merge('refreshIntervalMinutes', parseInt(e.target.value, 10) || 30)}
-                  />
-                  <span style={{ marginLeft: 8, color: '#66707a', fontSize: 13, fontWeight: 600 }}>分钟</span>
+
+              {activeTab === 'general' && (
+                <div className="ledger-section" style={{ gap: 22 }}>
+                  <div>
+                    <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>默认年份范围</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <select
+                        value={local.defaultYearRange[0]}
+                        onChange={(e) => merge('defaultYearRange', [parseInt(e.target.value, 10), local.defaultYearRange[1]])}
+                        style={{
+                          height: 40, padding: '0 14px', borderRadius: 999,
+                          border: '1px solid rgba(211,217,224,0.92)',
+                          background: 'rgba(243,245,247,0.92)', fontWeight: 600, fontSize: 13
+                        }}
+                      >
+                        {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                          <option key={y} value={y}>{y}</option>
+                        ))}
+                      </select>
+                      <span style={{ color: '#66707a', fontSize: 13, fontWeight: 600 }}>—</span>
+                      <select
+                        value={local.defaultYearRange[1]}
+                        onChange={(e) => merge('defaultYearRange', [local.defaultYearRange[0], parseInt(e.target.value, 10)])}
+                        style={{
+                          height: 40, padding: '0 14px', borderRadius: 999,
+                          border: '1px solid rgba(211,217,224,0.92)',
+                          background: 'rgba(243,245,247,0.92)', fontWeight: 600, fontSize: 13
+                        }}
+                      >
+                        {Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                          <option key={y} value={y}>{y}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>默认排序指标</label>
+                    <select
+                      value={local.defaultSortMetric}
+                      onChange={(e) => merge('defaultSortMetric', e.target.value)}
+                      style={{
+                        height: 40, padding: '0 14px', borderRadius: 999,
+                        border: '1px solid rgba(211,217,224,0.92)',
+                        background: 'rgba(243,245,247,0.92)', fontWeight: 600, fontSize: 13
+                      }}
+                    >
+                      {SORT_METRIC_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>数据刷新策略</label>
+                    <div className="ledger-segmented-control">
+                      <button
+                        type="button"
+                        className={`ledger-filter-chip ${local.refreshStrategy === 'manual' ? 'is-active' : ''}`}
+                        onClick={() => merge('refreshStrategy', 'manual')}
+                      >
+                        手动刷新
+                      </button>
+                      <button
+                        type="button"
+                        className={`ledger-filter-chip ${local.refreshStrategy === 'onLaunch' ? 'is-active' : ''}`}
+                        onClick={() => merge('refreshStrategy', 'onLaunch')}
+                      >
+                        打开时自动
+                      </button>
+                      <button
+                        type="button"
+                        className={`ledger-filter-chip ${local.refreshStrategy === 'interval' ? 'is-active' : ''}`}
+                        onClick={() => merge('refreshStrategy', 'interval')}
+                      >
+                        定时刷新
+                      </button>
+                    </div>
+                    {local.refreshStrategy === 'interval' && (
+                      <div style={{ marginTop: 10 }}>
+                        <input
+                          type="number"
+                          className="ledger-date-input"
+                          style={{ width: 100 }}
+                          min={1} max={1440}
+                          value={local.refreshIntervalMinutes}
+                          onChange={(e) => merge('refreshIntervalMinutes', parseInt(e.target.value, 10) || 30)}
+                        />
+                        <span style={{ marginLeft: 8, color: '#66707a', fontSize: 13, fontWeight: 600 }}>分钟</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>买入佣金</label>
+                    <div className="ledger-calc-summary">
+                      <div className="ledger-calc-summary-item">
+                        <span>佣金费率</span>
+                        <input
+                          type="number"
+                          className="ledger-date-input"
+                          style={{ width: 130, marginTop: 8 }}
+                          min={0} max={0.01} step={0.0001}
+                          value={local.buyCommissionRate}
+                          onChange={(e) => merge('buyCommissionRate', parseFloat(e.target.value) || 0.0001)}
+                        />
+                      </div>
+                      <div className="ledger-calc-summary-item">
+                        <span>最低佣金</span>
+                        <input
+                          type="number"
+                          className="ledger-date-input"
+                          style={{ width: 100, marginTop: 8 }}
+                          min={0} max={100} step={1}
+                          value={local.buyMinCommission}
+                          onChange={(e) => merge('buyMinCommission', parseInt(e.target.value, 10) || 5)}
+                        />
+                        <span style={{ marginLeft: 6, color: '#66707a', fontSize: 12, fontWeight: 600 }}>元</span>
+                      </div>
+                    </div>
+                    <p className="ledger-transaction-hint">添加/编辑持仓时自动计算佣金：佣金 = max(成交额 × 费率, 最低佣金)，实际成本价 = (成交额 + 佣金) ÷ 股数。默认万分之一、最低5元（不免五）。</p>
+                  </div>
                 </div>
               )}
-            </div>
 
-            <div>
-              <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>买入佣金</label>
-              <div className="ledger-calc-summary">
-                <div className="ledger-calc-summary-item">
-                  <span>佣金费率</span>
-                  <input
-                    type="number"
-                    className="ledger-date-input"
-                    style={{ width: 130, marginTop: 8 }}
-                    min={0} max={0.01} step={0.0001}
-                    value={local.buyCommissionRate}
-                    onChange={(e) => merge('buyCommissionRate', parseFloat(e.target.value) || 0.0001)}
-                  />
+              {activeTab === 'backtest' && (
+                <div className="ledger-section" style={{ gap: 22 }}>
+                  <div>
+                    <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>默认初始资金</label>
+                    <input
+                      type="number"
+                      className="ledger-date-input"
+                      style={{ width: 180 }}
+                      min={1000} max={999999999} step={10000}
+                      value={local.backtestInitialCapital}
+                      onChange={(e) => merge('backtestInitialCapital', parseInt(e.target.value, 10) || 100000)}
+                    />
+                    <span style={{ marginLeft: 8, color: '#66707a', fontSize: 13, fontWeight: 600 }}>元</span>
+                  </div>
+
+                  <div>
+                    <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>计入手续费</label>
+                    <button
+                      type="button"
+                      className={`ledger-inline-action-btn ${local.backtestIncludeFees ? 'is-selected' : ''}`}
+                      onClick={() => merge('backtestIncludeFees', !local.backtestIncludeFees)}
+                      style={{ height: 40, padding: '0 22px', fontSize: 14 }}
+                    >
+                      {local.backtestIncludeFees ? '已开启' : '已关闭'}
+                    </button>
+                  </div>
+
+                  {local.backtestIncludeFees && (
+                    <div className="ledger-calc-summary">
+                      <div className="ledger-calc-summary-item">
+                        <span>佣金率（单边）</span>
+                        <input
+                          type="number"
+                          className="ledger-date-input"
+                          style={{ width: 130, marginTop: 8 }}
+                          min={0} max={0.01} step={0.0001}
+                          value={local.backtestFeeRate}
+                          onChange={(e) => merge('backtestFeeRate', parseFloat(e.target.value) || 0.0003)}
+                        />
+                      </div>
+                      <div className="ledger-calc-summary-item">
+                        <span>印花税率（卖出）</span>
+                        <input
+                          type="number"
+                          className="ledger-date-input"
+                          style={{ width: 130, marginTop: 8 }}
+                          min={0} max={0.01} step={0.0001}
+                          value={local.backtestStampDutyRate}
+                          onChange={(e) => merge('backtestStampDutyRate', parseFloat(e.target.value) || 0.0005)}
+                        />
+                      </div>
+                      <div className="ledger-calc-summary-item">
+                        <span>最低佣金</span>
+                        <input
+                          type="number"
+                          className="ledger-date-input"
+                          style={{ width: 100, marginTop: 8 }}
+                          min={0} max={100} step={1}
+                          value={local.backtestMinCommission}
+                          onChange={(e) => merge('backtestMinCommission', parseInt(e.target.value, 10) || 5)}
+                        />
+                        <span style={{ marginLeft: 6, color: '#66707a', fontSize: 12, fontWeight: 600 }}>元</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <div className="ledger-calc-summary-item">
-                  <span>最低佣金</span>
-                  <input
-                    type="number"
-                    className="ledger-date-input"
-                    style={{ width: 100, marginTop: 8 }}
-                    min={0} max={100} step={1}
-                    value={local.buyMinCommission}
-                    onChange={(e) => merge('buyMinCommission', parseInt(e.target.value, 10) || 5)}
-                  />
-                  <span style={{ marginLeft: 6, color: '#66707a', fontSize: 12, fontWeight: 600 }}>元</span>
+              )}
+
+              {activeTab === 'preciousMetal' && (
+                <div className="ledger-section" style={{ gap: 22 }}>
+                  <div>
+                    <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>计价单位</label>
+                    <div className="ledger-segmented-control">
+                      <button
+                        type="button"
+                        className={`ledger-filter-chip ${local.preciousMetalUnit === 'gram' ? 'is-active' : ''}`}
+                        onClick={() => merge('preciousMetalUnit', 'gram')}
+                      >
+                        克
+                      </button>
+                      <button
+                        type="button"
+                        className={`ledger-filter-chip ${local.preciousMetalUnit === 'ounce' ? 'is-active' : ''}`}
+                        onClick={() => merge('preciousMetalUnit', 'ounce')}
+                      >
+                        盎司
+                      </button>
+                    </div>
+                    <p className="ledger-transaction-hint">1 金衡盎司 = 31.1035 克，切换后贵金属详情与列表价格将按所选单位换算展示。</p>
+                  </div>
+
+                  <div>
+                    <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>计价货币</label>
+                    <div className="ledger-segmented-control">
+                      <button
+                        type="button"
+                        className={`ledger-filter-chip ${local.preciousMetalCurrency === 'CNY' ? 'is-active' : ''}`}
+                        onClick={() => merge('preciousMetalCurrency', 'CNY')}
+                      >
+                        人民币 ¥
+                      </button>
+                      <button
+                        type="button"
+                        className={`ledger-filter-chip ${local.preciousMetalCurrency === 'USD' ? 'is-active' : ''}`}
+                        onClick={() => merge('preciousMetalCurrency', 'USD')}
+                      >
+                        美元 $
+                      </button>
+                    </div>
+                    <p className="ledger-transaction-hint">选择美元时将自动获取 USD/CNY 实时汇率进行换算（默认按 USD/盎司 国际金价口径展示）。</p>
+                  </div>
                 </div>
+              )}
+
+              <div className="ledger-toolbar-divider" />
+
+              <div className="ledger-hero-actions">
+                <button type="button" className="ledger-primary-button" disabled={!dirty || saving} onClick={() => void handleSave()}>
+                  保存设置
+                </button>
+                <button type="button" className="ledger-secondary-button" onClick={() => void handleReset()}>
+                  恢复默认
+                </button>
               </div>
-              <p className="ledger-transaction-hint">添加/编辑持仓时自动计算佣金：佣金 = max(成交额 × 费率, 最低佣金)，实际成本价 = (成交额 + 佣金) ÷ 股数。默认万分之一、最低5元（不免五）。</p>
             </div>
-          </div>
+          </>
         )}
-
-        {activeTab === 'backtest' && (
-          <div className="ledger-section" style={{ gap: 22 }}>
-            <div>
-              <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>默认初始资金</label>
-              <input
-                type="number"
-                className="ledger-date-input"
-                style={{ width: 180 }}
-                min={1000} max={999999999} step={10000}
-                value={local.backtestInitialCapital}
-                onChange={(e) => merge('backtestInitialCapital', parseInt(e.target.value, 10) || 100000)}
-              />
-              <span style={{ marginLeft: 8, color: '#66707a', fontSize: 13, fontWeight: 600 }}>元</span>
-            </div>
-
-            <div>
-              <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>计入手续费</label>
-              <button
-                type="button"
-                className={`ledger-inline-action-btn ${local.backtestIncludeFees ? 'is-selected' : ''}`}
-                onClick={() => merge('backtestIncludeFees', !local.backtestIncludeFees)}
-                style={{ height: 40, padding: '0 22px', fontSize: 14 }}
-              >
-                {local.backtestIncludeFees ? '已开启' : '已关闭'}
-              </button>
-            </div>
-
-            {local.backtestIncludeFees && (
-              <div className="ledger-calc-summary">
-                <div className="ledger-calc-summary-item">
-                  <span>佣金率（单边）</span>
-                  <input
-                    type="number"
-                    className="ledger-date-input"
-                    style={{ width: 130, marginTop: 8 }}
-                    min={0} max={0.01} step={0.0001}
-                    value={local.backtestFeeRate}
-                    onChange={(e) => merge('backtestFeeRate', parseFloat(e.target.value) || 0.0003)}
-                  />
-                </div>
-                <div className="ledger-calc-summary-item">
-                  <span>印花税率（卖出）</span>
-                  <input
-                    type="number"
-                    className="ledger-date-input"
-                    style={{ width: 130, marginTop: 8 }}
-                    min={0} max={0.01} step={0.0001}
-                    value={local.backtestStampDutyRate}
-                    onChange={(e) => merge('backtestStampDutyRate', parseFloat(e.target.value) || 0.0005)}
-                  />
-                </div>
-                <div className="ledger-calc-summary-item">
-                  <span>最低佣金</span>
-                  <input
-                    type="number"
-                    className="ledger-date-input"
-                    style={{ width: 100, marginTop: 8 }}
-                    min={0} max={100} step={1}
-                    value={local.backtestMinCommission}
-                    onChange={(e) => merge('backtestMinCommission', parseInt(e.target.value, 10) || 5)}
-                  />
-                  <span style={{ marginLeft: 6, color: '#66707a', fontSize: 12, fontWeight: 600 }}>元</span>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'preciousMetal' && (
-          <div className="ledger-section" style={{ gap: 22 }}>
-            <div>
-              <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>计价单位</label>
-              <div className="ledger-segmented-control">
-                <button
-                  type="button"
-                  className={`ledger-filter-chip ${local.preciousMetalUnit === 'gram' ? 'is-active' : ''}`}
-                  onClick={() => merge('preciousMetalUnit', 'gram')}
-                >
-                  克
-                </button>
-                <button
-                  type="button"
-                  className={`ledger-filter-chip ${local.preciousMetalUnit === 'ounce' ? 'is-active' : ''}`}
-                  onClick={() => merge('preciousMetalUnit', 'ounce')}
-                >
-                  盎司
-                </button>
-              </div>
-              <p className="ledger-transaction-hint">1 金衡盎司 = 31.1035 克，切换后贵金属详情与列表价格将按所选单位换算展示。</p>
-            </div>
-
-            <div>
-              <label className="ledger-stat-label" style={{ display: 'block', marginBottom: 8 }}>计价货币</label>
-              <div className="ledger-segmented-control">
-                <button
-                  type="button"
-                  className={`ledger-filter-chip ${local.preciousMetalCurrency === 'CNY' ? 'is-active' : ''}`}
-                  onClick={() => merge('preciousMetalCurrency', 'CNY')}
-                >
-                  人民币 ¥
-                </button>
-                <button
-                  type="button"
-                  className={`ledger-filter-chip ${local.preciousMetalCurrency === 'USD' ? 'is-active' : ''}`}
-                  onClick={() => merge('preciousMetalCurrency', 'USD')}
-                >
-                  美元 $
-                </button>
-              </div>
-              <p className="ledger-transaction-hint">选择美元时将自动获取 USD/CNY 实时汇率进行换算（默认按 USD/盎司 国际金价口径展示）。</p>
-            </div>
-          </div>
-        )}
-
-        <div className="ledger-toolbar-divider" />
-
-        <div className="ledger-hero-actions">
-          <button type="button" className="ledger-primary-button" disabled={!dirty || saving} onClick={() => void handleSave()}>
-            保存设置
-          </button>
-          <button type="button" className="ledger-secondary-button" onClick={() => void handleReset()}>
-            恢复默认
-          </button>
-        </div>
-      </div>
+      </PageState>
     </div>
   )
 }
