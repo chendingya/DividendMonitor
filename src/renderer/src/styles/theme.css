@@ -485,8 +485,8 @@ body {
 
 .ledger-sidebar-nav .ant-menu-item,
 .ledger-sidebar-nav .ant-menu-submenu-title {
-  height: 46px;
-  line-height: 46px;
+  height: 46px !important;
+  line-height: 46px !important;
   margin-block: 3px;
   border-radius: 999px;
   font-size: 14px;
