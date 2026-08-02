@@ -2,7 +2,7 @@ import { BrowserWindow, dialog, ipcMain } from 'electron'
 import { statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { closeDatabase, getDatabaseFilePath } from '@main/infrastructure/db/sqlite'
-import { buildBackupFileName, buildPreRestoreFileName, copySqliteFile } from '@main/backup/backupFileService'
+import { buildBackupFileName, buildPreRestoreFileName, copySqliteFile, isValidSqliteFile } from '@main/backup/backupFileService'
 
 const SQLITE_FILTER = [{ name: 'SQLite 数据库', extensions: ['sqlite'] }]
 
@@ -23,6 +23,8 @@ export function registerBackupChannels(): void {
     }
 
     const dbPath = getDatabaseFilePath()
+    // 先关闭数据库再复制，避免复制到写入中间状态（getDatabase 会在下次访问时懒重开）
+    closeDatabase()
     copySqliteFile(dbPath, result.filePath)
     const size = statSync(result.filePath).size
     return { canceled: false, path: result.filePath, size }
@@ -44,13 +46,16 @@ export function registerBackupChannels(): void {
     }
 
     const backupPath = result.filePaths[0]
+    if (!isValidSqliteFile(backupPath)) {
+      throw new Error('所选文件不是有效的 SQLite 备份，已取消恢复')
+    }
+
     const dbPath = getDatabaseFilePath()
 
-    // 恢复前自动创建安全备份，防止误覆盖
+    // 先关闭数据库（保持文件一致），再备份当前库、写入备份文件
+    closeDatabase()
     const preRestorePath = join(dirname(dbPath), buildPreRestoreFileName(new Date()))
     copySqliteFile(dbPath, preRestorePath)
-
-    closeDatabase()
     copySqliteFile(backupPath, dbPath)
 
     return { canceled: false, restored: true }

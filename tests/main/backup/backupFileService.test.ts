@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from 'no
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
-import { buildBackupFileName, buildPreRestoreFileName, copySqliteFile } from '@main/backup/backupFileService'
+import { buildBackupFileName, buildPreRestoreFileName, copySqliteFile, isValidSqliteFile } from '@main/backup/backupFileService'
 
 const tempDir = mkdtempSync(join(tmpdir(), 'backup-svc-'))
 
@@ -33,5 +33,30 @@ describe('backupFileService', () => {
   it('builds pre-restore file name from timestamp', () => {
     const name = buildPreRestoreFileName(new Date('2026-08-02T10:30:45.000Z'))
     expect(name).toBe('pre-restore-2026-08-02T10-30-45.sqlite')
+  })
+
+  it('accepts a real SQLite file header', () => {
+    const sqlite = join(tempDir, 'real.sqlite')
+    writeFileSync(sqlite, 'SQLite format 3\u0000' + 'x'.repeat(64))
+
+    expect(isValidSqliteFile(sqlite)).toBe(true)
+  })
+
+  it('rejects a non-SQLite file', () => {
+    const plain = join(tempDir, 'plain.txt')
+    writeFileSync(plain, 'SQLite format 3' + 'x'.repeat(64))
+
+    expect(isValidSqliteFile(plain)).toBe(false)
+  })
+
+  it('rejects files smaller than the 16-byte header', () => {
+    const tiny = join(tempDir, 'tiny.sqlite')
+    writeFileSync(tiny, 'short')
+
+    expect(isValidSqliteFile(tiny)).toBe(false)
+  })
+
+  it('rejects a missing file', () => {
+    expect(isValidSqliteFile(join(tempDir, 'missing.sqlite'))).toBe(false)
   })
 })
