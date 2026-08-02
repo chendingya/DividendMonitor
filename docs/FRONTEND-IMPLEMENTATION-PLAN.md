@@ -101,10 +101,10 @@
 
 ## 8. 当前未完成项
 
-1. SQLite 还没有扩展为完整缓存层
-2. 地图页与设置页仍未落地
-3. 更通用的页面状态组件仍可继续抽取
-4. 估值链路尚未升级到 SQLite 缓存或多数据源切换
+1. SQLite 尚未扩展为完整缓存层（SourceGateway 的 RequestCache 仍是内存缓存；估值链路已先行落地 `valuation_cache` 表，见 `docs/superpowers/specs/2026-08-01-technical-debt-hardening-design.md`）
+2. 股息率地图页（`yield-map`）仍未落地（需全市场批量抓取 + Supabase 云端聚合）
+3. 图表导出和截图、数据更新时间提示
+4. 备份恢复（Phase 4 云同步已实现，备份/恢复入口未做）
 
 ## 9. 验收建议
 

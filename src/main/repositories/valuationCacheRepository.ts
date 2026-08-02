@@ -33,7 +33,8 @@ export class ValuationCacheRepository {
       const row = this.findByKey(cacheKey)
       if (!row) return undefined
       const fetchedAtMs = new Date(row.fetchedAt).getTime()
-      if (fetchedAtMs + ttlMs <= Date.now()) return undefined
+      // 与 TimedCache 语义一致：恰好 TTL 边界仍视为新鲜（严格小于才算过期）
+      if (fetchedAtMs + ttlMs < Date.now()) return undefined
       return JSON.parse(row.dataJson) as T
     } catch {
       return undefined

@@ -49,7 +49,7 @@ HTTP API 仅允许本机访问，部分敏感路由（auth 写入类）要求携
 
 ```powershell
 $nonce = (Invoke-RestMethod 'http://127.0.0.1:3210/api/security/nonce').nonce
-Invoke-RestMethod 'http://127.0.0.1:3210/api/auth/session' -Headers @{ 'X-Local-Nonce' = $nonce }
+Invoke-RestMethod 'http://127.0.0.1:3210/api/auth/login' -Method POST -Headers @{ 'X-Local-Nonce' = $nonce } -Body '{"email":"you@example.com","password":"your-password"}' -ContentType 'application/json'
 ```
 
 要求 `X-Local-Nonce` 的路由：`POST /api/auth/login`、`POST /api/auth/register`、`POST /api/auth/update-password`。不带或携带无效 nonce 时返回 `403`。

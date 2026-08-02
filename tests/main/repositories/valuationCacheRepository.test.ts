@@ -97,6 +97,15 @@ describe('ValuationCacheRepository', () => {
       expect(repo.findFreshByKey<{ v: number }>('600519', 15 * 60 * 1000)).toEqual({ v: 9 })
     })
 
+    it('returns data just before ttl boundary (aligned with TimedCache semantics)', () => {
+      const nearBoundary = new Date(Date.now() - (15 * 60 - 5) * 1000).toISOString()
+      memoryDb
+        .prepare('INSERT INTO valuation_cache VALUES (?, ?, ?)')
+        .run('600519', JSON.stringify({ v: 10 }), nearBoundary)
+
+      expect(repo.findFreshByKey<{ v: number }>('600519', 15 * 60 * 1000)).toEqual({ v: 10 })
+    })
+
     it('returns undefined when JSON is corrupt', () => {
       memoryDb
         .prepare('INSERT INTO valuation_cache VALUES (?, ?, ?)')
