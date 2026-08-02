@@ -15,7 +15,7 @@ import { PriceTrendChart } from '@renderer/components/stock-detail/PriceTrendCha
 import { PreciousMetalDisplayProvider, usePreciousMetalDisplay } from '@renderer/contexts/PreciousMetalDisplayContext'
 import { DEFAULT_STOCK_SYMBOL } from '@renderer/defaults'
 import { exportRowsAsCsv } from '@renderer/utils/chartExport'
-import { formatDateTime } from '@renderer/utils/format'
+import { deriveDividendType, formatDateTime } from '@renderer/utils/format'
 import { useAssetDetail } from '@renderer/hooks/useAssetDetail'
 import { useWatchlist } from '@renderer/hooks/useWatchlist'
 import { useIndustryBenchmark } from '@renderer/hooks/useIndustryAnalysis'
@@ -146,7 +146,7 @@ export function StockDetailPage() {
                 除息日: record.exDate ?? '',
                 派息日: record.payDate ?? '',
                 每股分红: record.dividendPerShare.toFixed(2),
-                类型: '常规',
+                类型: deriveDividendType(record),
                 单次股息率: yieldRate == null ? '' : `${(yieldRate * 100).toFixed(2)}%`
               }
             })
@@ -504,7 +504,7 @@ export function StockDetailPage() {
                     },
                     {
                       title: '类型',
-                      render: () => <span className="pill">常规</span>
+                      render: (_, record) => <span className="pill">{deriveDividendType(record)}</span>
                     },
                     {
                       title: '单次股息率',
