@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
-import { message } from 'antd'
+import { message, Modal, Space, Button } from 'antd'
 import { useSettings } from '@renderer/hooks/useSettings'
 import type { SettingsDto } from '@shared/contracts/api'
 import { PageState } from '@renderer/components/app/PageState'
+import { AppCard } from '@renderer/components/app/AppCard'
+import { backupApi } from '@renderer/services/backupApi'
 
 const SORT_METRIC_OPTIONS = [
   { value: 'estimatedFutureYield', label: '估算未来股息率' },
@@ -49,6 +51,39 @@ function SettingsPage() {
     } catch {
       void message.error('恢复失败')
     }
+  }
+
+  async function handleBackup() {
+    try {
+      const result = await backupApi.createBackup()
+      if (!result.canceled && result.path) {
+        void message.success(`已导出备份：${result.path}`)
+      }
+    } catch (err) {
+      void message.error(err instanceof Error ? err.message : '导出备份失败')
+    }
+  }
+
+  function handleRestore() {
+    Modal.confirm({
+      title: '恢复备份将覆盖全部本地数据',
+      content: '自选、持仓、设置、分红记录与回测历史都会被替换为备份中的内容。恢复前会自动保留当前数据的安全备份。确认继续？',
+      okText: '确认恢复',
+      cancelText: '取消',
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          const result = await backupApi.restoreBackup()
+          if (result.canceled) {
+            return
+          }
+          void message.success('已恢复备份，正在刷新页面')
+          window.location.reload()
+        } catch (err) {
+          void message.error(err instanceof Error ? err.message : '恢复备份失败')
+        }
+      }
+    })
   }
 
   return (
@@ -214,6 +249,16 @@ function SettingsPage() {
                     </div>
                     <p className="ledger-transaction-hint">添加/编辑持仓时自动计算佣金：佣金 = max(成交额 × 费率, 最低佣金)，实际成本价 = (成交额 + 佣金) ÷ 股数。默认万分之一、最低5元（不免五）。</p>
                   </div>
+
+                  <AppCard title="数据备份">
+                    <p style={{ color: '#66707a', fontSize: 13, marginBottom: 12 }}>
+                      备份为本地 SQLite 完整副本（自选、持仓、设置、分红记录与回测历史）。恢复将覆盖全部本地数据；云端数据不受影响。
+                    </p>
+                    <Space>
+                      <Button onClick={handleBackup}>导出备份</Button>
+                      <Button danger onClick={handleRestore}>恢复备份</Button>
+                    </Space>
+                  </AppCard>
                 </div>
               )}
 
