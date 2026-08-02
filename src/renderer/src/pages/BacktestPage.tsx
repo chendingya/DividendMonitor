@@ -1,6 +1,7 @@
-import { Alert, Skeleton, message } from 'antd'
+import { message } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { PageState } from '@renderer/components/app/PageState'
 import { PageStateBlock } from '@renderer/components/app/PageStateBlock'
 import { BacktestSummaryCard } from '@renderer/components/backtest/BacktestSummaryCard'
 import { BacktestNavChart } from '@renderer/components/backtest/BacktestNavChart'
@@ -330,76 +331,76 @@ export function BacktestPage() {
         )}
       </div>
 
-      {loading ? <Skeleton active paragraph={{ rows: 8 }} /> : null}
-      {!loading && error ? <Alert type="error" message={error} /> : null}
-      {!loading && !error && !primaryAssetKey.trim() ? (
-        <PageStateBlock
-          kind="empty"
-          title="还没有选择回测标的"
-          description="请先进入某个资产详情页，再发起回测。"
-        />
-      ) : null}
-      {!loading && !error && primaryAssetKey.trim() && !data ? (
-        <PageStateBlock
-          kind="no-data"
-          title="当前条件暂无回测结果"
-          description="系统未返回可展示的回测数据，请调整条件后重试。"
-        />
-      ) : null}
+      <PageState loading={loading} error={error}>
+        {!primaryAssetKey.trim() ? (
+          <PageStateBlock
+            kind="empty"
+            title="还没有选择回测标的"
+            description="请先进入某个资产详情页，再发起回测。"
+          />
+        ) : !data ? (
+          <PageStateBlock
+            kind="no-data"
+            title="当前条件暂无回测结果"
+            description="系统未返回可展示的回测数据，请调整条件后重试。"
+          />
+        ) : (
+          <>
 
-      {/* Multi compare */}
-      {!loading && !error && isMulti && multiResults.length >= 2 ? (
-        <BacktestMultiCompare results={multiResults} />
-      ) : null}
+            {/* Multi compare */}
+            {isMulti && multiResults.length >= 2 ? <BacktestMultiCompare results={multiResults} /> : null}
 
-      {/* Individual results */}
-      {!loading && !error && isMulti && multiResults.length > 0 ? (
-        multiResults.map((r) => (
-          <div key={r.symbol} style={{ marginTop: 16 }}>
-            <BacktestSummaryCard result={r} />
-            <BacktestNavChart result={r} />
-          </div>
-        ))
-      ) : null}
+            {/* Individual results */}
+            {isMulti && multiResults.length > 0 ? (
+              multiResults.map((r) => (
+                <div key={r.symbol} style={{ marginTop: 16 }}>
+                  <BacktestSummaryCard result={r} />
+                  <BacktestNavChart result={r} />
+                </div>
+              ))
+            ) : null}
 
-      {/* Single result */}
-      {!loading && !error && !isMulti && data && data.transactions.length === 0 ? (
-        <PageStateBlock
-          kind="no-data"
-          title="当前区间暂无可回测流水"
-          description="该股票在所选买入日期后缺少交易或分红事件，暂无法生成流水。"
-        />
-      ) : null}
-      {!loading && !error && !isMulti && data && data.transactions.length > 0 ? (
-        <>
-          <div className="ledger-hero-actions" style={{ marginBottom: 16 }}>
-            <button
-              type="button"
-              className="ledger-primary-button"
-              onClick={async () => {
-                try {
-                  const api = getBacktestDesktopApi()
-                  await api.historySave(data, undefined, undefined)
-                  void message.success('回测结果已保存')
-                } catch {
-                  void message.error('保存失败')
-                }
-              }}
-            >
-              保存结果
-            </button>
-            <button
-              type="button"
-              className="ledger-secondary-button"
-              onClick={() => navigate('/backtest-history')}
-            >
-              历史记录
-            </button>
-          </div>
-          <BacktestSummaryCard result={data} />
-          <BacktestNavChart result={data} />
-        </>
-      ) : null}
+            {/* Single result */}
+            {!isMulti && data.transactions.length === 0 ? (
+              <PageStateBlock
+                kind="no-data"
+                title="当前区间暂无可回测流水"
+                description="该股票在所选买入日期后缺少交易或分红事件，暂无法生成流水。"
+              />
+            ) : null}
+            {!isMulti && data.transactions.length > 0 ? (
+              <>
+                <div className="ledger-hero-actions" style={{ marginBottom: 16 }}>
+                  <button
+                    type="button"
+                    className="ledger-primary-button"
+                    onClick={async () => {
+                      try {
+                        const api = getBacktestDesktopApi()
+                        await api.historySave(data, undefined, undefined)
+                        void message.success('回测结果已保存')
+                      } catch {
+                        void message.error('保存失败')
+                      }
+                    }}
+                  >
+                    保存结果
+                  </button>
+                  <button
+                    type="button"
+                    className="ledger-secondary-button"
+                    onClick={() => navigate('/backtest-history')}
+                  >
+                    历史记录
+                  </button>
+                </div>
+                <BacktestSummaryCard result={data} />
+                <BacktestNavChart result={data} />
+              </>
+            ) : null}
+          </>
+        )}
+      </PageState>
     </div>
   )
 }
