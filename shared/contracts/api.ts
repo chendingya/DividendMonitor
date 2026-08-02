@@ -473,6 +473,7 @@ export type AssetDetailDto = {
   sharpeRatio?: number
   capabilities: AssetCapabilitiesDto
   modules: AssetDetailModulesDto
+  fetchedAt?: string
 }
 
 export type HistoricalYieldResponseDto = {

@@ -14,6 +14,17 @@ vi.mock('@main/repositories/assetRepository', () => ({
   }
 }))
 
+vi.mock('@main/repositories/assetSnapshotRepository', () => ({
+  AssetSnapshotRepository: class {
+    findByKey = vi.fn(() => ({
+      assetKey: 'FUND:A_SHARE:160222',
+      assetType: 'FUND',
+      dataJson: '{}',
+      fetchedAt: '2026-08-02T10:00:00.000Z'
+    }))
+  }
+}))
+
 import { compareAssets } from '@main/application/useCases/compareAssets'
 import { getAssetDetail } from '@main/application/useCases/getAssetDetail'
 
@@ -47,6 +58,36 @@ describe('asset use cases', () => {
         name: '国泰国证食品饮料行业指数'
       })
     )
+  })
+
+  it('attaches fetchedAt from snapshot repository', async () => {
+    repositoryMock.getDetail.mockResolvedValueOnce({
+      kind: 'STOCK',
+      identifier: { assetType: 'STOCK', market: 'A_SHARE', code: '600519' },
+      stock: {
+        symbol: '600519',
+        name: '贵州茅台',
+        market: 'A_SHARE',
+        industry: '白酒',
+        latestPrice: 1350.6,
+        marketCap: 2120000000000,
+        peRatio: 24.6,
+        pbRatio: 8.3,
+        totalShares: 1256197800
+      },
+      latestTotalShares: 1256197800,
+      latestAnnualNetProfit: 86228000000,
+      lastAnnualPayoutRatio: 0.56,
+      lastYearTotalDividendAmount: 38782000000,
+      priceHistory: [],
+      dividendEvents: [],
+      dataSource: 'eastmoney',
+      valuation: undefined
+    })
+
+    const detail = await getAssetDetail({ assetKey: 'STOCK:A_SHARE:600519' })
+
+    expect(detail.fetchedAt).toBe('2026-08-02T10:00:00.000Z')
   })
 
   it('maps mixed stock and fund compare rows', async () => {
