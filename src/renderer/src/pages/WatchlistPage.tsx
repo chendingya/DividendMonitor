@@ -1,11 +1,12 @@
 import { Col, Input, Row, Select, Skeleton, Space, message, Popconfirm } from 'antd'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { WatchlistTable } from '@renderer/components/watchlist/WatchlistTable'
 import { useWatchlist } from '@renderer/hooks/useWatchlist'
 import { useWatchlistGroups } from '@renderer/hooks/useWatchlistGroups'
 import { LedgerIcon } from '@renderer/components/app/LedgerUi'
 import { PageState } from '@renderer/components/app/PageState'
+import { formatTime } from '@renderer/utils/format'
 import { watchlistApi } from '@renderer/services/watchlistApi'
 import {
   buildAssetDetailPath,
@@ -27,6 +28,7 @@ export function WatchlistPage() {
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
   const [editingGroupName, setEditingGroupName] = useState('')
   const [newGroupName, setNewGroupName] = useState('')
+  const [refreshedAt, setRefreshedAt] = useState<Date | null>(null)
 
   const { data: allData, loading: watchlistLoading, error: watchlistError, reload, removeAsset, mutatingAssetKey } = useWatchlist()
   const {
@@ -68,6 +70,14 @@ export function WatchlistPage() {
   const data = activeGroupId ? groupData : allData
   const loading = activeGroupId ? (groupDataLoading || watchlistLoading) : watchlistLoading
   const error = watchlistError
+
+  const initialRefreshDoneRef = useRef(false)
+  useEffect(() => {
+    if (!loading && !initialRefreshDoneRef.current && data.length > 0) {
+      initialRefreshDoneRef.current = true
+      setRefreshedAt(new Date())
+    }
+  }, [loading, data.length])
 
   const filteredData = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase()
@@ -159,6 +169,7 @@ export function WatchlistPage() {
       if (activeGroupId) {
         await loadGroupAssets(activeGroupId)
       }
+      setRefreshedAt(new Date())
       apiMessage.success('自选列表已刷新')
     } catch (actionError) {
       apiMessage.error(actionError instanceof Error ? actionError.message : '刷新自选失败')
@@ -437,6 +448,11 @@ export function WatchlistPage() {
                   <button type="button" className="ledger-filter-chip" onClick={refreshWatchlist}>
                     刷新自选
                   </button>
+                  {refreshedAt ? (
+                    <span style={{ fontSize: 12, color: '#8b949e' }}>
+                      最近刷新 {formatTime(refreshedAt)}
+                    </span>
+                  ) : null}
                 </Space>
               </div>
               <div className="ledger-toolbar-divider" />

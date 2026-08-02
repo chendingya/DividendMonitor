@@ -49,6 +49,7 @@ export function DashboardPage() {
     removeFromGroup
   } = useWatchlistGroups()
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
+  const [refreshedAt, setRefreshedAt] = useState<Date | null>(null)
   const [assetKeyToGroupIds, setAssetKeyToGroupIds] = useState<Map<string, string[]>>(new Map())
   const [newGroupName, setNewGroupName] = useState('')
   const [showNewGroupInput, setShowNewGroupInput] = useState(false)
@@ -67,6 +68,13 @@ export function DashboardPage() {
     refreshQuotes,
     reload
   } = usePortfolio()
+  const initialRefreshDoneRef = useRef(false)
+  useEffect(() => {
+    if (!refreshing && !initialRefreshDoneRef.current && rows.length > 0) {
+      initialRefreshDoneRef.current = true
+      setRefreshedAt(new Date())
+    }
+  }, [refreshing, rows.length])
   const { data: riskMetrics } = usePortfolioRiskMetrics(rows)
   const { distribution } = useIndustryAnalysis()
 
@@ -446,6 +454,7 @@ export function DashboardPage() {
 
   async function onRefresh() {
     const result = await refreshQuotes()
+    setRefreshedAt(new Date())
     if (result && result.failed > 0) {
       apiMessage.warning(`有 ${result.failed} 个标的刷新失败，请稍后重试`)
     } else {
@@ -601,6 +610,7 @@ export function DashboardPage() {
         rows={rows}
         positions={positions}
         refreshing={refreshing}
+        refreshedAt={refreshedAt}
         onSearch={openAssetSearch}
         onRefresh={onRefresh}
         onExportReport={exportReport}

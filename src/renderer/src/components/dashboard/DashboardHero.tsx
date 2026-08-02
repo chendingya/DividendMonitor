@@ -1,5 +1,6 @@
 import { Input, Button, Space, Typography } from 'antd'
 import { AppCard } from '@renderer/components/app/AppCard'
+import { formatTime } from '@renderer/utils/format'
 import type { PortfolioPosition } from '@renderer/services/portfolioStore'
 import type { PortfolioRow } from '@renderer/hooks/usePortfolio'
 
@@ -7,6 +8,7 @@ type DashboardHeroProps = {
   rows: PortfolioRow[]
   positions: PortfolioPosition[]
   refreshing: boolean
+  refreshedAt?: Date | null
   onSearch: () => void
   onRefresh: () => void
   onExportReport: () => void
@@ -19,6 +21,7 @@ export function DashboardHero({
   rows,
   positions,
   refreshing,
+  refreshedAt,
   onSearch,
   onRefresh,
   onExportReport,
@@ -81,6 +84,11 @@ export function DashboardHero({
               <polyline points="23 4 23 10 17 10" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
             </svg>
             {refreshing ? '刷新中...' : '刷新估值'}
+            {refreshedAt ? (
+              <span style={{ fontSize: 12, color: '#8b949e', marginLeft: 8 }}>
+                最近刷新 {formatTime(refreshedAt)}
+              </span>
+            ) : null}
           </button>
           <button
             type="button"
