@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
 import type { AssetBacktestRequestDto, BacktestResultDto } from '@shared/contracts/api'
 import { calculationApi } from '@renderer/services/calculationApi'
+import { useFetch } from '@renderer/hooks/useFetch'
 
 export type BacktestParams = {
   assetKey: string | null
@@ -17,78 +17,47 @@ export type BacktestParams = {
 }
 
 export function useAssetBacktest(params: BacktestParams) {
-  const [data, setData] = useState<BacktestResultDto | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    let disposed = false
-
-    async function load() {
-      setLoading(true)
-      setError(null)
-
+  const { data, loading, error } = useFetch<BacktestResultDto | null>(
+    async () => {
       if (!params.assetKey) {
-        if (!disposed) {
-          setData(null)
-          setLoading(false)
-        }
-        return
+        return null
       }
 
-      try {
-        const request: AssetBacktestRequestDto = {
-          asset: { assetKey: params.assetKey },
-          buyDate: params.buyDate,
-          initialCapital: params.initialCapital,
-          includeFees: params.includeFees,
-          feeRate: params.feeRate,
-          stampDutyRate: params.stampDutyRate,
-          minCommission: params.minCommission,
-          benchmarkSymbol: params.benchmarkSymbol || undefined
-        }
+      const request: AssetBacktestRequestDto = {
+        asset: { assetKey: params.assetKey },
+        buyDate: params.buyDate,
+        initialCapital: params.initialCapital,
+        includeFees: params.includeFees,
+        feeRate: params.feeRate,
+        stampDutyRate: params.stampDutyRate,
+        minCommission: params.minCommission,
+        benchmarkSymbol: params.benchmarkSymbol || undefined
+      }
 
-        if (params.dcaEnabled && params.dcaAmount && params.dcaFrequency) {
-          request.dcaConfig = {
-            enabled: true,
-            frequency: params.dcaFrequency,
-            amount: params.dcaAmount
-          }
-        }
-
-        const result = await calculationApi.runDividendReinvestmentBacktestForAsset(request)
-        if (!disposed) {
-          setData(result)
-        }
-      } catch (loadError) {
-        if (!disposed) {
-          setError(loadError instanceof Error ? loadError.message : 'Failed to run backtest')
-        }
-      } finally {
-        if (!disposed) {
-          setLoading(false)
+      if (params.dcaEnabled && params.dcaAmount && params.dcaFrequency) {
+        request.dcaConfig = {
+          enabled: true,
+          frequency: params.dcaFrequency,
+          amount: params.dcaAmount
         }
       }
-    }
 
-    void load()
-
-    return () => {
-      disposed = true
-    }
-  }, [
-    params.assetKey,
-    params.buyDate,
-    params.initialCapital,
-    params.includeFees,
-    params.feeRate,
-    params.stampDutyRate,
-    params.minCommission,
-    params.dcaEnabled,
-    params.dcaFrequency,
-    params.dcaAmount,
-    params.benchmarkSymbol
-  ])
+      return calculationApi.runDividendReinvestmentBacktestForAsset(request)
+    },
+    [
+      params.assetKey,
+      params.buyDate,
+      params.initialCapital,
+      params.includeFees,
+      params.feeRate,
+      params.stampDutyRate,
+      params.minCommission,
+      params.dcaEnabled,
+      params.dcaFrequency,
+      params.dcaAmount,
+      params.benchmarkSymbol
+    ]
+  )
 
   return { data, loading, error }
 }

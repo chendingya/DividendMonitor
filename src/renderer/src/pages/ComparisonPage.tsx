@@ -75,7 +75,7 @@ export function ComparisonPage() {
   const { data, loading, error } = useAssetComparison(assetKeys)
 
   const contextAssetKeys = useMemo(
-    () => data.map((item) => item.assetKey).filter((assetKey) => assetKey.length > 0),
+    () => (data ?? []).map((item) => item.assetKey).filter((assetKey) => assetKey.length > 0),
     [data]
   )
 
@@ -109,7 +109,7 @@ export function ComparisonPage() {
     )
   }
 
-  if (data.length === 0) {
+  if (!data || data.length === 0) {
     return (
       <PageStateBlock
         kind="no-data"

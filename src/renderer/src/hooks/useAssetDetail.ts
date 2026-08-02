@@ -1,50 +1,20 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import type { AssetDetailDto, AssetQueryDto } from '@shared/contracts/api'
 import { assetApi } from '@renderer/services/assetApi'
+import { useFetch } from '@renderer/hooks/useFetch'
 
 export function useAssetDetail(request: AssetQueryDto | null) {
-  const [data, setData] = useState<AssetDetailDto | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const requestKey = useMemo(() => JSON.stringify(request ?? {}), [request])
 
-  useEffect(() => {
-    let disposed = false
-
-    async function load() {
-      setLoading(true)
-      setError(null)
-
+  const { data, loading, error } = useFetch<AssetDetailDto | null>(
+    async () => {
       if (!request) {
-        if (!disposed) {
-          setData(null)
-          setLoading(false)
-        }
-        return
+        return null
       }
-
-      try {
-        const detail = await assetApi.getDetail(request)
-        if (!disposed) {
-          setData(detail)
-        }
-      } catch (loadError) {
-        if (!disposed) {
-          setError(loadError instanceof Error ? loadError.message : 'Failed to load asset detail')
-        }
-      } finally {
-        if (!disposed) {
-          setLoading(false)
-        }
-      }
-    }
-
-    void load()
-
-    return () => {
-      disposed = true
-    }
-  }, [request, requestKey])
+      return assetApi.getDetail(request)
+    },
+    [requestKey, request]
+  )
 
   return { data, loading, error }
 }
