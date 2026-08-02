@@ -13,8 +13,7 @@
 7. `ONLINE-ARCHITECTURE.md`：在线版架构设计 — Supabase 认证、云端数据库、离线/在线切换
 8. `IPC-CONTRACTS.md`：preload、IPC 和 renderer runtime 接口
 9. `PACKAGING-AND-DEPLOYMENT.md`：Windows exe 打包与网页部署现状、步骤和缺口
-10. `MANUAL-VERIFICATION-GUIDE.md`：手动验证路径
-11. `UI-UX-DESIGN-PRINCIPLES.md`：页面视觉与交互风格
+10. `UI-UX-DESIGN-PRINCIPLES.md`：页面视觉与交互风格
 
 ## 2. 当前有效文档
 
@@ -38,7 +37,7 @@
 ### 交互与验收
 
 - `FRONTEND-IMPLEMENTATION-PLAN.md`
-- `MANUAL-VERIFICATION-GUIDE.md`
+- `UI-UX-DESIGN-PRINCIPLES.md`
 
 ## 3. 文档边界
 
@@ -54,4 +53,4 @@
 - `src/main/`：主进程 use case、repository、adapter、infrastructure
 - `src/preload/`：桥接层
 - `src/renderer/src/`：页面、组件、hook、runtime service
-- `shared/contracts/api.ts`：跨进程共享 DTO 与 API 契约
+- `shared/api.ts`：跨进程共享 DTO 与 API 契约（IPC 与 HTTP 的唯一共享源）
