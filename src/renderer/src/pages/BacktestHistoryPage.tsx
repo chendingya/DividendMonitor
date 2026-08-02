@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Table, Tag, Popconfirm, message, Empty, Button } from 'antd'
 import type { BacktestResultDto } from '@shared/contracts/api'
@@ -21,7 +20,7 @@ const percent = new Intl.NumberFormat('zh-CN', { style: 'percent', minimumFracti
 
 export function BacktestHistoryPage() {
   const navigate = useNavigate()
-  const { data, loading, error, reload, setData } = useFetch<HistoryItem[]>(async () => {
+  const { data, loading, error, setData } = useFetch<HistoryItem[]>(async () => {
     const api = getBacktestDesktopApi()
     return api.historyList()
   }, [])
@@ -37,10 +36,6 @@ export function BacktestHistoryPage() {
       void message.error('删除失败')
     }
   }
-
-  useEffect(() => {
-    void reload().catch(() => {})
-  }, [reload])
 
   return (
     <div className="ledger-page">
