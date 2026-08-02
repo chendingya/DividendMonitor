@@ -72,7 +72,8 @@ function DividendBarChart({ data }: { data: DividendHistoryResult['yearlySummary
   }, [data])
 
   return (
-    <div ref={chartRef} style={{ position: 'relative', width: '100%', height: 280 }}>
+    <div style={{ position: 'relative' }}>
+      <div ref={chartRef} style={{ width: '100%', height: 280 }} />
       <ChartExportButton instanceRef={instanceRef} filename="dividend-yearly-summary" />
     </div>
   )
@@ -159,7 +160,8 @@ function DividendTrendChart({ data }: { data: DividendHistoryResult['monthlyTren
   }, [data])
 
   return (
-    <div ref={chartRef} style={{ position: 'relative', width: '100%', height: 300 }}>
+    <div style={{ position: 'relative' }}>
+      <div ref={chartRef} style={{ width: '100%', height: 300 }} />
       <ChartExportButton instanceRef={instanceRef} filename="dividend-monthly-trend" />
     </div>
   )

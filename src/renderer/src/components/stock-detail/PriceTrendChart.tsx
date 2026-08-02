@@ -96,7 +96,8 @@ export function PriceTrendChart({ data }: { data?: HistoricalPricePointDto[] }) 
           </button>
         ))}
       </div>
-      <div ref={chartRef} style={{ width: '100%', height: 320, position: 'relative' }}>
+      <div style={{ position: 'relative' }}>
+        <div ref={chartRef} style={{ width: '100%', height: 320 }} />
         <ChartExportButton instanceRef={instanceRef} filename="price-trend" />
       </div>
     </AppCard>
