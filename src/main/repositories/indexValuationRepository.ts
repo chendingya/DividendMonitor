@@ -4,6 +4,8 @@ import type { IndexValuationSnapshotAdapter } from '@main/adapters/danjuan/danju
 import { DanjuanIndexValuationAdapter } from '@main/adapters/danjuan/danjuanIndexValuationAdapter'
 import { resolveIndexCode } from '@main/repositories/indexCodeResolver'
 import { createValuationDataSource } from '@main/adapters'
+import { TimedCache } from '@main/infrastructure/cache/timedCache'
+import { ValuationCacheRepository } from '@main/repositories/valuationCacheRepository'
 
 export type IndexValuationSource = {
   indexCode: string
@@ -14,13 +16,7 @@ export type IndexValuationSource = {
   hasHistory: boolean
 }
 
-type CacheEntry = {
-  expiresAt: number
-  value: IndexValuationSource | undefined
-}
-
 const INDEX_VALUATION_CACHE_TTL_MS = 15 * 60 * 1000
-const indexValuationCache = new Map<string, CacheEntry>()
 
 function buildMetric(snapshot: ValuationSnapshotSource | undefined, history: ValuationTrendPoint[]): ValuationMetric | undefined {
   const currentValue = snapshot?.currentValue ?? history[0]?.value
@@ -39,9 +35,12 @@ function buildMetric(snapshot: ValuationSnapshotSource | undefined, history: Val
 }
 
 export class IndexValuationRepository {
+  private readonly memoryCache = new TimedCache<string, IndexValuationSource>(INDEX_VALUATION_CACHE_TTL_MS)
+
   constructor(
     private readonly eastmoneyDataSource: ValuationDataSource = createValuationDataSource(),
-    private readonly danjuanAdapter: IndexValuationSnapshotAdapter = new DanjuanIndexValuationAdapter()
+    private readonly danjuanAdapter: IndexValuationSnapshotAdapter = new DanjuanIndexValuationAdapter(),
+    private readonly diskCache: ValuationCacheRepository = new ValuationCacheRepository()
   ) {}
 
   async getIndexValuation(indexName: string): Promise<IndexValuationSource | undefined> {
@@ -52,9 +51,15 @@ export class IndexValuationRepository {
 
     const { code: indexCode, name: resolvedName, market } = indexResult
 
-    const cached = indexValuationCache.get(indexCode)
-    if (cached && cached.expiresAt > Date.now()) {
-      return cached.value
+    const memoryHit = this.memoryCache.getFresh(indexCode)
+    if (memoryHit) {
+      return memoryHit.value
+    }
+
+    const diskHit = this.diskCache.findFreshByKey<IndexValuationSource>(indexCode, INDEX_VALUATION_CACHE_TTL_MS)
+    if (diskHit) {
+      this.memoryCache.set(indexCode, diskHit)
+      return diskHit
     }
 
     const eastmoneyResult = await this.tryEastmoney(indexCode, resolvedName)
@@ -126,10 +131,12 @@ export class IndexValuationRepository {
     return buildMetric(snapshot, history)
   }
 
-  private cacheResult(indexCode: string, value: IndexValuationSource | undefined): void {
-    indexValuationCache.set(indexCode, {
-      expiresAt: Date.now() + INDEX_VALUATION_CACHE_TTL_MS,
-      value
-    })
+  private cacheResult(indexCode: string, value: IndexValuationSource): void {
+    this.memoryCache.set(indexCode, value)
+    try {
+      this.diskCache.upsert(indexCode, JSON.stringify(value))
+    } catch {
+      // 磁盘缓存写失败不阻塞主流程
+    }
   }
 }

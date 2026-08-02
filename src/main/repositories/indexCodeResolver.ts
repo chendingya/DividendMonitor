@@ -1,5 +1,6 @@
 import { getDefaultSourceGateway } from '@main/infrastructure/dataSources/gateway/sourceGateway'
 import type { EastmoneySuggestItem } from '@main/infrastructure/dataSources/registry/eastmoneyEndpoints'
+import { TimedCache } from '@main/infrastructure/cache/timedCache'
 
 export type IndexCodeResult = {
   code: string
@@ -7,13 +8,8 @@ export type IndexCodeResult = {
   market: 'SH' | 'SZ'
 }
 
-type CacheEntry = {
-  expiresAt: number
-  value: IndexCodeResult | undefined
-}
-
 const INDEX_CODE_CACHE_TTL_MS = 24 * 60 * 60 * 1000
-const indexCodeCache = new Map<string, CacheEntry>()
+const indexCodeCache = new TimedCache<string, IndexCodeResult | undefined>(INDEX_CODE_CACHE_TTL_MS)
 
 function normalizeIndexName(name: string): string {
   return name
@@ -91,8 +87,8 @@ export async function resolveIndexCode(indexName: string): Promise<IndexCodeResu
     return undefined
   }
 
-  const cached = indexCodeCache.get(indexName)
-  if (cached && cached.expiresAt > Date.now()) {
+  const cached = indexCodeCache.getFresh(indexName)
+  if (cached) {
     return cached.value
   }
 
@@ -107,12 +103,12 @@ export async function resolveIndexCode(indexName: string): Promise<IndexCodeResu
         name: best.Name!,
         market: (best.MktNum === '1' ? 'SH' : 'SZ')
       }
-      indexCodeCache.set(indexName, { expiresAt: Date.now() + INDEX_CODE_CACHE_TTL_MS, value: result })
+      indexCodeCache.set(indexName, result)
       return result
     }
   }
 
-  indexCodeCache.set(indexName, { expiresAt: Date.now() + INDEX_CODE_CACHE_TTL_MS, value: undefined })
+  indexCodeCache.set(indexName, undefined)
   return undefined
 }
 
