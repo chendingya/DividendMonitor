@@ -3,6 +3,7 @@ import { DatePicker, Empty, Spin, Table, Tag, message } from 'antd'
 import * as echarts from 'echarts'
 import dayjs from 'dayjs'
 import { AppCard } from '@renderer/components/app/AppCard'
+import { ChartExportButton } from '@renderer/components/app/ChartExportButton'
 import { dividendApi, type DividendHistoryResult } from '@renderer/services/dividendApi'
 import type { UpcomingDividendDto, DividendForecastDto } from '@shared/contracts/api'
 
@@ -70,7 +71,11 @@ function DividendBarChart({ data }: { data: DividendHistoryResult['yearlySummary
     }
   }, [data])
 
-  return <div ref={chartRef} style={{ width: '100%', height: 280 }} />
+  return (
+    <div ref={chartRef} style={{ position: 'relative', width: '100%', height: 280 }}>
+      <ChartExportButton instanceRef={instanceRef} filename="dividend-yearly-summary" />
+    </div>
+  )
 }
 
 function DividendTrendChart({ data }: { data: DividendHistoryResult['monthlyTrend'] }) {
@@ -153,7 +158,11 @@ function DividendTrendChart({ data }: { data: DividendHistoryResult['monthlyTren
     }
   }, [data])
 
-  return <div ref={chartRef} style={{ width: '100%', height: 300 }} />
+  return (
+    <div ref={chartRef} style={{ position: 'relative', width: '100%', height: 300 }}>
+      <ChartExportButton instanceRef={instanceRef} filename="dividend-monthly-trend" />
+    </div>
+  )
 }
 
 function SummaryPanel({ label, value, primary }: { label: string; value: string; primary?: boolean }) {
