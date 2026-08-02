@@ -38,7 +38,12 @@ let nonceExpiresAt: number = 0
 
 async function getLocalNonce(): Promise<string> {
   if (cachedNonce && Date.now() < nonceExpiresAt) return cachedNonce
-  cachedNonce = await window.dividendMonitor.security.getLocalNonce()
+  if (typeof window.dividendMonitor?.security?.getLocalNonce === 'function') {
+    cachedNonce = await window.dividendMonitor.security.getLocalNonce()
+  } else {
+    const res = await requestJson<{ nonce: string }>('/api/security/nonce')
+    cachedNonce = res.nonce
+  }
   nonceExpiresAt = Date.now() + NONCE_CACHE_MS
   return cachedNonce
 }
