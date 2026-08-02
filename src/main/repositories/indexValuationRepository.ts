@@ -18,6 +18,10 @@ export type IndexValuationSource = {
 
 const INDEX_VALUATION_CACHE_TTL_MS = 15 * 60 * 1000
 
+// 磁盘缓存与股票估值仓库共用 valuation_cache 表，6 位代码空间同形（如 '000016' 既是深康佳A 也是上证50）。
+// 加命名空间前缀使两个 key 空间不相交，避免互相覆盖/读错。
+const VALUATION_DISK_KEY_PREFIX = 'index:'
+
 function buildMetric(snapshot: ValuationSnapshotSource | undefined, history: ValuationTrendPoint[]): ValuationMetric | undefined {
   const currentValue = snapshot?.currentValue ?? history[0]?.value
 
@@ -56,7 +60,10 @@ export class IndexValuationRepository {
       return memoryHit.value
     }
 
-    const diskHit = this.diskCache.findFreshByKey<IndexValuationSource>(indexCode, INDEX_VALUATION_CACHE_TTL_MS)
+    const diskHit = this.diskCache.findFreshByKey<IndexValuationSource>(
+      `${VALUATION_DISK_KEY_PREFIX}${indexCode}`,
+      INDEX_VALUATION_CACHE_TTL_MS
+    )
     if (diskHit) {
       this.memoryCache.set(indexCode, diskHit)
       return diskHit
@@ -134,7 +141,7 @@ export class IndexValuationRepository {
   private cacheResult(indexCode: string, value: IndexValuationSource): void {
     this.memoryCache.set(indexCode, value)
     try {
-      this.diskCache.upsert(indexCode, JSON.stringify(value))
+      this.diskCache.upsert(`${VALUATION_DISK_KEY_PREFIX}${indexCode}`, JSON.stringify(value))
     } catch {
       // 磁盘缓存写失败不阻塞主流程
     }
