@@ -1,123 +1,53 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import type { AssetQueryDto, WatchlistEntryDto } from '@shared/contracts/api'
 import { watchlistApi } from '@renderer/services/watchlistApi'
+import { useFetch } from '@renderer/hooks/useFetch'
 
 export function useWatchlist() {
-  const [data, setData] = useState<WatchlistEntryDto[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data, loading, error, reload } = useFetch<WatchlistEntryDto[]>(() => watchlistApi.list(), [])
   const [mutatingAssetKey, setMutatingAssetKey] = useState<string | null>(null)
-  const mountedRef = useRef(true)
 
-  const reload = useCallback(async () => {
-    if (mountedRef.current) {
-      setLoading(true)
-      setError(null)
-    }
-
-    try {
-      const items = await watchlistApi.list()
-      if (mountedRef.current) {
-        setData(items)
-      }
-    } catch (loadError) {
-      if (mountedRef.current) {
-        setError(loadError instanceof Error ? loadError.message : 'Failed to load watchlist')
-      }
-      throw loadError
-    } finally {
-      if (mountedRef.current) {
-        setLoading(false)
-      }
-    }
-  }, [])
-
-  const add = useCallback(
-    async (symbol: string) => {
-      if (mountedRef.current) {
-        setMutatingAssetKey(symbol)
-        setError(null)
-      }
-
+  const withMutation = useCallback(
+    async (key: string, action: () => Promise<void>) => {
+      setMutatingAssetKey(key)
       try {
-        await watchlistApi.add(symbol)
+        await action()
         await reload()
       } finally {
-        if (mountedRef.current) {
-          setMutatingAssetKey(null)
-        }
+        setMutatingAssetKey(null)
       }
     },
     [reload]
   )
 
+  const add = useCallback(
+    async (symbol: string) => {
+      await withMutation(symbol, () => watchlistApi.add(symbol))
+    },
+    [withMutation]
+  )
+
   const remove = useCallback(
     async (symbol: string) => {
-      if (mountedRef.current) {
-        setMutatingAssetKey(symbol)
-        setError(null)
-      }
-
-      try {
-        await watchlistApi.remove(symbol)
-        await reload()
-      } finally {
-        if (mountedRef.current) {
-          setMutatingAssetKey(null)
-        }
-      }
+      await withMutation(symbol, () => watchlistApi.remove(symbol))
     },
-    [reload]
+    [withMutation]
   )
 
   const addAsset = useCallback(
     async (request: AssetQueryDto) => {
       const mutatingKey = request.assetKey ?? request.code ?? request.symbol ?? ''
-      if (mountedRef.current) {
-        setMutatingAssetKey(mutatingKey)
-        setError(null)
-      }
-
-      try {
-        await watchlistApi.addAsset(request)
-        await reload()
-      } finally {
-        if (mountedRef.current) {
-          setMutatingAssetKey(null)
-        }
-      }
+      await withMutation(mutatingKey, () => watchlistApi.addAsset(request))
     },
-    [reload]
+    [withMutation]
   )
 
   const removeAsset = useCallback(
     async (assetKey: string) => {
-      if (mountedRef.current) {
-        setMutatingAssetKey(assetKey)
-        setError(null)
-      }
-
-      try {
-        await watchlistApi.removeAsset(assetKey)
-        await reload()
-      } finally {
-        if (mountedRef.current) {
-          setMutatingAssetKey(null)
-        }
-      }
+      await withMutation(assetKey, () => watchlistApi.removeAsset(assetKey))
     },
-    [reload]
+    [withMutation]
   )
 
-  useEffect(() => {
-    mountedRef.current = true
-    void reload().catch(() => {})
-
-    return () => {
-      mountedRef.current = false
-    }
-  }, [reload])
-
-  return { data, loading, error, reload, add, remove, addAsset, removeAsset, mutatingAssetKey }
+  return { data: data ?? [], loading, error, reload, add, remove, addAsset, removeAsset, mutatingAssetKey }
 }
-
