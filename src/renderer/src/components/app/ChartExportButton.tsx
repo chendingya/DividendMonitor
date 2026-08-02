@@ -14,23 +14,9 @@ export function ChartExportButton({ instanceRef, filename, label }: ChartExportB
     <Tooltip title="导出图片">
       <button
         type="button"
+        className="ledger-chart-export-button"
         onClick={() => exportChartAsPng(instanceRef.current, filename, label)}
-        style={{
-          position: 'absolute',
-          top: 8,
-          right: 8,
-          zIndex: 10,
-          width: 28,
-          height: 28,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          border: '1px solid rgba(171, 173, 175, 0.4)',
-          borderRadius: 6,
-          background: 'rgba(255, 255, 255, 0.9)',
-          color: '#66707a',
-          cursor: 'pointer'
-        }}
+        aria-label="导出图片"
       >
         <svg
           width="14"

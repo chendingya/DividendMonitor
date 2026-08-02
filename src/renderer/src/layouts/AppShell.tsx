@@ -330,7 +330,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             )
           })}
 
-          <div ref={moreRef} style={{ position: 'relative' }}>
+          <div ref={moreRef}>
             <button
               type="button"
               className={`ledger-nav-item ${selectedKey === 'more' ? 'is-active' : ''}`}
@@ -341,13 +341,12 @@ export function AppShell({ children }: { children: ReactNode }) {
               </span>
               <span>更多</span>
             </button>
-            {moreOpen ? (
-              <div className="ledger-more-popover">
-                {moreItems.map((item) => (
+            {moreOpen
+              ? moreItems.map((item) => (
                   <button
                     key={item.key}
                     type="button"
-                    className={`ledger-more-item ${selectedKey === item.key ? 'is-active' : ''}`}
+                    className={`ledger-nav-item ledger-nav-item-sub ${selectedKey === item.key ? 'is-active' : ''}`}
                     onClick={() => {
                       navigate(item.key)
                       setMoreOpen(false)
@@ -358,9 +357,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                     </span>
                     <span>{item.label}</span>
                   </button>
-                ))}
-              </div>
-            ) : null}
+                ))
+              : null}
           </div>
         </nav>
 
