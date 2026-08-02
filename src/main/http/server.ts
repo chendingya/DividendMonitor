@@ -17,6 +17,10 @@ import { getSecurityHeaders } from '@main/security/contentSecurityPolicy'
 let httpServer: Server | null = null
 
 function getBaseUrl() {
+  const port = process.env['LOCAL_HTTP_API_PORT']?.trim()
+  if (port && /^\d+$/.test(port)) {
+    return new URL(`http://127.0.0.1:${port}`)
+  }
   return new URL(LOCAL_HTTP_API_ORIGIN)
 }
 
@@ -56,7 +60,7 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
     }
   }
 
-  const url = new URL(request.url ?? '/', LOCAL_HTTP_API_ORIGIN)
+  const url = new URL(request.url ?? '/', getBaseUrl())
   const pathname = url.pathname
   const method = request.method ?? 'GET'
 
@@ -121,6 +125,7 @@ export async function startLocalHttpServer() {
     httpServer!.once('error', reject)
     httpServer!.listen(port, host, () => {
       httpServer?.off('error', reject)
+      console.log(`[http-api] listening on http://${host}:${port}`)
       resolve()
     })
   })
