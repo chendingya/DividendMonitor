@@ -15,6 +15,7 @@ import { PriceTrendChart } from '@renderer/components/stock-detail/PriceTrendCha
 import { PreciousMetalDisplayProvider, usePreciousMetalDisplay } from '@renderer/contexts/PreciousMetalDisplayContext'
 import { DEFAULT_STOCK_SYMBOL } from '@renderer/defaults'
 import { exportRowsAsCsv } from '@renderer/utils/chartExport'
+import { formatDateTime } from '@renderer/utils/format'
 import { useAssetDetail } from '@renderer/hooks/useAssetDetail'
 import { useWatchlist } from '@renderer/hooks/useWatchlist'
 import { useIndustryBenchmark } from '@renderer/hooks/useIndustryAnalysis'
@@ -200,6 +201,11 @@ export function StockDetailPage() {
                   <div className="ledger-detail-price">
                     <strong>{data.latestPrice.toFixed(2)}</strong>
                     <span>{data.latestNav != null ? `最新价 / 净值 ${data.latestNav.toFixed(4)}` : `最新价 / ${data.assetType}`}</span>
+                    {data.fetchedAt ? (
+                      <span style={{ display: 'block', fontSize: 12, color: '#8b949e', marginTop: 4 }}>
+                        数据更新于 {formatDateTime(data.fetchedAt)}
+                      </span>
+                    ) : null}
                   </div>
                   <div className="ledger-hero-actions" style={{ marginTop: 12 }}>
                     <button
