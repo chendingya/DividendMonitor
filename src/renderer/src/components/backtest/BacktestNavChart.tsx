@@ -188,9 +188,11 @@ export function BacktestNavChart({ result }: { result: BacktestResultDto }) {
           虚线为基准指数（{result.benchmarkSymbol ?? '基准'}）同期累计收益率。
         </div>
       )}
-      <div style={{ position: 'relative' }}>
-        <div ref={chartRef} style={{ width: '100%', height: 380 }} />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
         <ChartExportButton instanceRef={instanceRef} filename="backtest-nav" label={`回测 ${result.symbol}`} />
+      </div>
+      <div>
+        <div ref={chartRef} style={{ width: '100%', height: 380 }} />
       </div>
     </AppCard>
   )

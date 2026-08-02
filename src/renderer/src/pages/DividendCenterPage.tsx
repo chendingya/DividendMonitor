@@ -72,9 +72,13 @@ function DividendBarChart({ data }: { data: DividendHistoryResult['yearlySummary
   }, [data])
 
   return (
-    <div style={{ position: 'relative' }}>
-      <div ref={chartRef} style={{ width: '100%', height: 280 }} />
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
         <ChartExportButton instanceRef={instanceRef} filename="dividend-yearly-summary" label="分红统计" />
+      </div>
+      <div>
+        <div ref={chartRef} style={{ width: '100%', height: 280 }} />
+      </div>
     </div>
   )
 }
@@ -160,9 +164,13 @@ function DividendTrendChart({ data }: { data: DividendHistoryResult['monthlyTren
   }, [data])
 
   return (
-    <div style={{ position: 'relative' }}>
-      <div ref={chartRef} style={{ width: '100%', height: 300 }} />
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
         <ChartExportButton instanceRef={instanceRef} filename="dividend-monthly-trend" label="分红统计" />
+      </div>
+      <div>
+        <div ref={chartRef} style={{ width: '100%', height: 300 }} />
+      </div>
     </div>
   )
 }

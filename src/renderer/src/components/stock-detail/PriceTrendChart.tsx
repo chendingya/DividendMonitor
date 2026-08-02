@@ -84,21 +84,23 @@ export function PriceTrendChart({ data, assetLabel }: { data?: HistoricalPricePo
 
   return (
     <AppCard title="价格走势">
-      <div className="ledger-segmented-control" style={{ marginBottom: 12 }}>
-        {(Object.keys(LABELS) as AdjustmentType[]).map((key) => (
-          <button
-            key={key}
-            type="button"
-            className={`ledger-filter-chip ${adjustment === key ? 'is-active' : ''}`}
-            onClick={() => setAdjustment(key)}
-          >
-            {LABELS[key]}
-          </button>
-        ))}
-      </div>
-      <div style={{ position: 'relative' }}>
-        <div ref={chartRef} style={{ width: '100%', height: 320 }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div className="ledger-segmented-control">
+          {(Object.keys(LABELS) as AdjustmentType[]).map((key) => (
+            <button
+              key={key}
+              type="button"
+              className={`ledger-filter-chip ${adjustment === key ? 'is-active' : ''}`}
+              onClick={() => setAdjustment(key)}
+            >
+              {LABELS[key]}
+            </button>
+          ))}
+        </div>
         <ChartExportButton instanceRef={instanceRef} filename="price-trend" label={assetLabel} />
+      </div>
+      <div>
+        <div ref={chartRef} style={{ width: '100%', height: 320 }} />
       </div>
     </AppCard>
   )

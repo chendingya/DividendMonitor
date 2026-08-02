@@ -187,10 +187,12 @@ function MetricTrendPanel({
 
   return (
     <div>
-      <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 600, color: '#1f2328' }}>{title}</div>
-      <div style={{ position: 'relative' }}>
-        <div ref={chartRef as RefObject<HTMLDivElement>} style={{ width: '100%', height: 320 }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#1f2328' }}>{title}</div>
         <ChartExportButton instanceRef={instanceRef} filename="valuation-trend" label={assetLabel} />
+      </div>
+      <div>
+        <div ref={chartRef as RefObject<HTMLDivElement>} style={{ width: '100%', height: 320 }} />
       </div>
     </div>
   )

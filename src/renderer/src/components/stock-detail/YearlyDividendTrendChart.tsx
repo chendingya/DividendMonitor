@@ -135,9 +135,11 @@ export function YearlyDividendTrendChart({ items, assetLabel }: YearlyDividendTr
       <div style={{ marginBottom: 10, color: '#8b949e', fontSize: 12 }}>
         分红次数按自然年去重统计（同日同方案重复记录只计一次）。
       </div>
-      <div style={{ position: 'relative' }}>
-        <div ref={chartRef} style={{ width: '100%', height: 320 }} />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
         <ChartExportButton instanceRef={instanceRef} filename="yearly-dividend-trend" label={assetLabel} />
+      </div>
+      <div>
+        <div ref={chartRef} style={{ width: '100%', height: 320 }} />
       </div>
     </AppCard>
   )
