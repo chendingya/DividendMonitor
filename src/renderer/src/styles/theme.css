@@ -491,7 +491,7 @@ body {
   opacity: 0.65;
 }
 
-.ledger-nav-item-sub {
+.ledger-nav-item.ledger-nav-item-sub {
   height: 44px;
   padding-left: 34px;
 }
