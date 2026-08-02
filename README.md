@@ -1,120 +1,132 @@
+<div align="center">
+
 # 收息佬 / DividendMonitor
 
-面向长期投资者的本地优先收益分析工具，当前聚焦 A 股、ETF 与基金的收益追踪、估值对比与回测。
+**面向长期投资者的本地优先收益分析工具**
 
-DividendMonitor is a local-first income and valuation analysis tool for long-term investors, currently focused on China A-shares, ETFs, and funds.
+[简体中文](README.md) · [English](README.en.md)
 
-## 中文简介
+[![License](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
+[![Electron](https://img.shields.io/badge/Electron-35-47848F.svg)](https://www.electronjs.org/)
+[![React](https://img.shields.io/badge/React-18-61DAFB.svg)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6.svg)](https://www.typescriptlang.org/)
+[![SQLite](https://img.shields.io/badge/SQLite-node%3A%3Asqlite-003B57.svg)](https://nodejs.org/api/sqlite.html)
 
-`收息佬（DividendMonitor）` 是一个基于 Electron、React 与 TypeScript 构建的桌面优先项目，目标是帮助长期投资者用统一口径完成以下工作：
+</div>
 
-- 搜索股票、ETF 与基金，并进入统一详情页
-- 查看历史分红、收益指标和估值分位
-- 进行多资产横向对比
-- 管理自选与持仓
-- 运行股息复投回测
-- 在桌面端与浏览器预览端之间复用同一套前端能力
+收息佬（DividendMonitor）是一个 Electron 桌面应用，帮助 A 股、ETF、基金与贵金属的长期投资者用统一口径追踪股息收益、对比估值、管理持仓并回测分红复投策略。数据本地优先存储，可选 Supabase 在线同步实现多设备云备份。
 
-当前仓库以 Windows 桌面端为主，同时保留浏览器预览模式用于联调与前端验证。
+## 界面预览
 
-## English Overview
+| 工作台（组合总览） | 个股详情（估值与分红） |
+|:---:|:---:|
+| ![工作台](docs/screenshots/dashboard.png) | ![个股详情](docs/screenshots/stock-detail.png) |
 
-`DividendMonitor` is an Electron desktop-first project built with React and TypeScript. It helps long-term investors analyze income-focused assets with a consistent methodology:
+| 分红统计中心 | 分红复投回测 | 行业分析 |
+|:---:|:---:|:---:|
+| ![分红统计中心](docs/screenshots/dividend-center.png) | ![回测](docs/screenshots/backtest.png) | ![行业分析](docs/screenshots/industry-analysis.png) |
 
-- Search A-shares, ETFs, and funds through a unified asset flow
-- Inspect dividend history, yield metrics, and valuation percentiles
-- Compare multiple assets side by side
-- Manage watchlists and portfolio positions
-- Run dividend reinvestment backtests
-- Reuse the same renderer capabilities across desktop runtime and browser preview
+> 截图使用演示账号与公开行情数据，不含任何个人持仓信息。
 
-The repository currently targets Windows desktop delivery first, while keeping a browser preview mode for UI and runtime verification.
+## 功能特性
 
-## 当前能力
-
-- 多资产搜索、详情、自选、对比、回测
-- 股票估值趋势与分位图表
-- 本地优先的数据与持久化链路
-- Electron 桌面端打包与 Windows 安装包输出
-- 浏览器 fallback 运行时与本地 HTTP API 联调
-- 在线版：Supabase 认证、云端数据同步、修改密码
-
-## 技术栈
-
-- Electron
-- React
-- TypeScript
-- Vite / electron-vite
-- Ant Design
-- ECharts
-- SQLite
-- Vitest
+- **多资产统一搜索**：股票 / ETF / 基金 / 贵金属一次搜索直达详情，统一口径计算收益指标
+- **股息与收益分析**：历史分红事件、年度股息率、最近现金分配、未来股息率估算（基准法，含完整计算过程）
+- **估值分析**：PE(TTM) / PB(MRQ) 与历史分位（10 年 / 20 年窗口）、30/50/70 分位参考线、行业均值对比、ROE
+- **持仓管理**：同一资产多笔买入/卖出交易明细、除权除息因子法自动调整成本、组合收益率/波动率/夏普比率/最大回撤、持仓相关性矩阵
+- **自选分组**：多分组管理自选资产，快速横向比较
+- **多股对比**：任意资产并排对比收益率、估值与分红
+- **分红复投回测**：按真实历史行情与分红事件模拟股息复投，输出收益曲线、现金分红流水与年化收益
+- **分红统计中心**：按持仓估算累计分红收入、年度汇总、月度趋势、个股排行与即将到账提醒
+- **行业分析**：持仓行业分布、行业平均股息率 / PE / ROE 与成分股排位
+- **图表导出**：PNG 图片（Canvas 合成标题条）与 CSV 数据导出
+- **本地优先 + 在线同步**：数据默认存于本机 SQLite；登录 Supabase 账号后可云端备份、多设备同步
+- **备份与恢复**：一键备份本地数据文件，支持恢复（含在线模式云端回写）
 
 ## 快速开始
 
-安装依赖并启动桌面开发环境：
+**环境要求**：Windows / macOS / Linux，Node.js ≥ 18
 
 ```bash
+# 安装依赖
 npm install
+
+# 启动桌面开发环境（Electron）
 npm run dev
-```
 
-启动浏览器预览模式：
-
-```bash
+# 浏览器预览模式（无头主进程 + 前端 dev server）
 npm run dev:browser-preview
-```
+# 访问 http://127.0.0.1:8192
 
-运行类型检查与测试：
-
-```bash
+# 类型检查
 npm run typecheck
+
+# 运行测试（tests/ 目录 50+ 个测试）
 npm test
-```
 
-构建 Windows 安装包：
-
-```bash
+# 构建 Windows 安装包（NSIS）
 npm run dist:win
 ```
 
-## 文档入口
+## 在线模式（可选）
 
-- Docs Index: [docs/README.md](file:///i:/code/DividendMonitor/docs/README.md)
-- 产品需求: [PRD.md](file:///i:/code/DividendMonitor/docs/PRD.md)
-- 系统设计: [SDD.md](file:///i:/code/DividendMonitor/docs/SDD.md)
-- 多资产架构: [MULTI-ASSET-ARCHITECTURE.md](file:///i:/code/DividendMonitor/docs/MULTI-ASSET-ARCHITECTURE.md)
-- 打包与部署: [PACKAGING-AND-DEPLOYMENT.md](file:///i:/code/DividendMonitor/docs/PACKAGING-AND-DEPLOYMENT.md)
-- 发布说明: [RELEASE-NOTES-v0.1.0.md](file:///i:/code/DividendMonitor/docs/RELEASE-NOTES-v0.1.0.md)
+默认离线模式数据仅存于本机。如需多设备同步：
 
-## 开源与商业化说明
+1. 在 [Supabase](https://supabase.com) 创建项目
+2. 复制 `.env.example` 为 `.env`，填入 `SUPABASE_URL` 与 `SUPABASE_ANON_KEY`
+3. 在应用内「登录 / 注册」进入在线模式，数据自动同步到云端
 
-本仓库当前以强 Copyleft 方式开源，适合：
+## 技术栈
 
-- 要求再分发和修改版本继续开源
-- 要求保留版权与许可证声明
-- 不希望他人把修改后的网络服务闭源运行
+| 类别 | 选型 |
+|------|------|
+| 桌面框架 | Electron 35 + electron-vite 3 |
+| 前端 | React 18 + TypeScript 5.8 (strict) + Ant Design 5 + ECharts 5 |
+| 路由 | React Router（HashRouter，兼容 `file://`） |
+| 数据存储 | SQLite（Node 内建 `node:sqlite`，无 ORM，自带迁移机制） |
+| 在线同步 | Supabase（认证 + 云端仓储） |
+| 数据源 | 东方财富 / 腾讯 / 新浪免费行情接口（统一网关调度、限流熔断） |
+| 测试 | Vitest |
 
-未来如果作者提供托管服务、赞赏版、会员功能、商业授权或闭源附加组件，这些新增内容可以使用单独的商业条款；但已经以开源许可证发布的代码副本，其既有授权通常不可被追溯撤销。
+## 架构简介
 
-## License
+```
+UI (renderer) → Hook → renderer service → runtime selector
+  → Electron bridge → IPC → UseCase → Repository → Adapter → Infra
+  → browser fallback (mock / HTTP API)
+```
 
-This repository is licensed under `GNU Affero General Public License v3.0`.
+- 主进程按整洁架构分层：`domain`（纯业务）→ `application`（用例）→ `repositories` / `adapters` → `infrastructure`，依赖方向严格单向
+- 回测、估值、除权除息等核心计算全部位于领域层，可独立单测
+- 跨进程 API 合约集中在 `shared/api.ts`，IPC 与本地 HTTP API 共用同一套 DTO
+- 支持 Electron 桌面、浏览器 mock、浏览器 HTTP 三种运行时透明切换
 
-- License text: [LICENSE](file:///i:/code/DividendMonitor/LICENSE)
-- Trademark and branding notice: [TRADEMARKS.md](file:///i:/code/DividendMonitor/TRADEMARKS.md)
+详细文档见 [docs/README.md](docs/README.md)（架构、多资产设计、数据源网关、IPC 契约、HTTP API、UI 设计原则等）。
 
-简要说明：
+## 文档索引
 
-- 你可以使用、修改和再分发本项目
-- 如果你分发修改版，必须继续提供对应源代码并保留版权/许可证声明
-- 如果你把修改版作为网络服务对外提供，仍需按 AGPL 提供对应源代码
-- 项目名称、Logo、作者署名与品牌识别不自动授予商标使用权
+| 文档 | 说明 |
+|------|------|
+| [docs/PRD.md](docs/PRD.md) | 产品需求 |
+| [docs/SDD.md](docs/SDD.md) | 系统设计总览 |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 代码分层与目录职责 |
+| [docs/MULTI-ASSET-ARCHITECTURE.md](docs/MULTI-ASSET-ARCHITECTURE.md) | 多资产架构设计 |
+| [docs/DATA-SOURCE-GATEWAY-ARCHITECTURE.md](docs/DATA-SOURCE-GATEWAY-ARCHITECTURE.md) | 数据源网关架构 |
+| [docs/ONLINE-ARCHITECTURE.md](docs/ONLINE-ARCHITECTURE.md) | 在线版架构（Supabase） |
+| [docs/IPC-CONTRACTS.md](docs/IPC-CONTRACTS.md) | IPC 与运行时接口 |
+| [docs/HTTP-API.md](docs/HTTP-API.md) | 本地 HTTP API |
+| [docs/PACKAGING-AND-DEPLOYMENT.md](docs/PACKAGING-AND-DEPLOYMENT.md) | 打包与部署 |
 
-## Status
+## 许可
 
-- Version: `0.1.0`
-- Platform focus: `Windows desktop`
-- Data scope: `A-shares / ETF / Fund`
-- Packaging: `electron-builder` + `NSIS`
+本项目基于 [GNU Affero General Public License v3.0](LICENSE) 开源：
 
+- 你可以自由使用、修改与再分发（含修改版的网络服务场景）
+- 分发或提供网络服务时必须继续开放源代码并保留版权与许可声明
+- 项目名称、Logo 与品牌标识的使用见 [TRADEMARKS.md](TRADEMARKS.md)
+
+## 状态
+
+- 版本：`0.3.0`
+- 平台：Windows 桌面优先（electron-builder + NSIS），跨平台可构建
+- 数据范围：A 股 / ETF / 基金 / 贵金属
