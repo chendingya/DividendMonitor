@@ -14,6 +14,7 @@ import { YearlyDividendTrendChart } from '@renderer/components/stock-detail/Year
 import { PriceTrendChart } from '@renderer/components/stock-detail/PriceTrendChart'
 import { PreciousMetalDisplayProvider, usePreciousMetalDisplay } from '@renderer/contexts/PreciousMetalDisplayContext'
 import { DEFAULT_STOCK_SYMBOL } from '@renderer/defaults'
+import { exportRowsAsCsv } from '@renderer/utils/chartExport'
 import { useAssetDetail } from '@renderer/hooks/useAssetDetail'
 import { useWatchlist } from '@renderer/hooks/useWatchlist'
 import { useIndustryBenchmark } from '@renderer/hooks/useIndustryAnalysis'
@@ -134,6 +135,22 @@ export function StockDetailPage() {
             const dateB = b.exDate ?? b.payDate ?? b.recordDate ?? `${b.year}-01-01`
             return dateB.localeCompare(dateA)
           })
+
+          function exportDividendHistoryCsv() {
+            const rows = sortedDividendEvents.map((record) => {
+              const yieldRate =
+                record.referenceClosePrice > 0 ? record.dividendPerShare / record.referenceClosePrice : undefined
+              return {
+                自然年: record.year,
+                除息日: record.exDate ?? '',
+                派息日: record.payDate ?? '',
+                每股分红: record.dividendPerShare.toFixed(2),
+                类型: '常规',
+                单次股息率: yieldRate == null ? '' : `${(yieldRate * 100).toFixed(2)}%`
+              }
+            })
+            exportRowsAsCsv(rows, 'dividend-history')
+          }
           const sortedYearlyYields = [...data.yearlyYields].sort((a, b) => b.year - a.year)
           const visibleYearlyYields = showAllYearlyYields ? sortedYearlyYields : sortedYearlyYields.slice(0, 12)
           const peWindow = data.valuation?.pe?.windows.find((item) => item.window === valuationWindow)
@@ -451,7 +468,16 @@ export function StockDetailPage() {
               ) : null}
 
               {!isPreciousMetal ? (
-              <AppCard title="现金分配历史（最近在上）">
+              <AppCard
+                title={
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                    <span>现金分配历史（最近在上）</span>
+                    <button type="button" className="ledger-filter-chip" onClick={exportDividendHistoryCsv}>
+                      导出 CSV
+                    </button>
+                  </div>
+                }
+              >
                 <Table
                   className="soft-table"
                   rowKey={(record) => `${record.exDate ?? record.year}-${record.dividendPerShare}`}
