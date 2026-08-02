@@ -28,6 +28,7 @@ function createResizeObserver(target: HTMLDivElement, chart: echarts.ECharts) {
 type MetricTrendPanelProps = {
   chartRef: { current: HTMLDivElement | null }
   title: string
+  filename: string
   valueLabel: string
   percentileLabel: string
   valueColor: string
@@ -42,6 +43,7 @@ type MetricTrendPanelProps = {
 function MetricTrendPanel({
   chartRef,
   title,
+  filename,
   valueLabel,
   percentileLabel,
   valueColor,
@@ -189,7 +191,7 @@ function MetricTrendPanel({
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#1f2328' }}>{title}</div>
-        <ChartExportButton instanceRef={instanceRef} filename="valuation-trend" label={assetLabel} />
+        <ChartExportButton instanceRef={instanceRef} filename={filename} label={assetLabel} />
       </div>
       <div>
         <div ref={chartRef as RefObject<HTMLDivElement>} style={{ width: '100%', height: 320 }} />
@@ -278,6 +280,7 @@ export function ValuationTrendChart({ detail, valuationWindow }: ValuationTrendC
         <MetricTrendPanel
           chartRef={peChartRef}
           title="PE(TTM) 与 PE 分位"
+          filename="valuation-pe-trend"
           valueLabel="PE(TTM)"
           percentileLabel={`PE ${valuationWindow}分位`}
           valueColor="#0052d0"
@@ -294,6 +297,7 @@ export function ValuationTrendChart({ detail, valuationWindow }: ValuationTrendC
           <MetricTrendPanel
             chartRef={pbChartRef}
             title="PB(MRQ) 与 PB 分位"
+            filename="valuation-pb-trend"
             valueLabel="PB(MRQ)"
             percentileLabel={`PB ${valuationWindow}分位`}
             valueColor="#7a5af8"
