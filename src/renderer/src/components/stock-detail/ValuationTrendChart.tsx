@@ -71,7 +71,7 @@ function MetricTrendPanel({
         trigger: 'axis'
       },
       legend: {
-        top: 8,
+        top: 36,
         right: 8,
         textStyle: {
           color: '#66707a'

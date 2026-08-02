@@ -37,7 +37,7 @@ export function YearlyDividendTrendChart({ items }: YearlyDividendTrendChartProp
         trigger: 'axis'
       },
       legend: {
-        top: 8,
+        top: 36,
         right: 8,
         itemWidth: 12,
         itemHeight: 12,
