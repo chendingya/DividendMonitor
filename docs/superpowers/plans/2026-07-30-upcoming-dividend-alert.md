@@ -66,7 +66,7 @@
   - `'IN_PROGRESS'`：其他非空状态（如「股东大会通过」「董事会通过」「批准」），含「实施」「预案」之外的所有非空文本
   - 若 `raw` 为空串 / null / undefined → 返回 `'PLANNED'`（视为预案兜底，避免数据缺失被误判为实施）
 
-- [ ] **Step 1: 修改 entity 加字段**
+- [x] **Step 1: 修改 entity 加字段**
 
 修改 `src/main/domain/entities/Stock.ts` 的 `DividendEvent`：
 
@@ -90,7 +90,7 @@ export type DividendEvent = {
 }
 ```
 
-- [ ] **Step 2: 写失败测试**
+- [x] **Step 2: 写失败测试**
 
 新建 `tests/main/adapters/mapAssignProgressToStatus.test.ts`：
 
@@ -120,12 +120,12 @@ describe('mapAssignProgressToStatus', () => {
 })
 ```
 
-- [ ] **Step 3: 跑测试看到失败**
+- [x] **Step 3: 跑测试看到失败**
 
 Run: `npx vitest run tests/main/adapters/mapAssignProgressToStatus.test.ts`
 Expected: FAIL `Cannot find module '@main/adapters/eastmoney/mapAssignProgressToStatus'`
 
-- [ ] **Step 4: 实现纯函数**
+- [x] **Step 4: 实现纯函数**
 
 新建 `src/main/adapters/eastmoney/mapAssignProgressToStatus.ts`：
 
@@ -140,12 +140,12 @@ export function mapAssignProgressToStatus(raw: string | null | undefined): Divid
 }
 ```
 
-- [ ] **Step 5: 跑测试确认通过**
+- [x] **Step 5: 跑测试确认通过**
 
 Run: `npx vitest run tests/main/adapters/mapAssignProgressToStatus.test.ts`
 Expected: PASS 4 个 it
 
-- [ ] **Step 6: 跑全量 typecheck & test**
+- [x] **Step 6: 跑全量 typecheck & test**
 
 Run: `npm run typecheck && npm test`
 Expected: 全通过。注意：`Stock.ts` 加 `status` 必选字段会破坏所有现有 `DividendEvent` 字面量构造点；typecheck 会大面积爆错。先不导入这个 task，下一 task 修。
@@ -161,7 +161,7 @@ Expected: 全通过。注意：`Stock.ts` 加 `status` 必选字段会破坏所�
   announcementProgress?: string
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/main/domain/entities/Stock.ts src/main/adapters/eastmoney/mapAssignProgressToStatus.ts tests/main/adapters/mapAssignProgressToStatus.test.ts
@@ -183,13 +183,13 @@ git commit -m "feat(domain): add status/announcementProgress fields to DividendE
 
 **重要前置约束**：本 task 完成后，下游消费者不应该误把预案当作已实施来做复权。必须验证 `applyCorporateActionsToPositions.ts` 的过滤条件。若它原本靠 `exDate` 非空来判别（预案 exDate 通常 null），间接自然过滤安全；但 Task 3 修列表查询后可能让 `listByAsset` 漏出非实施记录到复权逻辑中，必须显式加 `status === 'IMPLEMENTED'` 过滤。
 
-- [ ] **Step 1: 检视现状**
+- [x] **Step 1: 检视现状**
 
 用 `read` 看 `src/main/adapters/eastmoney/eastmoneyAShareDataSource.ts:250-320` 找到 dividend 块、`.filter`、toEvent 函数体位置。再 grep `applyCorporateActionsToPositions` 看是否依赖 status：
 - Run: `rg -n "status === 'IMPLEMENTED'" src/main/` 看 consumers 是否已用先关字段
 - Run: `rg -n "(applyCorporateActionsToPositions|\.exDate|ex_date NOT NULL)" src/main/application src/main/repositories`
 
-- [ ] **Step 2: 写失败测试 — A 股适配器保留 PLANNED/IN_PROGRESS 记录**
+- [x] **Step 2: 写失败测试 — A 股适配器保留 PLANNED/IN_PROGRESS 记录**
 
 新建 `tests/main/adapters/eastmoneyAShareDataSourceDividend.test.ts`：
 
@@ -217,12 +217,12 @@ describe('mapDividendRecordsToEvents', () => {
 
 注意：若 `eastmoneyAShareDataSource.ts` 中 dividend 块没把 `mapStockDividendRecordsToEvents` 抽成 export 函数，本 task 必须抽出来 — 这是必要的代码组织改进（满足职责单一）。
 
-- [ ] **Step 3: 跑测试看到失败**
+- [x] **Step 3: 跑测试看到失败**
 
 Run: `npx vitest run tests/main/adapters/eastmoneyAShareDataSourceDividend.test.ts`
 Expected: FAIL `Cannot find module ...` 或 import name 不存在。
 
-- [ ] **Step 4: 重构 + 实现抽函数**
+- [x] **Step 4: 重构 + 实现抽函数**
 
 在 `src/main/adapters/eastmoney/eastmoneyAShareDataSource.ts`：
 
@@ -233,16 +233,16 @@ Expected: FAIL `Cannot find module ...` 或 import name 不存在。
 5. 缺 `PRETAX_BONUS_RMB` 的预案：`dividendPerShare` 用 `r.PRETAX_BONUS_RMB ?? 0`（预案可能预算未定）。
 6. 缺 `referenceClosePrice` 或为 0 时用 `ctx.fallbackPrice`。
 
-- [ ] **Step 5: 跑测试通过**
+- [x] **Step 5: 跑测试通过**
 
 Run: `npx vitest run tests/main/adapters/eastmoneyAShareDataSourceDividend.test.ts`
 Expected: PASS
 
-- [ ] **Step 6: 验证下游消费者未误漏非实施**
+- [x] **Step 6: 验证下游消费者未误漏非实施**
 
 检查 `applyCorporateActionsToPositions.ts` 等 consumers，确保只处理 `status === 'IMPLEMENTED'` 或 `exDate !== undefined && exDate !== null`。如有缺失，**补过滤条件**并通过一次性 typecheck/test 验证。
 
-- [ ] **Step 7: 基金 events 也加 status='IMPLEMENTED'**
+- [x] **Step 7: 基金 events 也加 status='IMPLEMENTED'**
 
 找到 `src/main/adapters/eastmoney/eastmoneyFundDetailDataSource.ts` 中 `parseFundDividendEvents` 或对应 toEvent 函数，给每条 event 显式赋 `status: 'IMPLEMENTED'`（基金接口的 HTML 解析默认都是已实施文本）。
 
@@ -250,12 +250,12 @@ Expected: PASS
 
 跑相关测试 `npx vitest run tests/main/eastmoneyFundDetailDataSource.test.ts`，若断了断言匹配新字段，加进 fixture 后通过。
 
-- [ ] **Step 8: 全量 typecheck & test**
+- [x] **Step 8: 全量 typecheck & test**
 
 Run: `npm run typecheck && npm test`
 Expected: 全部通过
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/main/adapters src/main/repositories tests/main
@@ -287,7 +287,7 @@ git commit -m "feat(adapters): preserve non-implemented dividends and map ASSIGN
   - `DividendRepository.listUpcomingByAssetKeys(assetKeys: string[], sinceYear?: number): DividendEventWithAsset[]` 新增 — 仅返回 `status != 'IMPLEMENTED'` 的 events
   - Task 完成后，把 `Stock.ts` 的 `status` 字段从可选改为必选
 
-- [ ] **Step 1: 写迁移函数 + 失败测试**
+- [x] **Step 1: 写迁移函数 + 失败测试**
 
 新建 `src/main/infrastructure/db/migrations/dividendEventStatusMigration.ts`：
 
@@ -428,19 +428,19 @@ describe('migrateDividendEventStatus', () => {
 })
 ```
 
-- [ ] **Step 2: 跑测试看到失败**
+- [x] **Step 2: 跑测试看到失败**
 
 Run: `npx vitest run tests/main/infrastructure/dividendEventStatusMigration.test.ts`
 Expected: FAIL `Cannot find module`
 
-- [ ] **Step 3: 实现迁移函数（写入 Step 1 的代码）**
+- [x] **Step 3: 实现迁移函数（写入 Step 1 的代码）**
 
 把 Step 1 中给的 `dividendEventStatusMigration.ts` 文件内容写入；运行测试。
 
 Run: `npx vitest run tests/main/infrastructure/dividendEventStatusMigration.test.ts`
 Expected: PASS
 
-- [ ] **Step 4: 让 `createBaseSchema` 用新结构建表（新机器一次性建表）**
+- [x] **Step 4: 让 `createBaseSchema` 用新结构建表（新机器一次性建表）**
 
 修改 `src/main/infrastructure/db/sqlite.ts` 的 `dividend_events` CREATE TABLE，从原 `PRIMARY KEY (asset_key, ex_date)` 改为：
 
@@ -472,7 +472,7 @@ Expected: PASS
     CREATE INDEX IF NOT EXISTS idx_dividend_events_status ON dividend_events(status);
 ```
 
-- [ ] **Step 5: 在 initializeSchema 追加迁移调用**
+- [x] **Step 5: 在 initializeSchema 追加迁移调用**
 
 `src/main/infrastructure/db/sqlite.ts` 内 `initializeSchema` 函数尾部 `db.exec(...)` 之前追加：
 
@@ -482,7 +482,7 @@ Expected: PASS
 
 并在文件顶部 `import` 加 `import { migrateDividendEventStatus } from './migrations/dividendEventStatusMigration'`。
 
-- [ ] **Step 6: 在 `tests/main/infrastructure/dbMigration.test.ts` 加一条断言**
+- [x] **Step 6: 在 `tests/main/infrastructure/dbMigration.test.ts` 加一条断言**
 
 在该文件的合适 `it` 内（或新加一个 `it`）补一行：
 
@@ -497,7 +497,7 @@ Expected: PASS
 
 跑 `npx vitest run tests/main/infrastructure/dbMigration.test.ts`，应通过。
 
-- [ ] **Step 7: 改 dividendRepository.upsertMany / listByAsset / listAll / listPendingCorporateActions**
+- [x] **Step 7: 改 dividendRepository.upsertMany / listByAsset / listAll / listPendingCorporateActions**
 
 修改 `src/main/repositories/dividendRepository.ts`：
 
@@ -563,7 +563,7 @@ announcementProgress: row.announcement_progress ?? undefined
 
 4. `listPendingCorporateActions` 已经按 ex_date 过滤（仅非实施不动），保持 SQL 不变即可——预案本身 `exDate=null` 不会被该函数返回。但为防万一加 `AND status = 'IMPLEMENTED'`。
 
-- [ ] **Step 8: 写 dividendRepository 测试**
+- [x] **Step 8: 写 dividendRepository 测试**
 
 新建 `tests/main/repositories/dividendRepository.test.ts`：
 
@@ -621,7 +621,7 @@ function setup() {
 - `listByAsset 返回带 status / announcement_progress`
 - `listUpcomingByAssetKeys 仅返回 status != 'IMPLEMENTED' 的`
 
-- [ ] **Step 9: 实现 `listUpcomingByAssetKeys`**
+- [x] **Step 9: 实现 `listUpcomingByAssetKeys`**
 
 在 `DividendRepository` 内追加方法：
 
@@ -644,12 +644,12 @@ function setup() {
 
 补 `mapRowToEventWithAsset` helper。注意 `(row) => ({ ..., status: row.status, announcementProgress: row.announcement_progress ?? undefined, assetKey: row.assetKey })`。
 
-- [ ] **Step 10: 跑 repository 测试**
+- [x] **Step 10: 跑 repository 测试**
 
 Run: `npx vitest run tests/main/repositories/dividendRepository.test.ts`
 Expected: PASS
 
-- [ ] **Step 11: 让 status 字段在 Stock.ts 由可选改必选，修所有现有构造点**
+- [x] **Step 11: 让 status 字段在 Stock.ts 由可选改必选，修所有现有构造点**
 
 把 `Stock.ts` 的 `status?:` 改为 `status:` 必选，再 grep 所有 `DividendEvent` 字面量构造点：
 
@@ -658,12 +658,12 @@ Run: `rg -n "DividendEvent\b" src/main --type ts`
 
 跑 `npm run typecheck` 全过。
 
-- [ ] **Step 12: 全量 typecheck & test**
+- [x] **Step 12: 全量 typecheck & test**
 
 Run: `npm run typecheck && npm test`
 Expected: 全部通过
 
-- [ ] **Step 13: Commit**
+- [x] **Step 13: Commit**
 
 ```bash
 git add src/main/infrastructure src/main/repositories src/main/domain tests
@@ -691,7 +691,7 @@ git commit -m "feat(persistence): rebuild dividend_events schema for planned div
   - 当前 task 内 `listUpcoming` / `getForecast` 的三 runtime 实现暂 throw `new Error('not yet implemented: dividend.listUpcoming — see Task 7')`，待 Task 7 替换为真实调用
   - preload 暴露 `window.dividendMonitor.dividend.getHistory` 走 IPC channel `dividend:history`
 
-- [ ] **Step 1: shared/contracts 定义 dividend 命名空间**
+- [x] **Step 1: shared/contracts 定义 dividend 命名空间**
 
 在 `shared/contracts/api.ts` 加一段（不删原 `DividendEventDto`）：
 
@@ -768,7 +768,7 @@ export interface DividendMonitorApi {
 }
 ```
 
-- [ ] **Step 2: 改 listDividendHistory.ts 类型来源**
+- [x] **Step 2: 改 listDividendHistory.ts 类型来源**
 
 把 `listDividendHistory.ts` 中的 type 定义全部删除，改为：
 
@@ -784,7 +784,7 @@ export async function listDividendHistory(request?: DividendHistoryRequest): Pro
 export type { DividendHistoryRequest, DividendHistoryResult, DividendHistoryItem, DividendYearlySummary, DividendMonthlyTrend, DividendAssetSummary } from '@shared/contracts/api'
 ```
 
-- [ ] **Step 3: 加 preload dividend 桥（仅 getHistory）**
+- [x] **Step 3: 加 preload dividend 桥（仅 getHistory）**
 
 修改 `src/preload/index.ts`，在 `api` 对象末尾加：
 
@@ -804,7 +804,7 @@ export type { DividendHistoryRequest, DividendHistoryResult, DividendHistoryItem
 
 同时在文件顶部 import `{ DividendHistoryRequest }` from `'@shared/contracts/api'`。注意 `listUpcoming`/`getForecast` 的 IPC channel 在 Task 7 才真正注册，在主进程未注册时 `ipcRenderer.invoke` 会一直挂起。本 task 桌面用户**只调 `getHistory`**，不调 upcoming/forecast，不会有问题；Task 7 注册后即可用。
 
-- [ ] **Step 4: 在 desktopApi 加 `getDividendDesktopApi`**
+- [x] **Step 4: 在 desktopApi 加 `getDividendDesktopApi`**
 
 `src/renderer/src/services/desktopApi.ts` 末尾加：
 
@@ -818,7 +818,7 @@ export function getDividendDesktopApi(): DividendMonitorApi['dividend'] {
 }
 ```
 
-- [ ] **Step 5: 在 browserHttpRuntimeApi 加 `dividend` 命名空间**
+- [x] **Step 5: 在 browserHttpRuntimeApi 加 `dividend` 命名空间**
 
 `src/renderer/src/services/browserHttpRuntimeApi.ts` 加：
 
@@ -838,7 +838,7 @@ export function getDividendDesktopApi(): DividendMonitorApi['dividend'] {
 
 注意：浏览器预览 mock 模式不会调这三个端点，浏览器预览 HTTP 模式（默认）会调。HTTP 路由 Task 7 才注册 upcoming/forecast；本 task 调用会 404，但浏览器 mock 模式下不会调 HTTP 而调 mock fixture，浏览器 HTTP 模式只在调用时才会 404。
 
-- [ ] **Step 6: 在 browserRuntimeApi 加 `dividend` 命名空间**
+- [x] **Step 6: 在 browserRuntimeApi 加 `dividend` 命名空间**
 
 mock 实现，参考 `browserRuntimeApi.ts` 已有的 mock fixture 写法。给 dividend 命名空间加：
 
@@ -867,7 +867,7 @@ mock 实现，参考 `browserRuntimeApi.ts` 已有的 mock fixture 写法。给 
 
 mock 模式默认返回空数据，UI 显示"当前无已公告未派发的分红预案" 与 待入账 0。
 
-- [ ] **Step 7: 重写 renderer dividendApi.ts 走 desktopApi**
+- [x] **Step 7: 重写 renderer dividendApi.ts 走 desktopApi**
 
 `src/renderer/src/services/dividendApi.ts` 全文重写：
 
@@ -900,14 +900,14 @@ export type {
 } from '@shared/contracts/api'
 ```
 
-- [ ] **Step 8: 跑全量 typecheck & test**
+- [x] **Step 8: 跑全量 typecheck & test**
 
 Run: `npm run typecheck && npm test`
 Expected: 全部通过
 
 注意：若有旧用 `DividendApi` 类型的旧路径，会因 `import type { DividendHistoryResult } from '@renderer/services/dividendApi'` 而继续工作（re-export）。如果在某文件没 reload，会有 lint/typecheck 报错，按指引更新 import。
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add shared/contracts/api.ts src/preload src/main/application src/renderer/src/services
@@ -932,7 +932,7 @@ git commit -m "feat(contracts): add DividendMonitorApi.dividend namespace and mi
   - 对库内无数据的资产，本 task 不主动 refresh（推迟到 Task 7 或风险记录至 §11 留待后续优化）
   - 当前年份默认 `new Date().getFullYear()`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 `tests/main/useCases/listUpcomingDividends.test.ts`：
 
@@ -993,12 +993,12 @@ describe('listUpcomingDividends', () => {
 
 注意：`vi.mock` hoisting 下不能直接 `mockPositions`/`mockEvents` 引用闭包变量，可能要用 `vi.hoisted`。按项目已有 useCase 测试样板（如 `tests/main/runDividendReinvestmentBacktestForAsset.test.ts`）的具体写法照抄。
 
-- [ ] **Step 2: 跑测试看到失败**
+- [x] **Step 2: 跑测试看到失败**
 
 Run: `npx vitest run tests/main/useCases/listUpcomingDividends.test.ts`
 Expected: FAIL `Cannot find`
 
-- [ ] **Step 3: 实现 useCase**
+- [x] **Step 3: 实现 useCase**
 
 `src/main/application/useCases/listUpcomingDividends.ts`：
 
@@ -1049,17 +1049,17 @@ export async function listUpcomingDividends(): Promise<UpcomingDividendDto[]> {
 
 注意：上行 `status: e.status === 'IMPLEMENTED' ? 'PLANNED' : e.status` 这是类型保护 — `listUpcomingByAssetKeys` 只返回非实施，但 TS 不知；用 cast 即可，详见 typecheck 输出。
 
-- [ ] **Step 4: 跑测试通过**
+- [x] **Step 4: 跑测试通过**
 
 Run: `npx vitest run tests/main/useCases/listUpcomingDividends.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: 全量 typecheck & test**
+- [x] **Step 5: 全量 typecheck & test**
 
 Run: `npm run typecheck && npm test`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/main/application/useCases/listUpcomingDividends.ts tests/main/useCases/listUpcomingDividends.test.ts
@@ -1088,13 +1088,13 @@ git commit -m "feat(application): add listUpcomingDividends useCase"
 - × 持仓净额 → 累加为 `annualEstimatedTotal`
 - `yearToDateActual` 由 `listDividendHistory` 当年区间 filter 汇总得到
 
-- [ ] **Step 1: 调研 estimateFutureYieldForAsset 现成接口**
+- [x] **Step 1: 调研 estimateFutureYieldForAsset 现成接口**
 
 Run: `rg -n "estimateFutureYieldForAsset" src/main --type ts`
 
 读 `src/main/application/useCases/estimateFutureYieldForAsset.ts` 全文，记下返回类型和取 `estimates` 的 baseline 路径。
 
-- [ ] **Step 2: 写失败测试**
+- [x] **Step 2: 写失败测试**
 
 `tests/main/useCases/getDividendForecast.test.ts`：
 
@@ -1155,12 +1155,12 @@ describe('getDividendForecast', () => {
 
 注意 vi.mock hoisting 同上 task；查项目内既有 useCase 测试样例。
 
-- [ ] **Step 3: 跑测试看到失败**
+- [x] **Step 3: 跑测试看到失败**
 
 Run: `npx vitest run tests/main/useCases/getDividendForecast.test.ts`
 Expected: FAIL `Cannot find`
 
-- [ ] **Step 4: 实现 useCase**
+- [x] **Step 4: 实现 useCase**
 
 `src/main/application/useCases/getDividendForecast.ts`：
 
@@ -1227,17 +1227,17 @@ export async function getDividendForecast(year?: number): Promise<DividendForeca
 
 注意：`parseAssetKey` 直接 split `STOCK:A_SHARE:600519`；若 `AssetQueryDto` 命名不同（如 `assetType` 是字面量 union 而非 string），用 type cast 处理。
 
-- [ ] **Step 5: 跑测试通过**
+- [x] **Step 5: 跑测试通过**
 
 Run: `npx vitest run tests/main/useCases/getDividendForecast.test.ts`
 Expected: PASS
 
-- [ ] **Step 6: 全量 typecheck & test**
+- [x] **Step 6: 全量 typecheck & test**
 
 Run: `npm run typecheck && npm test`
 Expected: PASS
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/main/application/useCases/getDividendForecast.ts tests/main/useCases/getDividendForecast.test.ts
@@ -1258,7 +1258,7 @@ git commit -m "feat(application): add getDividendForecast useCase"
 - Consumes: `listUpcomingDividends()`、`getDividendForecast(year?)`
 - Produces: 3 个 dividend 端点对所有 runtime 完全可用（IPC、HTTP、mock）
 
-- [ ] **Step 1: 修改 dividendChannels.ts**
+- [x] **Step 1: 修改 dividendChannels.ts**
 
 `src/main/ipc/channels/dividendChannels.ts` 改为：
 
@@ -1281,7 +1281,7 @@ export function registerDividendChannels() {
 }
 ```
 
-- [ ] **Step 2: 修改 dividendRoutes.ts**
+- [x] **Step 2: 修改 dividendRoutes.ts**
 
 ```ts
 import type { ServerResponse } from 'node:http'
@@ -1328,12 +1328,12 @@ export async function handleDividendRoute({ pathname, method, body, response }: 
 }
 ```
 
-- [ ] **Step 3: 跑全量 test**
+- [x] **Step 3: 跑全量 test**
 
 Run: `npm run typecheck && npm test`
 Expected: PASS
 
-- [ ] **Step 4: 手动验证端点 — 浏览器预览模式**
+- [x] **Step 4: 手动验证端点 — 浏览器预览模式**
 
 启动浏览器预览模式 `npm run dev:browser-preview`，用浏览器 DevTools 控制台执行：
 
@@ -1344,7 +1344,7 @@ fetch('/api/dividend/forecast', { method: 'POST', headers: { 'Content-Type': 'ap
 
 两个端点应分别返回空数组与 `{ annualEstimatedTotal: 0, yearToDateActual: 0, upcomingPlanned: 0, remainingEstimated: 0, details: { upcoming: [] } }`（持仓无数据时）。
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/main/ipc/channels/dividendChannels.ts src/main/http/routes/dividendRoutes.ts
@@ -1367,15 +1367,15 @@ git commit -m "feat(channels): register dividend upcoming/forecast IPC channels 
   - 内置 Table 列：标的 / 代码 / 持仓 / 预案公告日 / 计划除权日 / 方案进度 / 每10股送转 / 估算金额
   - `方案进度` 列加 Tag，颜色按 `status`
 
-- [ ] **Step 1: 读现状结构**
+- [x] **Step 1: 读现状结构**
 
 用 `read` 看 `src/renderer/src/pages/DividendCenterPage.tsx` 完整文件（约 350 行），记下 imports 与现有 summaryCards / 顶部布局的精确位置。
 
-- [ ] **Step 2: 写测试（If 适合，最小化）**
+- [x] **Step 2: 写测试（If 适合，最小化）**
 
 由于页面组件单测搭建成本较高且项目可能未大量集成，本 task 不强制新增单测，验证靠手动运行 app（Step 7）。任务: TDD 视实际项目情况而定 — 若项目已有 renderer page snapshot 测试，照样板加一条；否则跨过测试 step 直接实现。
 
-- [ ] **Step 3: 增 imports + state**
+- [x] **Step 3: 增 imports + state**
 
 在 `DividendCenterPage.tsx` 顶部 imports 加：
 
@@ -1394,7 +1394,7 @@ const [forecastLoading, setForecastLoading] = useState(false)
 const [forecastError, setForecastError] = useState<string | null>(null)
 ```
 
-- [ ] **Step 4: 增 useEffect 拉 upcoming / forecast**
+- [x] **Step 4: 增 useEffect 拉 upcoming / forecast**
 
 在已有 `useEffect(...)` 后追加：
 
@@ -1420,7 +1420,7 @@ useEffect(() => {
 }, [])
 ```
 
-- [ ] **Step 5: 增 3 张预期卡**
+- [x] **Step 5: 增 3 张预期卡**
 
 修改 `summaryCards` `useMemo` 改为按 `forecast` 派生额外卡片：原卡保留为前 4 张，后 3 张新增：
 
@@ -1447,7 +1447,7 @@ const summaryCards = useMemo(() => {
 
 把渲染处 `gridTemplateColumns: 'repeat(4, 1fr)'` 改为 `repeat(auto-fit, minmax(200px, 1fr))` 以自适应卡片数（7 张会换行）。预先确认现行样式不影响 — 注意 css 类名 `ledger-metric-panel` 还在使用；改 grid 容器 inline style 即可。
 
-- [ ] **Step 6: 中部加「即将到账」面板**
+- [x] **Step 6: 中部加「即将到账」面板**
 
 在「分红明细表」`AppCard` 之前插入：
 
@@ -1495,7 +1495,7 @@ const summaryCards = useMemo(() => {
 
 若 `currency.format` 已是 page 内 helper，沿用。若 `AppCard`、`Spin`、`Empty`、`Table` 已 import，沿用。
 
-- [ ] **Step 7: 启动验证**
+- [x] **Step 7: 启动验证**
 
 Run: `npm run dev:browser-preview`
 
@@ -1509,12 +1509,12 @@ Run: `npm run dev:browser-preview`
 - 即将到账为空时显示空状态
 - 无 console error
 
-- [ ] **Step 8: 全量 typecheck**
+- [x] **Step 8: 全量 typecheck**
 
 Run: `npm run typecheck && npm test`
 Expected: PASS
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add src/renderer/src/pages/DividendCenterPage.tsx
