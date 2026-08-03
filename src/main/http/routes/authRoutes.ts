@@ -2,7 +2,6 @@ import type { IncomingMessage } from 'node:http'
 import type { ServerResponse } from 'node:http'
 import { authService } from '@main/infrastructure/supabase/authService'
 import { checkAuthRateLimit, recordAuthFailure, resetAuthRateLimit } from '@main/infrastructure/supabase/authRateLimiter'
-import { validateNonce } from '@main/security/localNonce'
 import { HttpError, sendJson, sendNoContent } from '@main/http/httpErrors'
 
 type RouteContext = {
@@ -13,19 +12,13 @@ type RouteContext = {
   headers: IncomingMessage['headers']
 }
 
-/** Auth-related endpoints require a valid local nonce header */
-function requireNonce(headers: IncomingMessage['headers']): void {
-  const nonce = headers['x-local-nonce']
-  const nonceValue = Array.isArray(nonce) ? nonce[0] : nonce
-  if (!validateNonce(nonceValue)) {
-    throw new HttpError('缺少或无效的本地认证令牌。', 403)
-  }
-}
+/**
+ * 注意：X-Local-Nonce 校验已统一由 @main/http/server 的中间件处理，
+ * 此处不再重复校验（/api/security/nonce 与 /auth/callback 由中间件豁免）。
+ */
 
-export async function handleAuthRoute({ pathname, method, body, response, headers }: RouteContext): Promise<boolean> {
+export async function handleAuthRoute({ pathname, method, body, response }: RouteContext): Promise<boolean> {
   if (pathname === '/api/auth/login' && method === 'POST') {
-    requireNonce(headers)
-
     if (!body || typeof body !== 'object' || typeof (body as { email?: unknown }).email !== 'string' || typeof (body as { password?: unknown }).password !== 'string') {
       throw new HttpError('登录请求体无效。', 400)
     }
@@ -44,8 +37,6 @@ export async function handleAuthRoute({ pathname, method, body, response, header
   }
 
   if (pathname === '/api/auth/register' && method === 'POST') {
-    requireNonce(headers)
-
     if (!body || typeof body !== 'object' || typeof (body as { email?: unknown }).email !== 'string' || typeof (body as { password?: unknown }).password !== 'string') {
       throw new HttpError('注册请求体无效。', 400)
     }
@@ -76,8 +67,6 @@ export async function handleAuthRoute({ pathname, method, body, response, header
   }
 
   if (pathname === '/api/auth/update-password' && method === 'POST') {
-    requireNonce(headers)
-
     if (!body || typeof body !== 'object' || typeof (body as { newPassword?: unknown }).newPassword !== 'string') {
       throw new HttpError('修改密码请求体无效。', 400)
     }
@@ -99,8 +88,9 @@ export async function handleAuthRoute({ pathname, method, body, response, header
     response.end(`<!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>验证中…</title></head>
 <body style="display:flex;justify-content:center;align-items:center;height:100vh;font-family:system-ui">
-<p>正在验证邮箱，请稍候…</p>
+<p id="status">正在验证邮箱，请稍候…</p>
 <script type="module">
+const statusEl = document.getElementById('status');
 const hash = window.location.hash.substring(1);
 const params = new URLSearchParams(hash);
 const accessToken = params.get('access_token');
@@ -113,14 +103,17 @@ if (accessToken) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ access_token: accessToken, refresh_token: refreshToken })
   }).then(r => r.json()).then(() => {
-    document.body.innerHTML = '<p style="color:green">✓ 验证成功！请返回应用。</p>';
+    statusEl.textContent = '✓ 验证成功！请返回应用。';
+    statusEl.style.color = 'green';
     // Try to close this browser tab (works if opened by JS, silently fails otherwise)
     setTimeout(() => window.close(), 2000);
   }).catch(err => {
-    document.body.innerHTML = '<p style="color:red">验证失败：' + err.message + '</p>';
+    statusEl.textContent = '验证失败：' + err.message;
+    statusEl.style.color = 'red';
   });
 } else {
-  document.body.innerHTML = '<p style="color:red">无效的验证链接。</p>';
+  statusEl.textContent = '无效的验证链接。';
+  statusEl.style.color = 'red';
 }
 </script></body></html>`)
     return true
