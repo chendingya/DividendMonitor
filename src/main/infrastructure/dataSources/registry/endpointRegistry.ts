@@ -1,6 +1,7 @@
 import { eastmoneyEndpoints } from '@main/infrastructure/dataSources/registry/eastmoneyEndpoints'
 import { sinaEndpoints } from '@main/infrastructure/dataSources/registry/sinaEndpoints'
 import { tencentEndpoints } from '@main/infrastructure/dataSources/registry/tencentEndpoints'
+import { cihEndpoints } from '@main/infrastructure/dataSources/registry/cihIndexEndpoints'
 import type {
   Capability,
   EndpointDefinition,
@@ -12,7 +13,7 @@ type AssetTypeHint = 'STOCK' | 'ETF' | 'FUND' | 'GOLD' | 'SILVER'
 export class EndpointRegistry {
   private readonly endpoints = new Map<string, EndpointDefinition<any, any, any>>()
 
-  constructor(definitions: Array<EndpointDefinition<any, any, any>> = [...eastmoneyEndpoints, ...tencentEndpoints, ...sinaEndpoints]) {
+  constructor(definitions: Array<EndpointDefinition<any, any, any>> = [...eastmoneyEndpoints, ...tencentEndpoints, ...sinaEndpoints, ...cihEndpoints]) {
     for (const definition of definitions) {
       // Register with generic key
       this.endpoints.set(this.toKey(definition.provider, definition.capability), definition)

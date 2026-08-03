@@ -1,7 +1,7 @@
 import type { HistoricalPricePoint, DividendEvent } from '@main/domain/entities/Stock'
 import type { AssetType } from '@shared/contracts/api'
 
-export type ProviderKey = 'eastmoney' | 'tencent' | 'sina'
+export type ProviderKey = 'eastmoney' | 'tencent' | 'sina' | 'cih'
 
 export type Capability =
   | 'asset.search'
@@ -14,6 +14,8 @@ export type Capability =
   | 'valuation.trend'
   | 'benchmark.kline'
   | 'fx.quote'
+  | 'housing.priceIndex'
+  | 'housing.marketSnapshot'
 
 export type DegradeMode = 'strict' | 'fallback' | 'stale-while-error'
 
@@ -185,4 +187,62 @@ export type FxQuoteOutput = {
   change?: number
   changePercent?: number
   fetchedAt: string
+}
+
+// ====== Housing price index capability types ======
+
+export type HousingPriceIndexInput = {
+  city?: string
+  period?: string       // 精确月份 YYYY-MM，只取该月数据
+  startDate?: string    // YYYY-MM 起
+  endDate?: string      // YYYY-MM 止
+}
+
+export type HousingPriceIndexRecord = {
+  reportDate: string        // YYYY-MM
+  city: string
+  newHomeMoM?: number       // 新建住宅环比（上月=100）
+  newHomeYoY?: number       // 新建住宅同比（上年同月=100）
+  secondHandMoM?: number    // 二手住宅环比（上月=100）
+  secondHandYoY?: number    // 二手住宅同比（上年同月=100）
+}
+
+export type HousingPriceIndexOutput = {
+  records: HousingPriceIndexRecord[]
+  count: number
+}
+
+// ====== Housing market snapshot capability types (中指研究院) ======
+
+export type HousingMarketSnapshotType = 'newHouse' | 'esfHouse' | 'rentIndex'
+
+export type HousingMarketSnapshotInput = {
+  type: HousingMarketSnapshotType
+}
+
+export type HousingCitySnapshot = {
+  city: string
+  pricePerSqm?: number          // 样本均价/租金（元/㎡ 或 元/㎡·月，按 type 而定）
+  medianPerSqm?: number
+  momPercent?: number           // 环比涨跌幅（%）
+  yoyPercent?: number           // 同比涨跌幅（%）
+}
+
+export type HousingMarketTrendPoint = {
+  period: string                // YYYY-MM
+  pricePerSqm?: number
+  momPercent?: number
+  yoyPercent?: number
+}
+
+export type HousingMarketSnapshotOutput = {
+  type: HousingMarketSnapshotType
+  period: string                // 最新数据期，如 2026-07
+  unit: string                  // 如 元/平方米 或 元/平方米/月
+  nationalAverage?: number      // 全国/百城平均
+  nationalMedian?: number
+  nationalMomPercent?: number
+  nationalYoyPercent?: number
+  cities: HousingCitySnapshot[]          // 全量城市明细
+  trend: HousingMarketTrendPoint[]       // 全国历史趋势（近 12 个月）
 }

@@ -54,6 +54,18 @@ export class CapabilityRouter {
           fallbacks: [],
           degradeMode: 'fallback'
         }
+      case 'housing.priceIndex':
+        return {
+          primary: 'eastmoney',
+          fallbacks: [],
+          degradeMode: 'fallback'
+        }
+      case 'housing.marketSnapshot':
+        return {
+          primary: 'cih',
+          fallbacks: [],
+          degradeMode: 'fallback'
+        }
       default:
         return {
           primary: 'eastmoney',

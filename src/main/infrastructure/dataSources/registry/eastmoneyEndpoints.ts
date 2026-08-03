@@ -13,6 +13,9 @@ import type {
   ValuationTrendOutput,
   FxQuoteInput,
   FxQuoteOutput,
+  HousingPriceIndexInput,
+  HousingPriceIndexOutput,
+  HousingPriceIndexRecord,
   StockDividendRecord
 } from '@main/infrastructure/dataSources/types/sourceTypes'
 import type { HistoricalPricePoint, DividendEvent } from '@main/domain/entities/Stock'
@@ -591,6 +594,62 @@ export const eastmoneyFxQuoteEndpoint: EndpointDefinition<
   })
 }
 
+// ====== Housing price index endpoint (70 cities, monthly) ======
+
+type EastmoneyHousingPriceResponse = {
+  result?: {
+    data?: Array<{
+      REPORT_DATE?: string
+      CITY?: string
+      FIRST_COMHOUSE_SAME?: number | null
+      FIRST_COMHOUSE_SEQUENTIAL?: number | null
+      SECOND_HOUSE_SAME?: number | null
+      SECOND_HOUSE_SEQUENTIAL?: number | null
+    }>
+    count?: number
+  }
+}
+
+export const eastmoneyHousingPriceIndexEndpoint: EndpointDefinition<
+  HousingPriceIndexInput,
+  EastmoneyHousingPriceResponse,
+  HousingPriceIndexOutput
+> = {
+  id: 'eastmoney.housing.priceIndex',
+  provider: 'eastmoney',
+  capability: 'housing.priceIndex',
+  parser: 'json',
+  method: 'GET',
+  timeoutMs: 15000,
+  buildUrl: ({ city, period, startDate, endDate }) => {
+    const filters: string[] = []
+    if (city) filters.push(`(CITY="${city}")`)
+    if (period) filters.push(`(REPORT_DATE='${period}-01 00:00:00')`)
+    if (startDate) filters.push(`(REPORT_DATE>='${startDate}-01 00:00:00')`)
+    if (endDate) filters.push(`(REPORT_DATE<='${endDate}-01 00:00:00')`)
+    const filter = filters.length > 0 ? `&filter=${encodeURIComponent(filters.join(''))}` : ''
+    return (
+      'https://datacenter-web.eastmoney.com/api/data/v1/get' +
+      '?sortColumns=REPORT_DATE,CITY&sortTypes=-1,1&pageSize=500&pageNumber=1' +
+      '&reportName=RPT_ECONOMY_HOUSE_PRICE&columns=ALL&source=WEB&client=WEB' +
+      filter
+    )
+  },
+  mapResponse: (raw) => {
+    const records: HousingPriceIndexRecord[] = (raw.result?.data ?? [])
+      .filter((item) => item.CITY)
+      .map((item) => ({
+        reportDate: item.REPORT_DATE?.trim().slice(0, 7) ?? '',
+        city: item.CITY ?? '',
+        newHomeMoM: item.FIRST_COMHOUSE_SEQUENTIAL ?? undefined,
+        newHomeYoY: item.FIRST_COMHOUSE_SAME ?? undefined,
+        secondHandMoM: item.SECOND_HOUSE_SEQUENTIAL ?? undefined,
+        secondHandYoY: item.SECOND_HOUSE_SAME ?? undefined
+      }))
+    return { records, count: raw.result?.count ?? records.length }
+  }
+}
+
 export const eastmoneyEndpoints = [
   eastmoneyAssetSearchEndpoint,
   eastmoneyAssetQuoteEndpoint,
@@ -604,5 +663,6 @@ export const eastmoneyEndpoints = [
   eastmoneyValuationTrendEndpoint,
   eastmoneyPreciousMetalQuoteEndpoint,
   eastmoneyPreciousMetalKlineEndpoint,
-  eastmoneyFxQuoteEndpoint
+  eastmoneyFxQuoteEndpoint,
+  eastmoneyHousingPriceIndexEndpoint
 ]
