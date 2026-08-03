@@ -32,7 +32,7 @@
 **Interfaces:**
 - Produces: `export class TimedCache<K, V>` — `getFresh(key: K): { value: V } | undefined`、`set(key: K, value: V): void`、`delete(key: K): void`、`clear(): void`、`get size(): number`。`getFresh` 返回包裹对象以区分"未命中"与"缓存了 undefined"；过期条目在读取时惰性删除。
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 创建 `tests/main/infrastructure/timedCache.test.ts`：
 
@@ -107,12 +107,12 @@ describe('TimedCache', () => {
 })
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `npx vitest run tests/main/infrastructure/timedCache.test.ts`
 Expected: FAIL — "Failed to resolve import"（模块不存在）
 
-- [ ] **Step 3: 最小实现**
+- [x] **Step 3: 最小实现**
 
 创建 `src/main/infrastructure/cache/timedCache.ts`：
 
@@ -154,12 +154,12 @@ export class TimedCache<K, V> {
 }
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `npx vitest run tests/main/infrastructure/timedCache.test.ts`
 Expected: PASS（8 个用例）
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/main/infrastructure/cache/timedCache.ts tests/main/infrastructure/timedCache.test.ts
@@ -179,7 +179,7 @@ git commit -m "feat(cache): 新增通用 TimedCache TTL 缓存类"
 - Consumes: `getDatabase` from `@main/infrastructure/db/sqlite`
 - Produces: `export type ValuationCacheRow = { cacheKey: string; dataJson: string; fetchedAt: string }`；`export class ValuationCacheRepository` — `upsert(cacheKey: string, dataJson: string): void`、`findByKey(cacheKey: string): ValuationCacheRow | undefined`、`findFreshByKey<T>(cacheKey: string, ttlMs: number): T | undefined`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 创建 `tests/main/repositories/valuationCacheRepository.test.ts`（参照 `tests/main/repositories/assetSnapshotRepository.test.ts` 的 mock 模式）：
 
@@ -294,12 +294,12 @@ describe('ValuationCacheRepository', () => {
 })
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `npx vitest run tests/main/repositories/valuationCacheRepository.test.ts`
 Expected: FAIL — "Failed to resolve import"
 
-- [ ] **Step 3: 创建表结构**
+- [x] **Step 3: 创建表结构**
 
 在 `src/main/infrastructure/db/sqlite.ts` 的 `createBaseSchema` 中、`portfolio_risk_snapshots` 相关语句之后追加：
 
@@ -316,7 +316,7 @@ Expected: FAIL — "Failed to resolve import"
 
 （插入位置：`idx_portfolio_risk_snapshots_fetched_at` 索引语句之后、`price_cache` 表之前。）
 
-- [ ] **Step 4: 实现 repository**
+- [x] **Step 4: 实现 repository**
 
 创建 `src/main/repositories/valuationCacheRepository.ts`：
 
@@ -365,12 +365,12 @@ export class ValuationCacheRepository {
 }
 ```
 
-- [ ] **Step 5: 运行测试确认通过**
+- [x] **Step 5: 运行测试确认通过**
 
 Run: `npx vitest run tests/main/repositories/valuationCacheRepository.test.ts`
 Expected: PASS（11 个用例）
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add src/main/infrastructure/db/sqlite.ts src/main/repositories/valuationCacheRepository.ts tests/main/repositories/valuationCacheRepository.test.ts
@@ -389,7 +389,7 @@ git commit -m "feat(cache): 新增 valuation_cache 表与 ValuationCacheReposito
 - Consumes: `TimedCache`（Task A1）、`ValuationCacheRepository`（Task A2）
 - Produces: 不变 — `getStockValuation(symbol: string): Promise<StockValuationSource | undefined>`；构造函数增加可选参数 `diskCache: ValuationCacheRepository`
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 创建 `tests/main/repositories/valuationRepository.test.ts`：
 
@@ -498,12 +498,12 @@ describe('ValuationRepository', () => {
 
 注意：`new ValuationRepository(dataSource, diskCache)` 依赖构造函数签名 `(dataSource, diskCache)`。
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `npx vitest run tests/main/repositories/valuationRepository.test.ts`
 Expected: FAIL — 构造函数不接受第二个参数（TS 编译错误）或断言失败
 
-- [ ] **Step 3: 改造实现**
+- [x] **Step 3: 改造实现**
 
 将 `src/main/repositories/valuationRepository.ts` 全部内容替换为：
 
@@ -595,12 +595,12 @@ export class ValuationRepository {
 }
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `npx vitest run tests/main/repositories/valuationRepository.test.ts`
 Expected: PASS（5 个用例）
 
-- [ ] **Step 5: 全量回归 + 提交**
+- [x] **Step 5: 全量回归 + 提交**
 
 Run: `npx vitest run`
 Expected: 全部 PASS（含既有 assetSnapshotRepository 等）
@@ -622,7 +622,7 @@ git commit -m "feat(cache): 股票估值仓库双层缓存（内存 TimedCache +
 - Consumes: `TimedCache`（Task A1）、`ValuationCacheRepository`（Task A2）
 - Produces: 不变 — `getIndexValuation(indexName: string): Promise<IndexValuationSource | undefined>`；`resolveIndexCode(indexName: string): Promise<IndexCodeResult | undefined>`；`clearIndexCodeCache(): void`
 
-- [ ] **Step 1: 改造 IndexValuationRepository**
+- [x] **Step 1: 改造 IndexValuationRepository**
 
 将 `src/main/repositories/indexValuationRepository.ts` 替换为：
 
@@ -771,7 +771,7 @@ export class IndexValuationRepository {
 }
 ```
 
-- [ ] **Step 2: 改造 indexCodeResolver**
+- [x] **Step 2: 改造 indexCodeResolver**
 
 将 `src/main/repositories/indexCodeResolver.ts` 替换为：
 
@@ -895,7 +895,7 @@ export function clearIndexCodeCache(): void {
 }
 ```
 
-- [ ] **Step 3: 验证**
+- [x] **Step 3: 验证**
 
 Run: `npm run typecheck`
 Expected: 无错误
@@ -903,7 +903,7 @@ Expected: 无错误
 Run: `npx vitest run`
 Expected: 全部 PASS（行为未变，无新增测试）
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add src/main/repositories/indexValuationRepository.ts src/main/repositories/indexCodeResolver.ts
@@ -922,7 +922,7 @@ git commit -m "refactor(cache): 指数估值与指数代码解析改用 TimedCac
 **Interfaces:**
 - Produces: 不变 — `startLocalHttpServer()`、`stopLocalHttpServer()`
 
-- [ ] **Step 1: 实现端口可配置**
+- [x] **Step 1: 实现端口可配置**
 
 在 `src/main/http/server.ts` 中，将 `getBaseUrl()` 替换为：
 
@@ -950,12 +950,12 @@ function getBaseUrl() {
 
 CORS 白名单与 `Access-Control-Allow-Origin` 回退值保持不变（现有正则 `/^http:\/\/(127\.0\.0\.1|localhost):\d+$/` 已覆盖任意本地端口）。
 
-- [ ] **Step 2: 验证编译**
+- [x] **Step 2: 验证编译**
 
 Run: `npm run typecheck`
 Expected: 无错误
 
-- [ ] **Step 3: 默认端口冒烟验证**
+- [x] **Step 3: 默认端口冒烟验证**
 
 后台启动（PowerShell 作业，日志写文件）：
 
@@ -978,7 +978,7 @@ $r | ConvertTo-Json
 
 Expected: 返回包含 `nonce` 的 JSON（如 `{ "nonce": "..." }`）。验证后停止作业：`Stop-Job $job; Remove-Job $job`。
 
-- [ ] **Step 4: 自定义端口验证**
+- [x] **Step 4: 自定义端口验证**
 
 ```powershell
 $job = Start-Job -ScriptBlock {
@@ -995,7 +995,7 @@ $r | ConvertTo-Json
 
 Expected: 3999 端口返回 nonce；同时 `http://127.0.0.1:3210` 应连接失败（无服务监听）。验证后 `Stop-Job $job; Remove-Job $job`。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/main/http/server.ts
@@ -1011,7 +1011,7 @@ git commit -m "feat(http): 支持 LOCAL_HTTP_API_PORT 环境变量覆盖监听�
 - Modify: `docs/README.md`（索引列表追加条目）
 - Modify: `docs/FRONTEND-IMPLEMENTATION-PLAN.md`（§8 未完成项删除第 1 条）
 
-- [ ] **Step 1: 核对路由清单**
+- [x] **Step 1: 核对路由清单**
 
 遍历 `src/main/http/routes/` 下 11 个文件（`assetRoutes / authRoutes / calculationRoutes / dividendRoutes / fxRoutes / industryRoutes / portfolioRoutes / securityRoutes / settingsRoutes / syncRoutes / watchlistRoutes`），用 grep 提取每个 `if (pathname === ...)` 或 `startsWith` 条件，整理出完整的"方法 + 路径"清单。已知端点（Step 2 文档中使用，如与代码不符以代码为准修正）：
 
@@ -1040,7 +1040,7 @@ POST /api/watchlist/groups/remove-asset  GET /api/watchlist/groups/:id/assets
 GET  /api/watchlist/asset-groups/:key
 ```
 
-- [ ] **Step 2: 编写 docs/HTTP-API.md**
+- [x] **Step 2: 编写 docs/HTTP-API.md**
 
 创建 `docs/HTTP-API.md`，内容结构（含 Step 1 核对后的完整路由清单）：
 
@@ -1210,7 +1210,7 @@ Invoke-RestMethod 'http://127.0.0.1:3210/api/auth/session' -Headers @{ 'X-Local-
 2. HTTP 服务内嵌于 Electron 主进程（需独立 Node 进程 + 真实鉴权）
 ```
 
-- [ ] **Step 3: 更新 docs/README.md 索引**
+- [x] **Step 3: 更新 docs/README.md 索引**
 
 在 `docs/README.md` 的文档列表中追加：
 
@@ -1220,11 +1220,11 @@ Invoke-RestMethod 'http://127.0.0.1:3210/api/auth/session' -Headers @{ 'X-Local-
 
 （按现有列表格式与位置插入。）
 
-- [ ] **Step 4: 勾掉 FRONTEND-IMPLEMENTATION-PLAN.md 未完成项**
+- [x] **Step 4: 勾掉 FRONTEND-IMPLEMENTATION-PLAN.md 未完成项**
 
 删除 `docs/FRONTEND-IMPLEMENTATION-PLAN.md` §8 中第 1 条 `1. 本地 HTTP API 的部署/启动说明还需要继续完善`（若剩 3 条则相应调整序号，无需重排后续小节）。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add docs/HTTP-API.md docs/README.md docs/FRONTEND-IMPLEMENTATION-PLAN.md
@@ -1240,7 +1240,7 @@ git commit -m "docs(http): 新增本地 HTTP API 文档并更新索引"
 
 **Prerequisites:** Task B1、B2 已完成。
 
-- [ ] **Step 1: 启动 headless 运行时（后台）**
+- [x] **Step 1: 启动 headless 运行时（后台）**
 
 ```powershell
 $job = Start-Job -ScriptBlock {
@@ -1250,11 +1250,11 @@ $job = Start-Job -ScriptBlock {
 }
 ```
 
-- [ ] **Step 2: nonce 端点**
+- [x] **Step 2: nonce 端点**
 
 轮询 `http://127.0.0.1:3210/api/security/nonce`（最多 60 秒），确认返回含 `nonce` 字段。通过标准：返回 `{ nonce: string }`。
 
-- [ ] **Step 3: 认证链路（带 nonce 通过 / 不带拒绝）**
+- [x] **Step 3: 认证链路（带 nonce 通过 / 不带拒绝）**
 
 ```powershell
 $nonce = (Invoke-RestMethod 'http://127.0.0.1:3210/api/security/nonce').nonce
@@ -1275,7 +1275,7 @@ try {
 
 Expected: 401。
 
-- [ ] **Step 4: 抽查代表性端点（与文档清单一致）**
+- [x] **Step 4: 抽查代表性端点（与文档清单一致）**
 
 ```powershell
 $nonce = (Invoke-RestMethod 'http://127.0.0.1:3210/api/security/nonce').nonce
@@ -1292,15 +1292,15 @@ Invoke-RestMethod 'http://127.0.0.1:3210/api/settings' | ConvertTo-Json -Depth 3
 
 Expected: 4 个端点均返回 200 与合理结构（search 返回 items、upcoming 返回数组、watchlist 返回 entries、settings 返回对象）。若有 404，说明文档清单与代码不符 → 修正 `docs/HTTP-API.md` 后重新提交。
 
-- [ ] **Step 5: 浏览器加载前端**
+- [x] **Step 5: 浏览器加载前端**
 
 用 chrome-devtools 工具（chrome-devtools_list_pages / new_page）打开 `http://localhost:5173`（electron-vite dev 的渲染进程地址，可在 `.runtime-data` 或 dev 输出中确认；若不可用则跳过本步并在 D1 统一验收）。确认页面渲染、控制台无 `X-Local-Nonce` 相关报错。
 
-- [ ] **Step 6: 清理**
+- [x] **Step 6: 清理**
 
 `Stop-Job $job; Remove-Job $job`。若 B1 已验证自定义端口，本任务只需默认端口。
 
-- [ ] **Step 7: 提交（如有文档修正）**
+- [x] **Step 7: 提交（如有文档修正）**
 
 ```bash
 git add docs/HTTP-API.md
@@ -1337,7 +1337,7 @@ export function useFetch<T>(
 
 `rethrow` 默认 `true`（与 useWatchlist 现状一致）；`initialLoading` 默认 `true`。`reload` 用 ref 持有最新 fetcher，effect 依赖 `[reload, ...deps]`，组件卸载后不 setState。
 
-- [ ] **Step 1: 实现**
+- [x] **Step 1: 实现**
 
 创建 `src/renderer/src/hooks/useFetch.ts`：
 
@@ -1405,12 +1405,12 @@ export function useFetch<T>(
 export type UseFetchReturn<T> = ReturnType<typeof useFetch<T>>
 ```
 
-- [ ] **Step 2: 验证编译**
+- [x] **Step 2: 验证编译**
 
 Run: `npm run typecheck`
 Expected: 无错误
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add src/renderer/src/hooks/useFetch.ts
@@ -1433,7 +1433,7 @@ git commit -m "feat(hooks): 新增 useFetch 通用请求 hook"
 - Consumes: `useFetch`（Task C1）
 - Produces: 各 hook 对外返回结构不变（`{ data, loading, error }` 等）
 
-- [ ] **Step 1: useAssetDetail.ts 整体替换**
+- [x] **Step 1: useAssetDetail.ts 整体替换**
 
 ```ts
 import { useMemo } from 'react'
@@ -1458,7 +1458,7 @@ export function useAssetDetail(request: AssetQueryDto | null) {
 }
 ```
 
-- [ ] **Step 2: useStockDetail.ts 整体替换**
+- [x] **Step 2: useStockDetail.ts 整体替换**
 
 ```ts
 import type { StockDetailDto } from '@shared/contracts/api'
@@ -1484,7 +1484,7 @@ export function useStockDetail(symbol: string) {
 }
 ```
 
-- [ ] **Step 3: useBacktest.ts 整体替换**
+- [x] **Step 3: useBacktest.ts 整体替换**
 
 ```ts
 import type { BacktestResultDto } from '@shared/contracts/api'
@@ -1501,7 +1501,7 @@ export function useBacktest(symbol: string, buyDate: string) {
 }
 ```
 
-- [ ] **Step 4: useComparison.ts 整体替换**
+- [x] **Step 4: useComparison.ts 整体替换**
 
 ```ts
 import { useMemo } from 'react'
@@ -1521,7 +1521,7 @@ export function useComparison(symbols: string[]) {
 }
 ```
 
-- [ ] **Step 5: useAssetComparison.ts 整体替换**
+- [x] **Step 5: useAssetComparison.ts 整体替换**
 
 ```ts
 import { useMemo } from 'react'
@@ -1545,7 +1545,7 @@ export function useAssetComparison(assetKeys: string[]) {
 }
 ```
 
-- [ ] **Step 6: useAssetBacktest.ts 整体替换**
+- [x] **Step 6: useAssetBacktest.ts 整体替换**
 
 ```ts
 import type { AssetBacktestRequestDto, BacktestResultDto } from '@shared/contracts/api'
@@ -1613,7 +1613,7 @@ export function useAssetBacktest(params: BacktestParams) {
 }
 ```
 
-- [ ] **Step 7: 验证 + 提交**
+- [x] **Step 7: 验证 + 提交**
 
 Run: `npm run typecheck`
 Expected: 无错误（若某页面调用方用了 `reload` 之外的字段，以 typecheck 报错为准调整）
@@ -1640,7 +1640,7 @@ git commit -m "refactor(hooks): 六个简单请求 hook 迁移到 useFetch"
 - Consumes: `useFetch`（Task C1）
 - Produces: 各 hook 对外返回结构不变（`useSettings` 含 `saving/save/reset`；`useWatchlist` 含 `mutatingAssetKey` 与 mutation 方法；`useWatchlistGroups` 含 `groups` 与分组方法；`useIndustryAnalysis` 含 `data/distribution`）
 
-- [ ] **Step 1: useSettings.ts 整体替换**
+- [x] **Step 1: useSettings.ts 整体替换**
 
 ```ts
 import { useState } from 'react'
@@ -1691,7 +1691,7 @@ export function useSettings() {
 
 注意：原实现中 `save/reset` 会把错误同时写入 `error` 状态；`useFetch` 的 error 只由 reload 管理。为保持页面行为（SettingsPage 保存失败时页面如何展示），实现后检查 `SettingsPage.tsx` 的 `save`/`reset` 调用处：若页面依赖 hook 的 `error` 显示保存失败，则在此处 `catch (err)` 内调用 `reload()` 或保留局部 error 状态（以 typecheck 与页面行为为准，页面侧有 `message.error` 兜底即可接受）。
 
-- [ ] **Step 2: useWatchlist.ts 整体替换**
+- [x] **Step 2: useWatchlist.ts 整体替换**
 
 ```ts
 import { useCallback, useState } from 'react'
@@ -1751,7 +1751,7 @@ export function useWatchlist() {
 
 注意：原 `add/remove/addAsset/removeAsset` 在失败时不重新抛出（仅 `finally` 复位），且 mutation 前会 `setError(null)`。`useFetch` 的 `reload` 默认 rethrow，`withMutation` 内 `await reload()` 抛错时 mutation 方法会 reject → 检查各页面调用处（`WatchlistPage` 等）是否已 try/catch；若有未捕获的 reject 风险，将 `await reload()` 改为 `await reload().catch(() => {})` 保持原"吞错"语义。
 
-- [ ] **Step 3: useWatchlistGroups.ts 整体替换**
+- [x] **Step 3: useWatchlistGroups.ts 整体替换**
 
 ```ts
 import { useCallback } from 'react'
@@ -1808,7 +1808,7 @@ export function useWatchlistGroups() {
 }
 ```
 
-- [ ] **Step 4: useIndustryAnalysis.ts 整体替换**
+- [x] **Step 4: useIndustryAnalysis.ts 整体替换**
 
 ```ts
 import type { IndustryAnalysisDto, IndustryDistributionItemDto } from '@shared/contracts/api'
@@ -1841,7 +1841,7 @@ export function useIndustryBenchmark(industryName: string | undefined) {
 
 `useIndustryBenchmark` 保持原实现不变（复制原代码）。
 
-- [ ] **Step 5: 验证 + 提交**
+- [x] **Step 5: 验证 + 提交**
 
 Run: `npm run typecheck`
 Expected: 无错误
@@ -1880,7 +1880,7 @@ export function PageState(props: {
 
 `empty` 判定与文案由调用方传入；`error` 展示 Alert（showIcon）；多空态页面在 `children` 内自行使用 `PageStateBlock`。
 
-- [ ] **Step 1: 实现**
+- [x] **Step 1: 实现**
 
 创建 `src/renderer/src/components/app/PageState.tsx`：
 
@@ -1926,12 +1926,12 @@ export function PageState({
 }
 ```
 
-- [ ] **Step 2: 验证编译**
+- [x] **Step 2: 验证编译**
 
 Run: `npm run typecheck`
 Expected: 无错误
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add src/renderer/src/components/app/PageState.tsx
@@ -1951,7 +1951,7 @@ git commit -m "feat(ui): 新增 PageState 三态页面组件"
 **Interfaces:**
 - Consumes: `PageState`（Task C4）
 
-- [ ] **Step 1: WatchlistPage 三态替换**
+- [x] **Step 1: WatchlistPage 三态替换**
 
 `src/renderer/src/pages/WatchlistPage.tsx`：
 
@@ -1972,7 +1972,7 @@ git commit -m "feat(ui): 新增 PageState 三态页面组件"
 
 - 若该页 import 的 `Skeleton` 仅用于此三态处，则从 antd import 中移除 `Skeleton`；`Alert` 若仅此一处同样移除（以 typecheck 的 unused 提示为准，strict 未开启 noUnusedLocals 则保留亦可，但按整洁原则移除）
 
-- [ ] **Step 2: StockDetailPage 三态替换**
+- [x] **Step 2: StockDetailPage 三态替换**
 
 `src/renderer/src/pages/StockDetailPage.tsx`：
 
@@ -2003,7 +2003,7 @@ git commit -m "feat(ui): 新增 PageState 三态页面组件"
 
 - 删除不再使用的 import（`Skeleton`、`Alert`、按需保留 `PageStateBlock`）
 
-- [ ] **Step 3: ComparisonPage 三态替换**
+- [x] **Step 3: ComparisonPage 三态替换**
 
 `src/renderer/src/pages/ComparisonPage.tsx`：
 
@@ -2032,7 +2032,7 @@ git commit -m "feat(ui): 新增 PageState 三态页面组件"
   )
 ```
 
-- [ ] **Step 4: BacktestPage 三态替换**
+- [x] **Step 4: BacktestPage 三态替换**
 
 `src/renderer/src/pages/BacktestPage.tsx`：
 
@@ -2056,7 +2056,7 @@ git commit -m "feat(ui): 新增 PageState 三态页面组件"
 
 注意：BacktestPage 原逻辑中空态/结果区各自带 `!loading && !error` 前缀判断，替换后由 `PageState` 的早退保证（loading/error 时不渲染 children），children 内判断可去掉这些前缀。
 
-- [ ] **Step 5: 验证 + 提交**
+- [x] **Step 5: 验证 + 提交**
 
 Run: `npm run typecheck`
 Expected: 无错误（unused import 若报错则移除；页面渲染行为不改变）
@@ -2078,7 +2078,7 @@ git commit -m "refactor(ui): 四个页面迁移到 PageState 三态组件"
 **Interfaces:**
 - Consumes: `PageState`（Task C4）、`useFetch`（Task C1）
 
-- [ ] **Step 1: BacktestHistoryPage 整体替换**
+- [x] **Step 1: BacktestHistoryPage 整体替换**
 
 将 `src/renderer/src/pages/BacktestHistoryPage.tsx` 替换为（页面内联样板迁移到 useFetch）：
 
@@ -2155,7 +2155,7 @@ export function BacktestHistoryPage() {
 
 （原文件 90 行起的表格内容保持不变，仅调整缩进；删除 `Skeleton`/`Alert` import。）
 
-- [ ] **Step 2: IndustryAnalysisPage 三态替换**
+- [x] **Step 2: IndustryAnalysisPage 三态替换**
 
 `src/renderer/src/pages/IndustryAnalysisPage.tsx`：
 
@@ -2174,7 +2174,7 @@ export function BacktestHistoryPage() {
 
 （注意：原页面无 `.ledger-page` 包装，`PageState` 直接包住原内容即可。）
 
-- [ ] **Step 3: SettingsPage 三态替换**
+- [x] **Step 3: SettingsPage 三态替换**
 
 `src/renderer/src/pages/SettingsPage.tsx`：
 
@@ -2198,7 +2198,7 @@ export function BacktestHistoryPage() {
   )
 ```
 
-- [ ] **Step 4: 验证 + 提交**
+- [x] **Step 4: 验证 + 提交**
 
 Run: `npm run typecheck`
 Expected: 无错误
@@ -2217,7 +2217,7 @@ git commit -m "refactor(ui): 三个页面迁移到 PageState 与 useFetch"
 
 **Prerequisites:** Phase C 全部任务完成。
 
-- [ ] **Step 1: 启动浏览器预览**
+- [x] **Step 1: 启动浏览器预览**
 
 ```powershell
 $job = Start-Job -ScriptBlock {
@@ -2229,7 +2229,7 @@ $job = Start-Job -ScriptBlock {
 
 用 chrome-devtools 工具打开 `http://localhost:5173`（electron-vite dev 的渲染进程地址，可从 dev 输出确认）。
 
-- [ ] **Step 2: 正常态遍历 9 个页面**
+- [x] **Step 2: 正常态遍历 9 个页面**
 
 依次访问（用 chrome-devtools_navigate_page / take_snapshot）：
 1. `/` 工作台（Dashboard）— 搜索"贵州茅台"，进入详情
@@ -2244,20 +2244,20 @@ $job = Start-Job -ScriptBlock {
 
 每页通过标准：无白屏、无未捕获异常（chrome-devtools_list_console_messages 无 error 级消息）、三态区域渲染正常。
 
-- [ ] **Step 3: 错误态验证**
+- [x] **Step 3: 错误态验证**
 
 用 chrome-devtools_emulate 将网络设为 `Offline`，刷新详情页 → 应显示统一 error Alert（showIcon，标题"加载失败"），无白屏。恢复网络。
 
-- [ ] **Step 4: 空态验证**
+- [x] **Step 4: 空态验证**
 
 - 清空自选后访问 `/watchlist`（或新用户视角）→ 表格/空态正常
 - 无回测历史时访问 `/backtest-history` → "暂无保存的回测记录" Empty + 按钮
 
-- [ ] **Step 5: 加载态验证**
+- [x] **Step 5: 加载态验证**
 
 用 chrome-devtools_emulate 设 `Fast 3G`，刷新详情页 → 首屏显示 Skeleton（PageState loading 形态）。恢复后关闭节流。
 
-- [ ] **Step 6: 回归确认 + 清理**
+- [x] **Step 6: 回归确认 + 清理**
 
 `Stop-Job $job; Remove-Job $job`。
 
@@ -2270,12 +2270,12 @@ $job = Start-Job -ScriptBlock {
 **Files:**
 - 无代码改动（验收任务）
 
-- [ ] **Step 1: 静态与单测**
+- [x] **Step 1: 静态与单测**
 
 Run: `npm run typecheck` → Expected: 无错误
 Run: `npm test` → Expected: 全部 PASS
 
-- [ ] **Step 2: 缓存落盘验证（SQLite）**
+- [x] **Step 2: 缓存落盘验证（SQLite）**
 
 启动 headless 运行时（后台 job，日志 `e2e-cache.log`），用 chrome-devtools 打开前端：
 
@@ -2290,18 +2290,18 @@ $dbPath = Join-Path $env:APPDATA 'shou-xi-lao\db\dividend-monitor.sqlite'
 
 （SQLite 查询可用 `npx` 无 sqlite3 CLI 时跳过直接 DB 检查，改由行为验证替代：见 Step 3。）
 
-- [ ] **Step 3: 缓存命中行为验证（网络面板）**
+- [x] **Step 3: 缓存命中行为验证（网络面板）**
 
 1. 详情页估值显示后，刷新页面再进详情页 → 用 chrome-devtools_list_network_requests 检查：估值相关请求（`/api/asset/detail` 之外）不再重复触发（估值数据来自 SQLite + 内存回填）
 2. **重启场景**：停止 job → 重新启动 job → 再次进入详情页 → 估值仍显示（SQLite 恢复），且网络面板无估值数据源直连请求（命中 `valuation_cache`）
 
 通过标准：重启后估值正常显示且无估值源请求。
 
-- [ ] **Step 4: HTTP API 文档最终核对**
+- [x] **Step 4: HTTP API 文档最终核对**
 
 对 `docs/HTTP-API.md` 路由清单抽样 3 个端点实际请求（nonce + `/api/asset/search` + `/api/dividend/upcoming`），确认与文档一致（B3 已做过，此处仅抽查确认）。
 
-- [ ] **Step 5: 清理与提交（如有遗留修正）**
+- [x] **Step 5: 清理与提交（如有遗留修正）**
 
 `Stop-Job $job; Remove-Job $job`（如未清理）。如有任何代码修正，按任务对应方式提交；无修正则仅确认。
 

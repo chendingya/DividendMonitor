@@ -33,7 +33,7 @@
 **Interfaces:**
 - Produces: `export function closeDatabase(): void`（关闭单例连接并置 null）、`export function getDatabaseFilePath(): string`（现有私有函数提升导出）
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 创建 `tests/main/infrastructure/sqliteClose.test.ts`：
 
@@ -90,12 +90,12 @@ describe('sqlite close/reopen', () => {
 
 注意：测试使用 `await import` 加载模块（mock electron 生效后再 import）。sqlite.ts 的 `initializeSchema` 会跑全部迁移，在临时目录上应正常执行（迁移均为幂等 CREATE/ALTER 守卫）。
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `npx vitest run tests/main/infrastructure/sqliteClose.test.ts`
 Expected: FAIL — `closeDatabase is not a function` / `getDatabaseFilePath is not a function`
 
-- [ ] **Step 3: 最小实现**
+- [x] **Step 3: 最小实现**
 
 修改 `src/main/infrastructure/db/sqlite.ts`：
 
@@ -119,12 +119,12 @@ export function closeDatabase(): void {
 }
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `npx vitest run tests/main/infrastructure/sqliteClose.test.ts`
 Expected: PASS（2 个用例）
 
-- [ ] **Step 5: 全量回归 + 提交**
+- [x] **Step 5: 全量回归 + 提交**
 
 Run: `npx vitest run`
 Expected: 全部 PASS（既有测试不受影响）
@@ -146,7 +146,7 @@ git commit -m "feat(db): 新增 closeDatabase 与 getDatabaseFilePath 导出（�
 - Consumes: 无（纯 node:fs）
 - Produces: `export function copySqliteFile(source: string, destination: string): void`（copyFileSync，抛错向上传递）；`export function buildBackupFileName(now: Date): string`（`dividend-monitor-backup-YYYY-MM-DDTHH-mm-ss.sqlite`，ISO 去冒号）；`export function buildPreRestoreFileName(now: Date): string`（`pre-restore-YYYY-MM-DDTHH-mm-ss.sqlite`）
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 创建 `tests/main/backup/backupFileService.test.ts`：
 
@@ -190,12 +190,12 @@ describe('backupFileService', () => {
 })
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `npx vitest run tests/main/backup/backupFileService.test.ts`
 Expected: FAIL — "Failed to resolve import"
 
-- [ ] **Step 3: 最小实现**
+- [x] **Step 3: 最小实现**
 
 创建 `src/main/backup/backupFileService.ts`：
 
@@ -221,12 +221,12 @@ export function buildPreRestoreFileName(now: Date): string {
 
 注意：`2026-08-02T10:30:45.000Z` 的 ISO 含毫秒 `.000`，`replace(/[:.]/g,'-')` 后为 `2026-08-02T10-30-45-000`，`slice(0,19)` 截为 `2026-08-02T10-30-45` ✓
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `npx vitest run tests/main/backup/backupFileService.test.ts`
 Expected: PASS（4 个用例）
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/main/backup/backupFileService.ts tests/main/backup/backupFileService.test.ts
@@ -254,7 +254,7 @@ backup: {
 }
 ```
 
-- [ ] **Step 1: 扩展 shared 合约**
+- [x] **Step 1: 扩展 shared 合约**
 
 在 `shared/contracts/api.ts` 的 `DividendMonitorApi` interface 内（如 `settings` 命名空间附近）增加：
 
@@ -265,7 +265,7 @@ backup: {
     }
 ```
 
-- [ ] **Step 2: 实现 backupChannels.ts**
+- [x] **Step 2: 实现 backupChannels.ts**
 
 创建 `src/main/ipc/channels/backupChannels.ts`：
 
@@ -325,7 +325,7 @@ export function registerBackupChannels(): void {
 }
 ```
 
-- [ ] **Step 3: 注册通道**
+- [x] **Step 3: 注册通道**
 
 在 `src/main/ipc/channels/index.ts` 中导入并注册（仿既有通道，如 `registerSettingsChannels`）：
 
@@ -335,7 +335,7 @@ import { registerBackupChannels } from '@main/ipc/channels/backupChannels'
 registerBackupChannels()
 ```
 
-- [ ] **Step 4: preload 暴露**
+- [x] **Step 4: preload 暴露**
 
 在 `src/preload/index.ts` 的 `api` 对象中（settings 命名空间附近）增加：
 
@@ -348,12 +348,12 @@ registerBackupChannels()
 
 （若 preload 的 invoke 经 `unwrapIpc` 包装，则按现有 `settings.get` 的写法 `unwrapIpc(ipcRenderer.invoke('backup:create'))` 保持一致。）
 
-- [ ] **Step 5: 验证编译**
+- [x] **Step 5: 验证编译**
 
 Run: `npm run typecheck`
 Expected: 无错误
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add src/main/ipc/channels/backupChannels.ts src/main/ipc/channels/index.ts shared/contracts/api.ts src/preload/index.ts
@@ -374,7 +374,7 @@ git commit -m "feat(backup): 备份/恢复 IPC 通道与 preload 暴露"
 - Consumes: `DividendMonitorApi.backup` 合约（Task A3）
 - Produces: `export function getBackupDesktopApi(): DividendMonitorApi['backup']`；两个 fallback 中 backup 方法 `throw new Error('浏览器预览模式不支持备份恢复')`
 
-- [ ] **Step 1: 实现 desktopApi 入口**
+- [x] **Step 1: 实现 desktopApi 入口**
 
 在 `src/renderer/src/services/desktopApi.ts` 中按既有模式追加：
 
@@ -384,7 +384,7 @@ export function getBackupDesktopApi(): DividendMonitorApi['backup'] {
 }
 ```
 
-- [ ] **Step 2: 实现 backupApi.ts**
+- [x] **Step 2: 实现 backupApi.ts**
 
 创建 `src/renderer/src/services/backupApi.ts`：
 
@@ -394,7 +394,7 @@ import { getBackupDesktopApi } from '@renderer/services/desktopApi'
 export const backupApi = getBackupDesktopApi()
 ```
 
-- [ ] **Step 3: 两个 fallback 抛错**
+- [x] **Step 3: 两个 fallback 抛错**
 
 在 `src/renderer/src/services/browserRuntimeApi.ts` 与 `src/renderer/src/services/browserHttpRuntimeApi.ts` 的 runtime 对象中各加（放在与 `settings` 同级的位置，满足 `DividendMonitorApi` 类型完整性）：
 
@@ -411,12 +411,12 @@ export const backupApi = getBackupDesktopApi()
 
 （具体插入位置以两文件的 runtime 对象结构为准，typecheck 报缺字段时按报错补齐。）
 
-- [ ] **Step 4: 验证编译**
+- [x] **Step 4: 验证编译**
 
 Run: `npm run typecheck`
 Expected: 无错误（若 typecheck 报 backup 缺失，说明还有遗漏的 DividendMonitorApi 实现点，补齐）
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/renderer/src/services/backupApi.ts src/renderer/src/services/desktopApi.ts src/renderer/src/services/browserRuntimeApi.ts src/renderer/src/services/browserHttpRuntimeApi.ts
@@ -434,7 +434,7 @@ git commit -m "feat(backup): 渲染层备份服务入口与浏览器预览 fallb
 - Consumes: `backupApi`（Task A4）
 - Produces: 设置页"数据备份"区块（导出备份 / 恢复备份按钮 + 说明文案 + Modal.confirm 强提示）
 
-- [ ] **Step 1: 实现 UI 区块**
+- [x] **Step 1: 实现 UI 区块**
 
 在 `src/renderer/src/pages/SettingsPage.tsx` 的返回 JSX 中（最后一个设置区块之后）增加：
 
@@ -488,12 +488,12 @@ git commit -m "feat(backup): 渲染层备份服务入口与浏览器预览 fallb
   }
 ```
 
-- [ ] **Step 2: 验证编译 + 回归**
+- [x] **Step 2: 验证编译 + 回归**
 
 Run: `npm run typecheck` → 无错误
 Run: `npx vitest run` → 全量通过
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add src/renderer/src/pages/SettingsPage.tsx
@@ -513,7 +513,7 @@ git commit -m "feat(ui): 设置页新增数据备份与恢复入口"
 **Interfaces:**
 - Produces: `export function buildCsv(rows: Array<Record<string, unknown>>): string`（纯函数：表头 = 首行键，逗号分隔，含 `,`/`"`/换行的值加引号并转义 `""`，换行 `\n`）；`export function exportRowsAsCsv(rows: Array<Record<string, unknown>>, filename: string): void`（BOM + Blob + a[download]，无行时直接返回）；`export function exportChartAsPng(instance: echarts.ECharts | null, filename: string): void`（getDataURL pixelRatio 2 backgroundColor '#fff' → a[download]）
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 创建 `tests/renderer/chartExport.test.ts`：
 
@@ -553,12 +553,12 @@ describe('buildCsv', () => {
 })
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `npx vitest run tests/renderer/chartExport.test.ts`
 Expected: FAIL — "Failed to resolve import"
 
-- [ ] **Step 3: 最小实现**
+- [x] **Step 3: 最小实现**
 
 创建 `src/renderer/src/utils/chartExport.ts`：
 
@@ -614,12 +614,12 @@ export function exportChartAsPng(instance: echarts.ECharts | null, filename: str
 
 注意：`buildCsv` 的引号用例——`String(value ?? '')` 后 `/[",\n]/` 检测；`"a,b"` 等转义正确。`multi` 值含换行 → 整个值被引号包裹且 CSV 行内换行（测试断言行首尾引号包裹整个多行值）。
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `npx vitest run tests/renderer/chartExport.test.ts`
 Expected: PASS（5 个用例）
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/renderer/src/utils/chartExport.ts tests/renderer/chartExport.test.ts
@@ -641,7 +641,7 @@ git commit -m "feat(export): 图表 PNG 与表格 CSV 导出工具"
 - Consumes: `exportChartAsPng`（Task B1）
 - Produces: `export function ChartExportButton(props: { instanceRef: React.MutableRefObject<echarts.ECharts | null>; filename: string }): JSX.Element`（右上角悬浮小按钮）；四个图表组件增加 `instanceRef` 与按钮
 
-- [ ] **Step 1: 创建 ChartExportButton**
+- [x] **Step 1: 创建 ChartExportButton**
 
 创建 `src/renderer/src/components/app/ChartExportButton.tsx`：
 
@@ -695,7 +695,7 @@ export function ChartExportButton({ instanceRef, filename }: ChartExportButtonPr
 </svg>
 ```
 
-- [ ] **Step 2: PriceTrendChart 改造**
+- [x] **Step 2: PriceTrendChart 改造**
 
 `src/renderer/src/components/stock-detail/PriceTrendChart.tsx`：
 
@@ -711,24 +711,24 @@ export function ChartExportButton({ instanceRef, filename }: ChartExportButtonPr
 
 - import 增加 `ChartExportButton`
 
-- [ ] **Step 3: ValuationTrendChart 改造**
+- [x] **Step 3: ValuationTrendChart 改造**
 
 `src/renderer/src/components/stock-detail/ValuationTrendChart.tsx`：同样模式（effect 内 chart 实例 → `instanceRef.current`；cleanup 置 null；容器 div 加 `position: 'relative'`；内加 `<ChartExportButton instanceRef={instanceRef} filename="valuation-trend" />`）。先读该文件确认 effect 结构与容器 div 样式（可能高度不同），保持既有尺寸。
 
-- [ ] **Step 4: YearlyDividendTrendChart 改造**
+- [x] **Step 4: YearlyDividendTrendChart 改造**
 
 `src/renderer/src/components/stock-detail/YearlyDividendTrendChart.tsx`：同样模式，filename 为 `yearly-dividend-trend`。
 
-- [ ] **Step 5: BacktestNavChart 改造**
+- [x] **Step 5: BacktestNavChart 改造**
 
 `src/renderer/src/components/backtest/BacktestNavChart.tsx`：同样模式，filename 为 `backtest-nav`。
 
-- [ ] **Step 6: 验证编译**
+- [x] **Step 6: 验证编译**
 
 Run: `npm run typecheck`
 Expected: 无错误（若 @ant-design/icons 未安装，改用内联 SVG）
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交**
 
 ```bash
 git add src/renderer/src/components/app/ChartExportButton.tsx src/renderer/src/components/stock-detail/PriceTrendChart.tsx src/renderer/src/components/stock-detail/ValuationTrendChart.tsx src/renderer/src/components/stock-detail/YearlyDividendTrendChart.tsx src/renderer/src/components/backtest/BacktestNavChart.tsx
@@ -746,7 +746,7 @@ git commit -m "feat(export): 详情页与回测图表支持 PNG 导出"
 - Consumes: `ChartExportButton`（Task B2）
 - Produces: `DividendBarChart` 与 `DividendTrendChart` 渲染导出按钮（两者已有 `instanceRef`）
 
-- [ ] **Step 1: 加导出按钮**
+- [x] **Step 1: 加导出按钮**
 
 `src/renderer/src/pages/DividendCenterPage.tsx`：
 
@@ -765,7 +765,7 @@ git commit -m "feat(export): 详情页与回测图表支持 PNG 导出"
 
 （两组件已有 `instanceRef = useRef<echarts.ECharts | null>(null)`，无需新增；先读文件确认容器 div 结构与 effect 是否始终复用实例。）
 
-- [ ] **Step 2: 验证编译 + 提交**
+- [x] **Step 2: 验证编译 + 提交**
 
 Run: `npm run typecheck` → 无错误
 
@@ -785,7 +785,7 @@ git commit -m "feat(export): 分红中心图表支持 PNG 导出"
 - Consumes: `exportRowsAsCsv`（Task B1）
 - Produces: "现金分配历史" AppCard 标题区导出按钮（filename `dividend-history`）
 
-- [ ] **Step 1: 实现导出函数与按钮**
+- [x] **Step 1: 实现导出函数与按钮**
 
 `src/renderer/src/pages/StockDetailPage.tsx`：
 
@@ -827,7 +827,7 @@ git commit -m "feat(export): 分红中心图表支持 PNG 导出"
 
 （若 AppCard title 渲染空间受限，将按钮移到表格上方说明行区域亦可，保证可见可点。）
 
-- [ ] **Step 2: 验证编译 + 提交**
+- [x] **Step 2: 验证编译 + 提交**
 
 Run: `npm run typecheck` → 无错误
 
@@ -851,7 +851,7 @@ git commit -m "feat(export): 详情页现金分配历史支持 CSV 导出"
 - Consumes: `AssetSnapshotRepository.findByKey`（返回含 `fetchedAt` 的行）
 - Produces: `AssetDetailDto.fetchedAt?: string`（ISO）
 
-- [ ] **Step 1: 写失败测试**
+- [x] **Step 1: 写失败测试**
 
 在 `tests/main/assetUseCases.test.ts` 追加（沿用该文件既有 `vi.hoisted` + mock AssetRepository 模式，另 mock AssetSnapshotRepository）：
 
@@ -888,12 +888,12 @@ vi.mock('@main/repositories/assetSnapshotRepository', () => ({
   })
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `npx vitest run tests/main/assetUseCases.test.ts`
 Expected: FAIL — `fetchedAt` undefined（detail 无该字段）
 
-- [ ] **Step 3: 实现贯通**
+- [x] **Step 3: 实现贯通**
 
 `shared/contracts/api.ts` 的 `AssetDetailDto` 增加：
 
@@ -938,12 +938,12 @@ export async function getAssetDetail(query: AssetQueryDto): Promise<AssetDetailD
 
 注意：缓存命中路径 snapshot 为该资产的旧快照写入时间；新抓取路径 `AssetRepository.getDetail` 已 upsert，`findByKey` 返回刚刚写入的时间。
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `npx vitest run tests/main/assetUseCases.test.ts`
 Expected: PASS（新增用例 + 既有用例）
 
-- [ ] **Step 5: 全量回归 + 提交**
+- [x] **Step 5: 全量回归 + 提交**
 
 Run: `npx vitest run` → 全量通过
 
@@ -964,7 +964,7 @@ git commit -m "feat(asset): AssetDetailDto 贯通 fetchedAt（数据更新时间
 - Consumes: `AssetDetailDto.fetchedAt`（Task C1）
 - Produces: `export function formatDateTime(iso: string): string`（`YYYY-MM-DD HH:mm`）；详情页价格区显示"数据更新于 {time}"
 
-- [ ] **Step 1: 创建 format.ts**
+- [x] **Step 1: 创建 format.ts**
 
 创建 `src/renderer/src/utils/format.ts`：
 
@@ -979,7 +979,7 @@ export function formatDateTime(iso: string): string {
 }
 ```
 
-- [ ] **Step 2: 详情页显示**
+- [x] **Step 2: 详情页显示**
 
 `src/renderer/src/pages/StockDetailPage.tsx` 头部价格区（L183-186 `ledger-detail-price` 块内，`最新价 / ${data.assetType}` span 之后）追加：
 
@@ -993,7 +993,7 @@ export function formatDateTime(iso: string): string {
 
 - import 增加 `formatDateTime`
 
-- [ ] **Step 3: 验证编译 + 提交**
+- [x] **Step 3: 验证编译 + 提交**
 
 Run: `npm run typecheck` → 无错误
 
@@ -1015,7 +1015,7 @@ git commit -m "feat(ui): 详情页显示数据更新时间"
 - Consumes: `formatDateTime` 辅助（本任务用 `formatTime`：`HH:mm:ss`，在 format.ts 追加）
 - Produces: 两页显示"最近刷新 HH:mm:ss"
 
-- [ ] **Step 1: format.ts 追加 formatTime**
+- [x] **Step 1: format.ts 追加 formatTime**
 
 `src/renderer/src/utils/format.ts` 追加：
 
@@ -1026,7 +1026,7 @@ export function formatTime(date: Date): string {
 }
 ```
 
-- [ ] **Step 2: DashboardHero 增加 prop**
+- [x] **Step 2: DashboardHero 增加 prop**
 
 `src/renderer/src/components/dashboard/DashboardHero.tsx`：
 - props 类型（L11 附近 `onRefresh: () => void` 旁）增加 `refreshedAt?: Date | null`
@@ -1043,7 +1043,7 @@ export function formatTime(date: Date): string {
 
 （按钮区为 flex 容器，追加 span 即可；import formatTime。）
 
-- [ ] **Step 3: DashboardPage 记录刷新时间**
+- [x] **Step 3: DashboardPage 记录刷新时间**
 
 `src/renderer/src/pages/DashboardPage.tsx`：
 - 增加 state：`const [refreshedAt, setRefreshedAt] = useState<Date | null>(null)`
@@ -1077,7 +1077,7 @@ export function formatTime(date: Date): string {
 
 - `<DashboardHero ... />` 传 `refreshedAt={refreshedAt}`
 
-- [ ] **Step 4: WatchlistPage 记录刷新时间**
+- [x] **Step 4: WatchlistPage 记录刷新时间**
 
 `src/renderer/src/pages/WatchlistPage.tsx`：
 - 增加 `const [refreshedAt, setRefreshedAt] = useState<Date | null>(null)`
@@ -1094,7 +1094,7 @@ export function formatTime(date: Date): string {
 
 - import `formatTime`（WatchlistPage 若无 utils 依赖则新增）
 
-- [ ] **Step 5: 验证编译 + 回归 + 提交**
+- [x] **Step 5: 验证编译 + 回归 + 提交**
 
 Run: `npm run typecheck` → 无错误
 Run: `npx vitest run` → 全量通过
@@ -1113,12 +1113,12 @@ git commit -m "feat(ui): 工作台与自选页显示最近刷新时间"
 **Files:**
 - 无代码改动（验收任务）
 
-- [ ] **Step 1: 静态与单测**
+- [x] **Step 1: 静态与单测**
 
 Run: `npm run typecheck` → Expected: 无错误
 Run: `npm test` → Expected: 全部 PASS
 
-- [ ] **Step 2: 启动 headless 运行时**
+- [x] **Step 2: 启动 headless 运行时**
 
 ```powershell
 $p = Start-Process -FilePath "cmd.exe" -ArgumentList '/c','cd /d I:\code\DividendMonitor && set DIVIDEND_MONITOR_HEADLESS=1&& npx electron-vite dev > C:\Users\15845\AppData\Local\Temp\opencode\e2e-data-features.log 2>&1' -WindowStyle Hidden -PassThru
@@ -1126,28 +1126,28 @@ $p = Start-Process -FilePath "cmd.exe" -ArgumentList '/c','cd /d I:\code\Dividen
 
 等待 `http://127.0.0.1:3210/api/security/nonce` 就绪；vite 端口从日志 `Local:` 行读取（通常 8192）。
 
-- [ ] **Step 3: 时间提示验证（浏览器 chrome-devtools）**
+- [x] **Step 3: 时间提示验证（浏览器 chrome-devtools）**
 
 1. 打开 `http://127.0.0.1:<port>/#/stock-detail?assetKey=STOCK%3AA_SHARE%3A601857&symbol=601857`
 2. 通过标准：头部价格区显示"数据更新于 2026-08-02 HH:mm"且时间合理（与数据库 fetched_at 一致或接近）
 3. 打开工作台 `/` → 刷新估值按钮旁显示"最近刷新 HH:mm:ss"
 4. 打开自选 `/watchlist` → 刷新自选按钮旁显示"最近刷新 HH:mm:ss"
 
-- [ ] **Step 4: 图表导出验证（浏览器点击下载）**
+- [x] **Step 4: 图表导出验证（浏览器点击下载）**
 
 1. 详情页：价格走势 / 估值趋势 / 年度股息柱状图 各点导出按钮 → chrome-devtools 记录下载（PNG），文件 >10KB
 2. 回测页 `/backtest/601857`：收益走势图导出 → PNG
 3. 分红中心 `/dividend-center`：年度汇总 / 月度趋势导出 → PNG
 4. 详情页"现金分配历史"点"导出 CSV" → 文件开头含 BOM（可下载后用文件大小与内容抽样验证），Excel 打开无乱码
 
-- [ ] **Step 5: 备份恢复验证（UI + 手动步骤）**
+- [x] **Step 5: 备份恢复验证（UI + 手动步骤）**
 
 1. 设置页渲染确认："数据备份"卡片存在、两个按钮可见（chrome-devtools snapshot）
 2. 备份对话框为系统级（dialog.showSaveDialog），MCP 无法自动化 → **手动验证清单**（输出给用户执行）：
    - 桌面模式（`npm run dev`）打开设置页 → 点"导出备份" → 选择保存位置 → 生成 .sqlite 且大小 >0，message 显示路径
    - 修改数据（如删一条自选）→ 点"恢复备份" → 确认对话框 → 选择刚才的备份 → 页面刷新 → 数据回到备份时状态；数据库目录出现 `pre-restore-<ts>.sqlite` 安全备份
 
-- [ ] **Step 6: 清理**
+- [x] **Step 6: 清理**
 
 `Get-Process -Name electron | Stop-Process -Force`（如未清理）
 

@@ -28,7 +28,7 @@
 **Interfaces:**
 - Produces: `migrateWatchlistGroupAssetsForeignKey(db)` 和 `migratePortfolioRiskLevelColumn(db)` 两个迁移函数，在 `initializeSchema` 里调用
 
-- [ ] **Step 1: 写失败测试 — 验证迁移后 watchlist_group_assets 无对 watchlist_items 的外键**
+- [x] **Step 1: 写失败测试 — 验证迁移后 watchlist_group_assets 无对 watchlist_items 的外键**
 
 ```ts
 // tests/main/infrastructure/dbMigration.test.ts
@@ -123,12 +123,12 @@ describe('db migrations', () => {
 })
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `npx vitest run tests/main/infrastructure/dbMigration.test.ts`
 Expected: FAIL — 模块不存在
 
-- [ ] **Step 3: 创建迁移函数文件**
+- [x] **Step 3: 创建迁移函数文件**
 
 创建 `src/main/infrastructure/db/migrations/watchlistGroupAssetsMigration.ts`:
 
@@ -175,7 +175,7 @@ export function migratePortfolioRiskLevelColumn(db: DatabaseSync): void {
 }
 ```
 
-- [ ] **Step 4: 在 initializeSchema 里调用迁移**
+- [x] **Step 4: 在 initializeSchema 里调用迁移**
 
 Modify `src/main/infrastructure/db/sqlite.ts:190-207`，在 `initializeSchema` 函数里加：
 
@@ -205,17 +205,17 @@ function initializeSchema(db: DatabaseSync) {
 }
 ```
 
-- [ ] **Step 5: 运行测试确认通过**
+- [x] **Step 5: 运行测试确认通过**
 
 Run: `npx vitest run tests/main/infrastructure/dbMigration.test.ts`
 Expected: PASS
 
-- [ ] **Step 6: 运行全量测试 + typecheck**
+- [x] **Step 6: 运行全量测试 + typecheck**
 
 Run: `npm run typecheck && npm test`
 Expected: 全部通过
 
-- [ ] **Step 7: 提交**
+- [x] **Step 7: 提交**
 
 ```bash
 git add src/main/infrastructure/db/migrations/ src/main/infrastructure/db/sqlite.ts tests/main/infrastructure/dbMigration.test.ts
@@ -237,7 +237,7 @@ git commit -m "feat(db): 解耦 watchlist_group_assets 外键 + 预留 portfolio
 **Interfaces:**
 - Produces: `PortfolioPositionDto.riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH'`、`PortfolioPositionUpsertDto.riskLevel?`
 
-- [ ] **Step 1: 扩展 DTO 类型**
+- [x] **Step 1: 扩展 DTO 类型**
 
 Modify `shared/contracts/api.ts`，找到 `PortfolioPositionDto`（约 line 48-61）加 `riskLevel`:
 
@@ -277,12 +277,12 @@ export type PortfolioPositionUpsertDto = {
 }
 ```
 
-- [ ] **Step 2: typecheck**
+- [x] **Step 2: typecheck**
 
 Run: `npm run typecheck`
 Expected: PASS（纯加可选字段，不破坏现有）
 
-- [ ] **Step 3: 提交**
+- [x] **Step 3: 提交**
 
 ```bash
 git add shared/contracts/api.ts
@@ -301,7 +301,7 @@ git commit -m "feat(contracts): PortfolioPosition DTO 加 riskLevel 可选字段
 - Consumes: Task 2 的 `PortfolioPositionUpsertDto.riskLevel`
 - Produces: `PortfolioRepository.list` 返回的 DTO 带 `riskLevel`，`upsert` 写入 `risk_level`
 
-- [ ] **Step 1: 扩展现有测试加 risk_level 读写用例**
+- [x] **Step 1: 扩展现有测试加 risk_level 读写用例**
 
 在 `tests/main/repositories/portfolioRepository.upsert.test.ts` 末尾加：
 
@@ -374,12 +374,12 @@ describe('PortfolioRepository — risk_level 字段', () => {
 })
 ```
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `npx vitest run tests/main/repositories/portfolioRepository.upsert.test.ts`
 Expected: FAIL — list 返回的 DTO 没有 riskLevel 字段
 
-- [ ] **Step 3: 修改 PortfolioRepository 读写 risk_level**
+- [x] **Step 3: 修改 PortfolioRepository 读写 risk_level**
 
 Modify `src/main/repositories/portfolioRepository.ts`:
 
@@ -458,17 +458,17 @@ db.prepare(
 ).run(id, assetKey, assetType, market, code, name, direction, shares, avgCost, riskLevel, existing?.created_at ?? now, now)
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `npx vitest run tests/main/repositories/portfolioRepository.upsert.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: 全量测试 + typecheck**
+- [x] **Step 5: 全量测试 + typecheck**
 
 Run: `npm run typecheck && npm test`
 Expected: 全部通过
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add src/main/repositories/portfolioRepository.ts tests/main/repositories/portfolioRepository.upsert.test.ts
@@ -487,7 +487,7 @@ git commit -m "feat(portfolio): PortfolioRepository 读写 risk_level 字段"
 - Consumes: Task 2 的 DTO
 - Produces: 云端 repo 读写 risk_level 与本地一致
 
-- [ ] **Step 1: 扩展 supabase 测试加 risk_level 用例**
+- [x] **Step 1: 扩展 supabase 测试加 risk_level 用例**
 
 在 `tests/main/repositories/supabasePortfolioRepository.upsert.test.ts` 的测试套件里加一个新 it:
 
@@ -513,12 +513,12 @@ git commit -m "feat(portfolio): PortfolioRepository 读写 risk_level 字段"
 
 同时更新测试文件顶部的 `UpsertRow` 类型加 `risk_level: string | null`，以及 mock 的 insert 分支透传 `risk_level`。
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `npx vitest run tests/main/repositories/supabasePortfolioRepository.upsert.test.ts`
 Expected: FAIL — risk_level 未透传
 
-- [ ] **Step 3: 修改 SupabasePortfolioRepository 读写 risk_level**
+- [x] **Step 3: 修改 SupabasePortfolioRepository 读写 risk_level**
 
 Modify `src/main/repositories/supabasePortfolioRepository.ts`:
 
@@ -554,17 +554,17 @@ await supabase.from('portfolio_positions').upsert({
 }, { onConflict: 'id' })
 ```
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `npx vitest run tests/main/repositories/supabasePortfolioRepository.upsert.test.ts`
 Expected: PASS
 
-- [ ] **Step 5: 全量测试 + typecheck**
+- [x] **Step 5: 全量测试 + typecheck**
 
 Run: `npm run typecheck && npm test`
 Expected: 全部通过
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add src/main/repositories/supabasePortfolioRepository.ts tests/main/repositories/supabasePortfolioRepository.upsert.test.ts
@@ -582,7 +582,7 @@ git commit -m "feat(portfolio): SupabasePortfolioRepository 读写 risk_level �
 **Interfaces:**
 - Produces: `AssetGroupPopover` 组件，props: `{ assetKey, groups, getAssetGroupIds, onToggle }`
 
-- [ ] **Step 1: 创建独立组件文件**
+- [x] **Step 1: 创建独立组件文件**
 
 创建 `src/renderer/src/components/app/AssetGroupPopover.tsx`，把 `WatchlistTable.tsx:25-142` 的 `AssetGroupPopover` 函数完整搬过来，保持 props 签名不变：
 
@@ -603,24 +603,24 @@ export function AssetGroupPopover({ assetKey, groups, getAssetGroupIds, onToggle
 }
 ```
 
-- [ ] **Step 2: 修改 WatchlistTable 改为 import**
+- [x] **Step 2: 修改 WatchlistTable 改为 import**
 
 Modify `src/renderer/src/components/watchlist/WatchlistTable.tsx`:
 - 删除 line 25-142 的内联 `AssetGroupPopover` 函数定义
 - 顶部 import 加：`import { AssetGroupPopover } from '@renderer/components/app/AssetGroupPopover'`
 - 删除不再需要的 `import { Popover } from 'antd'`（若 WatchlistTable 其他地方没用 Popover）
 
-- [ ] **Step 3: typecheck**
+- [x] **Step 3: typecheck**
 
 Run: `npm run typecheck`
 Expected: PASS
 
-- [ ] **Step 4: 全量测试**
+- [x] **Step 4: 全量测试**
 
 Run: `npm test`
 Expected: 全部通过（WatchlistTable 行为不变，回归验证）
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git add src/renderer/src/components/app/AssetGroupPopover.tsx src/renderer/src/components/watchlist/WatchlistTable.tsx
@@ -637,7 +637,7 @@ git commit -m "refactor: 抽离 AssetGroupPopover 到 components/app 共用"
 **Interfaces:**
 - Produces: `LedgerIcon name="edit"` 可用
 
-- [ ] **Step 1: 扩展 LedgerIconName 类型**
+- [x] **Step 1: 扩展 LedgerIconName 类型**
 
 Modify `src/renderer/src/components/app/LedgerUi.tsx:3`:
 
@@ -645,7 +645,7 @@ Modify `src/renderer/src/components/app/LedgerUi.tsx:3`:
 type LedgerIconName = 'yield' | 'wallet' | 'calendar' | 'recent' | 'analysis' | 'allocation' | 'detail' | 'delete' | 'select' | 'plus' | 'groups' | 'edit'
 ```
 
-- [ ] **Step 2: 加 edit 图标实现**
+- [x] **Step 2: 加 edit 图标实现**
 
 在 `LedgerUi.tsx` 的 `groups` 图标实现后（约 line 97 前）加：
 
@@ -660,12 +660,12 @@ type LedgerIconName = 'yield' | 'wallet' | 'calendar' | 'recent' | 'analysis' | 
   }
 ```
 
-- [ ] **Step 3: typecheck**
+- [x] **Step 3: typecheck**
 
 Run: `npm run typecheck`
 Expected: PASS
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add src/renderer/src/components/app/LedgerUi.tsx
@@ -683,7 +683,7 @@ git commit -m "feat(ui): LedgerIcon 新增 edit 图标"
 - Consumes: Task 5 的 `AssetGroupPopover`、Task 6 的 `LedgerIcon name="edit"`
 - Produces: `PortfolioTable` 新增 props: `groups`, `getAssetGroupIds`, `onToggleAssetGroup`
 
-- [ ] **Step 1: 修改 PortfolioTable props 和操作栏**
+- [x] **Step 1: 修改 PortfolioTable props 和操作栏**
 
 Modify `src/renderer/src/components/dashboard/PortfolioTable.tsx`:
 
@@ -756,7 +756,7 @@ type PortfolioTableProps = {
 
 移除不再使用的 `Tag` import（若已无其他用处）。
 
-- [ ] **Step 2: 更新 DashboardPage 传 props**
+- [x] **Step 2: 更新 DashboardPage 传 props**
 
 Modify `src/renderer/src/pages/DashboardPage.tsx` 的 `<PortfolioTable>` 调用（约 line 406-411），加分组 props:
 
@@ -774,7 +774,7 @@ Modify `src/renderer/src/pages/DashboardPage.tsx` 的 `<PortfolioTable>` 调用�
 
 （`groups` / `handleGetAssetGroupIds` / `handleToggleAssetGroup` 在 Task 8 添加，此处先确保类型匹配。若 Task 8 未做，先临时传空值占位让 typecheck 过。）
 
-- [ ] **Step 3: typecheck（临时让通过）**
+- [x] **Step 3: typecheck（临时让通过）**
 
 若 Task 8 的 `groups` / `handleGetAssetGroupIds` / `handleToggleAssetGroup` 尚未定义，DashboardPage 会报错。临时在 DashboardPage 加最小占位：
 
@@ -787,7 +787,7 @@ const handleToggleAssetGroup = async (_assetKey: string, _groupId: string, _add:
 Run: `npm run typecheck`
 Expected: PASS
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git add src/renderer/src/components/dashboard/PortfolioTable.tsx src/renderer/src/pages/DashboardPage.tsx
@@ -808,7 +808,7 @@ git commit -m "feat(portfolio): 操作栏图标化 + 去掉资产类别 Tag
 **Interfaces:**
 - Consumes: Task 5 的 `AssetGroupPopover`（通过 PortfolioTable）、`useWatchlistGroups` hook
 
-- [ ] **Step 1: 加分组 hook 和状态**
+- [x] **Step 1: 加分组 hook 和状态**
 
 Modify `src/renderer/src/pages/DashboardPage.tsx`:
 
@@ -836,7 +836,7 @@ const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
 const [assetKeyToGroupIds, setAssetKeyToGroupIds] = useState<Map<string, string[]>>(new Map())
 ```
 
-- [ ] **Step 2: 加载持仓-分组关联**
+- [x] **Step 2: 加载持仓-分组关联**
 
 在 `usePortfolio` 的 `positions` 变化时加载分组关联:
 
@@ -865,7 +865,7 @@ useEffect(() => {
 }, [positions])
 ```
 
-- [ ] **Step 3: 分组过滤逻辑**
+- [x] **Step 3: 分组过滤逻辑**
 
 ```tsx
 const filteredRows = useMemo(() => {
@@ -876,7 +876,7 @@ const filteredRows = useMemo(() => {
 
 把 `<PortfolioTable rows={rows}>` 改为 `rows={filteredRows}`。
 
-- [ ] **Step 4: 分组 Tab 行 UI**
+- [x] **Step 4: 分组 Tab 行 UI**
 
 在 `<PortfolioTable>` 上方加 Tab 行:
 
@@ -907,7 +907,7 @@ const filteredRows = useMemo(() => {
 
 新建分组用内联 input + 回车（参照 WatchlistPage 模式，此处先用最简实现，后续可复用 WatchlistPage 的编辑交互）。
 
-- [ ] **Step 5: 实现 handleGetAssetGroupIds 和 handleToggleAssetGroup**
+- [x] **Step 5: 实现 handleGetAssetGroupIds 和 handleToggleAssetGroup**
 
 ```tsx
 const handleGetAssetGroupIds = useCallback(async (assetKey: string): Promise<string[]> => {
@@ -941,17 +941,17 @@ const handleToggleAssetGroup = useCallback(async (assetKey: string, groupId: str
 
 移除 Task 7 的临时占位变量。
 
-- [ ] **Step 6: typecheck**
+- [x] **Step 6: typecheck**
 
 Run: `npm run typecheck`
 Expected: PASS
 
-- [ ] **Step 7: 全量测试**
+- [x] **Step 7: 全量测试**
 
 Run: `npm test`
 Expected: 全部通过
 
-- [ ] **Step 8: 提交**
+- [x] **Step 8: 提交**
 
 ```bash
 git add src/renderer/src/pages/DashboardPage.tsx
@@ -969,12 +969,12 @@ git commit -m "feat(portfolio): 持仓表加分组 Tab 筛选
 **Files:**
 - 无新文件，纯验证
 
-- [ ] **Step 1: 全量 typecheck + test**
+- [x] **Step 1: 全量 typecheck + test**
 
 Run: `npm run typecheck && npm test`
 Expected: 全部通过
 
-- [ ] **Step 2: 手动验证清单**
+- [x] **Step 2: 手动验证清单**
 
 启动 `npm run dev`，验证：
 
@@ -988,7 +988,7 @@ Expected: 全部通过
 8. 编辑图标打开持仓编辑 Modal，保存正常
 9. 删除图标删除持仓，刷新正常
 
-- [ ] **Step 3: 提交验证记录（可选）**
+- [x] **Step 3: 提交验证记录（可选）**
 
 如有样式微调，统一提交：
 

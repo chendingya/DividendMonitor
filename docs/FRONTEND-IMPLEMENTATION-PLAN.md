@@ -98,13 +98,16 @@
 4. 对比页已支持排序、高亮、行内详情入口和估值窗口切换
 5. 回测页已支持选日期、查看摘要和交易流水
 6. UI 已统一到 `theme.css` 中的 `ledger-*` 风格体系
+7. 分红统计页已支持「即将到账」表区块与全年估算/待入账/剩余估算 3 张卡
+8. 图表已支持 PNG 导出（详情/回测/分红中心），股息率表支持 CSV 导出（含 UTF-8 BOM）
+9. 设置页已支持本地整库备份与恢复（仅桌面模式，恢复前自动保留安全备份）
+10. 详情页显示数据更新时间（`fetchedAt`），工作台/自选页显示最近刷新时间
+11. 前端页面状态已统一为 `PageState` 三态组件 + `useFetch` hook
 
 ## 8. 当前未完成项
 
 1. SQLite 尚未扩展为完整缓存层（SourceGateway 的 RequestCache 仍是内存缓存；估值链路已先行落地 `valuation_cache` 表，见 `docs/superpowers/specs/2026-08-01-technical-debt-hardening-design.md`）
 2. 股息率地图页（`yield-map`）仍未落地（需全市场批量抓取 + Supabase 云端聚合）
-3. 图表导出和截图、数据更新时间提示
-4. 备份恢复（Phase 4 云同步已实现，备份/恢复入口未做）
 
 ## 9. 验收建议
 
