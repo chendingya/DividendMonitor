@@ -37,7 +37,7 @@ npm run test:watch           # 监听模式运行测试
 - **在线模式**: Supabase（`@supabase/supabase-js`，认证 + 云端仓储），配置见 `.env`（`SUPABASE_URL` / `SUPABASE_ANON_KEY`）
 - **测试**: Vitest（测试位于 `tests/`）
 - **数据源**: 东方财富 / 腾讯 / 新浪免费接口，通过统一网关（SourceGateway）调度
-- **其他**: zod（DTO 校验）、electron-log（日志），`zustand` 在依赖中列出但实际未使用
+- **其他**: zod（DTO 校验）、electron-log（日志）
 
 ## 路径别名
 
@@ -102,7 +102,7 @@ src/renderer/src/
 ├── services/         # 渲染层运行时入口（desktopApi 运行时检测 + 各功能域 API）
 ├── router/           # 路由配置（AppRouter，含登录守卫）
 ├── layouts/          # 布局组件（AppShell：antd Menu 侧边导航）
-├── store/            # 状态（portfolioStore 等，zustand 未使用）
+├── store/            # 状态目录（空；状态管理走 hooks + local state，见 portfolioStore 于 services/）
 ├── types/  utils/    # 类型定义、工具函数（chartExport、format）
 └── styles/           # 全局样式 + Ant Design token 定制
 ```

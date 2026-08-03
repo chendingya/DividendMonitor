@@ -25,8 +25,7 @@ $files = @(
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.30.1",
-    "zod": "^3.24.4",
-    "zustand": "^4.5.7"
+    "zod": "^3.24.4"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
