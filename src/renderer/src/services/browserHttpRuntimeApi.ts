@@ -48,17 +48,16 @@ async function getLocalNonce(): Promise<string> {
   return cachedNonce
 }
 
-async function postJsonWithNonce<T>(path: string, body: unknown) {
+async function authedRequest<T>(path: string, options: Parameters<typeof requestJson>[1] = {}): Promise<T> {
   const nonce = await getLocalNonce()
   return requestJson<T>(path, {
-    method: 'POST',
-    body,
-    headers: { 'X-Local-Nonce': nonce }
+    ...options,
+    headers: { ...options.headers, 'X-Local-Nonce': nonce }
   })
 }
 
 async function postJson<T>(path: string, body: unknown) {
-  return requestJson<T>(path, {
+  return authedRequest<T>(path, {
     method: 'POST',
     body
   })
@@ -67,23 +66,23 @@ async function postJson<T>(path: string, body: unknown) {
 export const browserHttpRuntimeApi: DividendMonitorApi = {
   auth: {
     login(email, password) {
-      return postJsonWithNonce<{ session: AuthSessionDto }>('/api/auth/login', { email, password }).then((r) => r.session)
+      return postJson<{ session: AuthSessionDto }>('/api/auth/login', { email, password }).then((r) => r.session)
     },
     register(email, password) {
-      return postJsonWithNonce<{ session: AuthSessionDto; needsConfirmation: boolean }>('/api/auth/register', { email, password })
+      return postJson<{ session: AuthSessionDto; needsConfirmation: boolean }>('/api/auth/register', { email, password })
     },
     logout() {
       return postJson<void>('/api/auth/logout', {})
     },
     getSession() {
-      return requestJson<{ session: AuthSessionDto }>('/api/auth/session').then((r) => r.session)
+      return authedRequest<{ session: AuthSessionDto }>('/api/auth/session').then((r) => r.session)
     },
     onAuthStateChange(_callback: (session: AuthSessionDto) => void) {
       // No-op for browser HTTP runtime; auth state changes are not pushed
       return () => {}
     },
     updatePassword(_newPassword: string) {
-      return postJsonWithNonce<void>('/api/auth/update-password', { newPassword: _newPassword })
+      return postJson<void>('/api/auth/update-password', { newPassword: _newPassword })
     }
   },
   industry: {
@@ -91,7 +90,7 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
       return postJson('/api/industry/analysis', { industryName, assetKeys })
     },
     getDistribution() {
-      return requestJson('/api/industry/distribution')
+      return authedRequest('/api/industry/distribution')
     },
     getBenchmark(industryName: string) {
       return postJson('/api/industry/benchmark', { industryName })
@@ -99,13 +98,13 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
   },
   settings: {
     get() {
-      return requestJson('/api/settings')
+      return authedRequest('/api/settings')
     },
     update(partial: Record<string, unknown>) {
-      return requestJson('/api/settings', { method: 'PUT', body: partial })
+      return authedRequest('/api/settings', { method: 'PUT', body: partial })
     },
     reset() {
-      return requestJson('/api/settings', { method: 'DELETE' })
+      return authedRequest('/api/settings', { method: 'DELETE' })
     }
   },
   backup: {
@@ -148,7 +147,7 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
   },
   watchlist: {
     list(): Promise<WatchlistEntryDto[]> {
-      return requestJson('/api/watchlist')
+      return authedRequest('/api/watchlist')
     },
     add(symbol: string) {
       return postJson<void>('/api/watchlist/add-asset', createStockAssetQuery(symbol))
@@ -163,16 +162,16 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
       return postJson<void>('/api/watchlist/remove-asset', { assetKey })
     },
     listGroups(): Promise<WatchlistGroupDto[]> {
-      return requestJson('/api/watchlist/groups')
+      return authedRequest('/api/watchlist/groups')
     },
     createGroup(request: WatchlistGroupUpsertDto): Promise<WatchlistGroupDto> {
       return postJson('/api/watchlist/groups', request)
     },
     updateGroup(id: string, request: WatchlistGroupUpsertDto): Promise<WatchlistGroupDto> {
-      return requestJson(`/api/watchlist/groups/${encodeURIComponent(id)}`, { method: 'PUT', body: request })
+      return authedRequest(`/api/watchlist/groups/${encodeURIComponent(id)}`, { method: 'PUT', body: request })
     },
     deleteGroup(id: string): Promise<void> {
-      return requestJson(`/api/watchlist/groups/${encodeURIComponent(id)}`, { method: 'DELETE' })
+      return authedRequest(`/api/watchlist/groups/${encodeURIComponent(id)}`, { method: 'DELETE' })
     },
     addToGroup(request: WatchlistGroupAssetActionDto): Promise<void> {
       return postJson('/api/watchlist/groups/add-asset', request)
@@ -181,10 +180,10 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
       return postJson('/api/watchlist/groups/remove-asset', request)
     },
     listGroupAssets(groupId: string): Promise<WatchlistEntryDto[]> {
-      return requestJson(`/api/watchlist/groups/${encodeURIComponent(groupId)}/assets`)
+      return authedRequest(`/api/watchlist/groups/${encodeURIComponent(groupId)}/assets`)
     },
     getAssetGroupIds(assetKey: string): Promise<string[]> {
-      return requestJson(`/api/watchlist/asset-groups/${encodeURIComponent(assetKey)}`)
+      return authedRequest(`/api/watchlist/asset-groups/${encodeURIComponent(assetKey)}`)
     }
   },
   calculation: {
@@ -212,7 +211,7 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
   },
   portfolio: {
     list() {
-      return requestJson('/api/portfolio')
+      return authedRequest('/api/portfolio')
     },
     upsert(request: PortfolioPositionUpsertDto) {
       return postJson<void>('/api/portfolio/upsert', request)
@@ -237,18 +236,18 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
   },
   fx: {
     getUsdCnyRate() {
-      return requestJson<{ rate: number }>('/api/fx/usd-cny-rate').then((r) => r.rate)
+      return authedRequest<{ rate: number }>('/api/fx/usd-cny-rate').then((r) => r.rate)
     }
   },
   backtest: {
     historyList() {
-      return requestJson('/api/backtest/history')
+      return authedRequest('/api/backtest/history')
     },
     historySave(result: BacktestResultDto, name?: string, dcaConfig?: string) {
       return postJson('/api/backtest/history', { result, name, dcaConfig })
     },
     historyDelete(id: string) {
-      return requestJson('/api/backtest/history', { method: 'DELETE', body: { id } })
+      return authedRequest('/api/backtest/history', { method: 'DELETE', body: { id } })
     }
   },
   sync: {
@@ -257,7 +256,7 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
       // endpoint and forward changes — mirrors the desktop IPC event.
       let lastSignature = ''
       const timer = setInterval(() => {
-        requestJson<SyncStatusDto>('/api/sync/status')
+        authedRequest<SyncStatusDto>('/api/sync/status')
           .then((status) => {
             const signature = JSON.stringify(status)
             if (signature !== lastSignature) {

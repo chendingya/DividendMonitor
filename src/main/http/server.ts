@@ -1,5 +1,6 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
 import { LOCAL_HTTP_API_ORIGIN } from '@shared/contracts/api'
+import { validateNonce } from '@main/security/localNonce'
 import { handleAssetRoute } from '@main/http/routes/assetRoutes'
 import { handleAuthRoute } from '@main/http/routes/authRoutes'
 import { handleCalculationRoute } from '@main/http/routes/calculationRoutes'
@@ -15,6 +16,39 @@ import { HttpError, asHttpError, sendJson } from '@main/http/httpErrors'
 import { getSecurityHeaders } from '@main/security/contentSecurityPolicy'
 
 let httpServer: Server | null = null
+
+/**
+ * CORS 白名单：仅放行本地 HTTP API 自身与固定端口的前端 dev server。
+ * 此前允许 localhost:任意端口，任何本地恶意网页都能读写本机 API。
+ */
+const ALLOWED_ORIGINS = [
+  'http://127.0.0.1:3210',
+  'http://localhost:3210',
+  'http://127.0.0.1:8192',
+  'http://localhost:8192'
+]
+
+/** Host 白名单：防 DNS rebinding，Host 只能是本机回环地址 */
+const ALLOWED_HOSTNAMES = new Set(['127.0.0.1', 'localhost'])
+
+/**
+ * 无需 nonce 校验的路径：
+ * - /api/security/nonce 是非ce 分发端点本身
+ * - /auth/callback 是 Supabase 邮件确认回调，由外部浏览器直接访问（仅返回静态 HTML）
+ */
+const NONCE_EXEMPT_PATHS = new Set(['/api/security/nonce', '/auth/callback'])
+
+function requireValidNonce(request: IncomingMessage): void {
+  const nonce = request.headers['x-local-nonce']
+  const nonceValue = Array.isArray(nonce) ? nonce[0] : nonce
+  if (!validateNonce(nonceValue)) {
+    throw new HttpError('缺少或无效的本地认证令牌。', 403)
+  }
+}
+
+function isAllowedHost(hostname: string): boolean {
+  return ALLOWED_HOSTNAMES.has(hostname)
+}
 
 function getBaseUrl() {
   const port = process.env['LOCAL_HTTP_API_PORT']?.trim()
@@ -64,14 +98,18 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
   const pathname = url.pathname
   const method = request.method ?? 'GET'
 
-  // Allow same-origin and local dev server origins.
-  const origin = request.headers.origin
-  const allowedOrigins = ['http://127.0.0.1:3210', 'http://localhost:3210']
-  if (origin && (allowedOrigins.includes(origin) || /^http:\/\/(127\.0\.0\.1|localhost):\d+$/.test(origin))) {
-    response.setHeader('Access-Control-Allow-Origin', origin)
-  } else {
-    response.setHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:3210')
+  // Reject non-loopback Host headers to mitigate DNS rebinding attacks.
+  if (!isAllowedHost(url.hostname)) {
+    throw new HttpError('非法请求来源。', 403)
   }
+
+  // Origin must match the strict local whitelist when present. Requests from
+  // arbitrary web pages (any origin, any local port) are rejected outright.
+  const origin = request.headers.origin
+  if (origin && !ALLOWED_ORIGINS.includes(origin)) {
+    throw new HttpError('跨域请求被拒绝。', 403)
+  }
+  response.setHeader('Access-Control-Allow-Origin', origin ?? LOCAL_HTTP_API_ORIGIN)
   response.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Local-Nonce')
 
@@ -79,6 +117,13 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
     response.statusCode = 204
     response.end()
     return
+  }
+
+  // Every API call must carry a valid local nonce header — except the nonce
+  // dispenser itself and the external email-confirmation callback. This blocks
+  // cross-origin form submissions and non-browser callers from mutating data.
+  if (!NONCE_EXEMPT_PATHS.has(pathname)) {
+    requireValidNonce(request)
   }
 
   const body = await readJsonBody(request)
