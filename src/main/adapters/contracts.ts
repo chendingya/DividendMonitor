@@ -1,6 +1,7 @@
 import type { HistoricalPricePoint, Stock, DividendEvent } from '@main/domain/entities/Stock'
 import type { ValuationMetric, ValuationTrendPoint } from '@main/domain/services/valuationService'
 import type { AssetType } from '@shared/contracts/api'
+import type { MarketQuoteRecord, MarketDividendRecord } from '@main/infrastructure/dataSources/types/sourceTypes'
 export type StockValuationSource = {
   pe?: ValuationMetric
   pb?: ValuationMetric
@@ -167,4 +168,9 @@ export interface HousingMarketDataSource {
   getEsfHouseSnapshot(): Promise<HousingMarketSnapshot>
   /** 50 城住宅租金快照（元/㎡·月） */
   getRentSnapshot(): Promise<HousingMarketSnapshot>
+}
+
+export interface YieldMapDataSource {
+  fetchAllQuotes(): Promise<MarketQuoteRecord[]>
+  fetchAllDividendEvents(): Promise<MarketDividendRecord[]>
 }
