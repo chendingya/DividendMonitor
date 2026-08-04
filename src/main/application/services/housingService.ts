@@ -137,13 +137,13 @@ export class HousingService {
 
   /** 环比连乘重建连续指数序列（定基指数停发后的替代：基准 100，逐月 × MoM/100） */
   private buildIndexSeries(history: HousingIndexPointDto[]) {
-    const ascending = [...history].reverse()
+    // history 已是升序（旧 → 新）；rebuildIndexSeries 要求升序，从最早月锚定 100 向后连乘
     const newHomeSeries = rebuildIndexSeries(
-      ascending.map((item) => ({ reportDate: item.reportDate, secondHandMoM: item.newHomeMoM })),
+      history.map((item) => ({ reportDate: item.reportDate, secondHandMoM: item.newHomeMoM })),
       100
     )
     const secondHandSeries = rebuildIndexSeries(
-      ascending.map((item) => ({ reportDate: item.reportDate, secondHandMoM: item.secondHandMoM })),
+      history.map((item) => ({ reportDate: item.reportDate, secondHandMoM: item.secondHandMoM })),
       100
     )
 
