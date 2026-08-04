@@ -81,4 +81,23 @@ describe('housing use cases', () => {
     expect(Array.isArray(detail.indexHistory)).toBe(true)
     expect(Array.isArray(detail.priceTrend)).toBe(true)
   })
+
+  it('getHousingCityDetail returns rebuilt index series for cities with history', async () => {
+    const detail = await getHousingCityDetail('北京')
+
+    expect(Array.isArray(detail.indexSeries)).toBe(true)
+    if (detail.indexSeries.length > 0) {
+      const first = detail.indexSeries[0]
+      expect(first.newHomeIndex).toBeGreaterThan(0)
+      expect(first.secondHandIndex).toBeGreaterThan(0)
+      // 北京近十年房价指数整体低于 2020 基准（约 90-110 区间）
+      const recent = detail.indexSeries[detail.indexSeries.length - 1]
+      expect(recent.newHomeIndex).toBeGreaterThan(50)
+      expect(recent.newHomeIndex).toBeLessThan(150)
+      // 序列按时间升序
+      for (let i = 1; i < detail.indexSeries.length; i++) {
+        expect(detail.indexSeries[i].reportDate > detail.indexSeries[i - 1].reportDate).toBe(true)
+      }
+    }
+  })
 })

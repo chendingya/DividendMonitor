@@ -6,7 +6,7 @@ import { AppCard } from '@renderer/components/app/AppCard'
 import { ChartExportButton } from '@renderer/components/app/ChartExportButton'
 import { PageState } from '@renderer/components/app/PageState'
 import { useHousingCityDetail, useHousingUserData } from '@renderer/hooks/useHousing'
-import type { HousingIndexPointDto, HousingPriceTrendPointDto } from '@shared/contracts/api'
+import type { HousingIndexSeriesPointDto, HousingPriceTrendPointDto } from '@shared/contracts/api'
 
 function formatPercent(value: number | undefined, digits = 2): string {
   if (value == null) return '--'
@@ -73,18 +73,18 @@ function PriceTrendChart({ trend }: { trend: HousingPriceTrendPointDto[] }) {
   )
 }
 
-function IndexHistoryChart({ history }: { history: HousingIndexPointDto[] }) {
+function IndexSeriesChart({ series }: { series: HousingIndexSeriesPointDto[] }) {
   const chartRef = useRef<HTMLDivElement | null>(null)
   const instanceRef = useRef<echarts.ECharts | null>(null)
 
   const data = useMemo(() => {
-    const limited = history.slice(-36).reverse()
+    const limited = series.slice(-120)
     return {
       labels: limited.map((item) => item.reportDate),
-      newHomeYoY: limited.map((item) => item.newHomeYoY),
-      secondHandYoY: limited.map((item) => item.secondHandYoY)
+      newHome: limited.map((item) => item.newHomeIndex),
+      secondHand: limited.map((item) => item.secondHandIndex)
     }
-  }, [history])
+  }, [series])
 
   useEffect(() => {
     if (!chartRef.current) return
@@ -93,7 +93,7 @@ function IndexHistoryChart({ history }: { history: HousingIndexPointDto[] }) {
 
     chart.setOption({
       animation: false,
-      grid: { left: 56, right: 24, top: 32, bottom: 28 },
+      grid: { left: 56, right: 24, top: 40, bottom: 28 },
       tooltip: { trigger: 'axis' },
       legend: { top: 4, right: 8, itemWidth: 12, itemHeight: 12, textStyle: { color: '#66707a' } },
       xAxis: {
@@ -104,28 +104,28 @@ function IndexHistoryChart({ history }: { history: HousingIndexPointDto[] }) {
       },
       yAxis: {
         type: 'value',
-        name: '同比 (上年同月=100)',
+        name: '指数 (基准 100)',
         nameTextStyle: { color: '#66707a' },
         axisLabel: { color: '#66707a' },
         splitLine: { lineStyle: { color: 'rgba(171, 173, 175, 0.12)' } }
       },
       series: [
         {
-          name: '新建住宅同比',
+          name: '新建住宅指数',
           type: 'line',
-          data: data.newHomeYoY,
+          data: data.newHome,
           smooth: true,
-          symbolSize: 6,
-          lineStyle: { color: '#0052d0', width: 2.5 },
+          symbolSize: 4,
+          lineStyle: { color: '#0052d0', width: 2 },
           itemStyle: { color: '#0052d0' }
         },
         {
-          name: '二手住宅同比',
+          name: '二手住宅指数',
           type: 'line',
-          data: data.secondHandYoY,
+          data: data.secondHand,
           smooth: true,
-          symbolSize: 6,
-          lineStyle: { color: '#f0883e', width: 2.5 },
+          symbolSize: 4,
+          lineStyle: { color: '#f0883e', width: 2 },
           itemStyle: { color: '#f0883e' }
         }
       ]
@@ -142,12 +142,12 @@ function IndexHistoryChart({ history }: { history: HousingIndexPointDto[] }) {
   }, [data])
 
   return (
-    <AppCard title="70 城房价指数（统计局口径）">
+    <AppCard title="70 城房价指数走势（统计局口径）">
       <div style={{ marginBottom: 8, color: '#8b949e', fontSize: 12 }}>
-        定基指数已停发，此处展示同比（上年同月=100）；环比可反映短期动能。
+        定基指数已停发，此处由月度环比连乘重建（起点 = 100），反映房价长期累计变化。
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
-        <ChartExportButton instanceRef={instanceRef} filename="housing-index-history" />
+        <ChartExportButton instanceRef={instanceRef} filename="housing-index-series" />
       </div>
       <div ref={chartRef} style={{ width: '100%', height: 300 }} />
     </AppCard>
@@ -252,7 +252,7 @@ export function HousingCityDetailPage() {
             </AppCard>
           </Col>
           <Col xs={24} lg={14}>
-            <IndexHistoryChart history={data?.indexHistory ?? []} />
+            <IndexSeriesChart series={data?.indexSeries ?? []} />
           </Col>
           <Col xs={24} lg={10}>
             <AppCard title="环比涨跌">

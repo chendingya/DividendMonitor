@@ -692,6 +692,12 @@ export type HousingPriceTrendPointDto = {
   momPercent?: number
 }
 
+export type HousingIndexSeriesPointDto = {
+  reportDate: string            // YYYY-MM
+  newHomeIndex: number          // 新建住宅环比连乘重建指数（基准 100）
+  secondHandIndex: number       // 二手住宅环比连乘重建指数（基准 100）
+}
+
 export type HousingCityDetailDto = {
   city: string
   period: string
@@ -704,6 +710,7 @@ export type HousingCityDetailDto = {
   rentalYieldPercent?: number
   priceToRentRatio?: number
   indexHistory: HousingIndexPointDto[]
+  indexSeries: HousingIndexSeriesPointDto[]
   priceTrend: HousingPriceTrendPointDto[]
   rentTrend: HousingPriceTrendPointDto[]
   userData?: {

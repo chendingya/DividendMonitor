@@ -8,7 +8,7 @@ import type {
 import { EastmoneyHousingDataSource } from '@main/adapters/eastmoney/eastmoneyHousingDataSource'
 import { CihIndexHousingDataSource } from '@main/adapters/cihIndex/cihIndexHousingDataSource'
 import { UserHousingDataRepository, HousingWatchlistRepository } from '@main/repositories/housingRepository'
-import { calculateHousingDerivedMetrics } from '@main/domain/services/housingCalculationService'
+import { calculateHousingDerivedMetrics, rebuildIndexSeries } from '@main/domain/services/housingCalculationService'
 import type { HousingIndexRecord } from '@main/domain/entities/Housing'
 
 export class HousingService {
@@ -68,7 +68,6 @@ export class HousingService {
       this.fetchIndexHistory(city),
       Promise.resolve(this.userDataRepo.findByCity(city))
     ])
-
     const newHome = newHouse.cities.find((item) => item.city === city)
     const esf = esfHouse.cities.find((item) => item.city === city)
     const rentInfo = rent.cities.find((item) => item.city === city)
@@ -102,6 +101,7 @@ export class HousingService {
       rentalYieldPercent: metrics.rentalYieldPercent,
       priceToRentRatio: metrics.priceToRentRatio,
       indexHistory,
+      indexSeries: this.buildIndexSeries(indexHistory),
       priceTrend,
       rentTrend,
       userData: userData
@@ -133,6 +133,40 @@ export class HousingService {
     } catch {
       return []
     }
+  }
+
+  /** 环比连乘重建连续指数序列（定基指数停发后的替代：基准 100，逐月 × MoM/100） */
+  private buildIndexSeries(history: HousingIndexPointDto[]) {
+    const ascending = [...history].reverse()
+    const newHomeSeries = rebuildIndexSeries(
+      ascending.map((item) => ({ reportDate: item.reportDate, secondHandMoM: item.newHomeMoM })),
+      100
+    )
+    const secondHandSeries = rebuildIndexSeries(
+      ascending.map((item) => ({ reportDate: item.reportDate, secondHandMoM: item.secondHandMoM })),
+      100
+    )
+
+    const byDate = new Map<string, { newHomeIndex: number; secondHandIndex: number }>()
+    for (const point of newHomeSeries) {
+      byDate.set(point.reportDate, { newHomeIndex: point.index, secondHandIndex: 100 })
+    }
+    for (const point of secondHandSeries) {
+      const existing = byDate.get(point.reportDate)
+      if (existing) {
+        existing.secondHandIndex = point.index
+      } else {
+        byDate.set(point.reportDate, { newHomeIndex: 100, secondHandIndex: point.index })
+      }
+    }
+
+    return [...byDate.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([reportDate, values]) => ({
+        reportDate,
+        newHomeIndex: Number(values.newHomeIndex.toFixed(2)),
+        secondHandIndex: Number(values.secondHandIndex.toFixed(2))
+      }))
   }
 
   watchCity(city: string): void {

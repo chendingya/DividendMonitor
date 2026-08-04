@@ -1,4 +1,4 @@
-import { Button, Input, Table, Tag, message } from 'antd'
+import { Button, Input, Table, Tag, Tooltip, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -70,8 +70,15 @@ export function HousingPage() {
       dataIndex: 'rentPerSqm',
       key: 'rentPerSqm',
       align: 'right',
-      width: 110,
-      render: (value?: number) => value?.toFixed(1) ?? '--'
+      width: 130,
+      render: (value?: number) =>
+        value == null ? (
+          <Tooltip title="该城市暂不在中指研究院 50 城租金覆盖范围内">
+            <Tag color="default">暂无租金</Tag>
+          </Tooltip>
+        ) : (
+          value.toFixed(1)
+        )
     },
     {
       title: '租金收益率',
@@ -82,7 +89,7 @@ export function HousingPage() {
       sorter: (a, b) => (a.rentalYieldPercent ?? -1) - (b.rentalYieldPercent ?? -1),
       render: (value?: number) =>
         value == null ? (
-          '--'
+          <span style={{ color: '#8b949e', fontSize: 12 }}>暂无</span>
         ) : (
           <span style={{ color: value > 2 ? '#1a7f37' : '#57606a' }}>{value.toFixed(2)}%</span>
         )

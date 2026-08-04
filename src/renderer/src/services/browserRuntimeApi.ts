@@ -1462,6 +1462,14 @@ export const browserRuntimeApi: DividendMonitorApi = {
           { reportDate: '2026-05', newHomeMoM: 99.8, newHomeYoY: 97.9, secondHandMoM: 100.1, secondHandYoY: 93.5 },
           { reportDate: '2026-06', newHomeMoM: 99.7, newHomeYoY: 97.9, secondHandMoM: 100.1, secondHandYoY: 94.5 }
         ],
+        indexSeries: [
+          { reportDate: '2026-01', newHomeIndex: 100, secondHandIndex: 100 },
+          { reportDate: '2026-02', newHomeIndex: 99.6, secondHandIndex: 99.8 },
+          { reportDate: '2026-03', newHomeIndex: 99.3, secondHandIndex: 99.7 },
+          { reportDate: '2026-04', newHomeIndex: 98.9, secondHandIndex: 99.7 },
+          { reportDate: '2026-05', newHomeIndex: 98.7, secondHandIndex: 99.8 },
+          { reportDate: '2026-06', newHomeIndex: 98.4, secondHandIndex: 99.9 }
+        ],
         priceTrend: [
           { period: '2025-08', pricePerSqm: 46980, momPercent: 0.05 },
           { period: '2025-10', pricePerSqm: 47020, momPercent: 0.08 },
