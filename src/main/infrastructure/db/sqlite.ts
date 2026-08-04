@@ -7,6 +7,7 @@ import { migratePortfolioRiskLevelColumn } from '@main/infrastructure/db/migrati
 import { migrateCorporateActionsCursorReset } from '@main/infrastructure/db/migrations/corporateActionsCursorResetMigration'
 import { migrateCorporateActionsCursorResetV2 } from '@main/infrastructure/db/migrations/corporateActionsCursorResetV2Migration'
 import { migrateDividendEventStatus } from '@main/infrastructure/db/migrations/dividendEventStatusMigration'
+import { migrateHousingTables } from '@main/infrastructure/db/migrations/housingTablesMigration'
 
 let database: DatabaseSync | null = null
 
@@ -238,6 +239,7 @@ function initializeSchema(db: DatabaseSync) {
   migrateCorporateActionsCursorResetV2(db)
   migrateDividendEventStatus(db)
   migrateDividendFiscalYearNotNull(db)
+  migrateHousingTables(db)
   // dividend_events 索引必须在迁移之后创建：旧库（无 status 列）在迁移前建
   // status 索引会因 "no such column" 抛错，且 CREATE INDEX IF NOT EXISTS
   // 只跳过已存在的索引、不会校验列是否存在。

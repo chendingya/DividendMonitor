@@ -13,8 +13,13 @@ import type {
   DividendMonitorApi,
   FutureYieldResponseDto,
   HistoricalYieldResponseDto,
+  HousingCityDetailDto,
+  HousingCitySummaryDto,
+  MortgageRequestDto,
+  MortgageResultDto,
   SettingsDto,
   UpcomingDividendDto,
+  UserHousingDataUpsertDto,
   WatchlistEntryDto,
   WatchlistGroupAssetActionDto,
   WatchlistGroupDto,
@@ -1425,6 +1430,79 @@ export const browserRuntimeApi: DividendMonitorApi = {
   },
   fx: {
     async getUsdCnyRate() { return 7.2 }
+  },
+  housing: {
+    async listCities(): Promise<HousingCitySummaryDto[]> {
+      return [
+        { city: '北京', pricePerSqm: 47194, secondHandPricePerSqm: 41872, rentPerSqm: 82, momPercent: 0.16, yoyPercent: -1.82, rentalYieldPercent: 2.08, priceToRentRatio: 47.96, isWatched: true },
+        { city: '上海', pricePerSqm: 64712, secondHandPricePerSqm: 53840, rentPerSqm: 84, momPercent: 0.96, yoyPercent: 8.43, rentalYieldPercent: 1.56, priceToRentRatio: 64.2, isWatched: true },
+        { city: '深圳', pricePerSqm: 53671, secondHandPricePerSqm: 48310, rentPerSqm: 79, momPercent: 0.43, yoyPercent: -1.2, rentalYieldPercent: 1.77, priceToRentRatio: 56.6, isWatched: false },
+        { city: '广州', pricePerSqm: 25429, secondHandPricePerSqm: 24350, rentPerSqm: 55, momPercent: 0.25, yoyPercent: -2.4, rentalYieldPercent: 2.6, priceToRentRatio: 38.5, isWatched: false },
+        { city: '杭州', pricePerSqm: 34019, secondHandPricePerSqm: 29870, rentPerSqm: 55, momPercent: 0.27, yoyPercent: -1.8, rentalYieldPercent: 1.94, priceToRentRatio: 51.5, isWatched: false },
+        { city: '成都', pricePerSqm: 15455, secondHandPricePerSqm: 13280, rentPerSqm: 37, momPercent: 0.44, yoyPercent: -2.6, rentalYieldPercent: 2.87, priceToRentRatio: 34.8, isWatched: false }
+      ]
+    },
+    async getCityDetail(city: string): Promise<HousingCityDetailDto> {
+      return {
+        city,
+        period: '2026-07',
+        unit: '元/平方米',
+        pricePerSqm: 47194,
+        secondHandPricePerSqm: 41872,
+        rentPerSqm: 82,
+        momPercent: 0.16,
+        yoyPercent: -1.82,
+        rentalYieldPercent: 2.08,
+        priceToRentRatio: 47.96,
+        indexHistory: [
+          { reportDate: '2026-01', newHomeMoM: 99.5, newHomeYoY: 96.1, secondHandMoM: 99.9, secondHandYoY: 94.5 },
+          { reportDate: '2026-02', newHomeMoM: 99.6, newHomeYoY: 96.2, secondHandMoM: 99.8, secondHandYoY: 94.6 },
+          { reportDate: '2026-03', newHomeMoM: 99.7, newHomeYoY: 96.5, secondHandMoM: 99.9, secondHandYoY: 94.7 },
+          { reportDate: '2026-04', newHomeMoM: 99.6, newHomeYoY: 97.0, secondHandMoM: 100.0, secondHandYoY: 94.8 },
+          { reportDate: '2026-05', newHomeMoM: 99.8, newHomeYoY: 97.9, secondHandMoM: 100.1, secondHandYoY: 93.5 },
+          { reportDate: '2026-06', newHomeMoM: 99.7, newHomeYoY: 97.9, secondHandMoM: 100.1, secondHandYoY: 94.5 }
+        ],
+        priceTrend: [
+          { period: '2025-08', pricePerSqm: 46980, momPercent: 0.05 },
+          { period: '2025-10', pricePerSqm: 47020, momPercent: 0.08 },
+          { period: '2025-12', pricePerSqm: 47110, momPercent: 0.19 },
+          { period: '2026-02', pricePerSqm: 47140, momPercent: 0.06 },
+          { period: '2026-04', pricePerSqm: 47160, momPercent: 0.04 },
+          { period: '2026-06', pricePerSqm: 47194, momPercent: 0.07 }
+        ],
+        rentTrend: [
+          { period: '2025-08', pricePerSqm: 83.5, momPercent: -0.2 },
+          { period: '2025-10', pricePerSqm: 83.1, momPercent: -0.48 },
+          { period: '2025-12', pricePerSqm: 82.6, momPercent: -0.6 },
+          { period: '2026-02', pricePerSqm: 82.2, momPercent: -0.48 },
+          { period: '2026-04', pricePerSqm: 81.8, momPercent: -0.49 },
+          { period: '2026-06', pricePerSqm: 82, momPercent: 0.24 }
+        ]
+      }
+    },
+    async watchCity(_city: string) {},
+    async unwatchCity(_city: string) {},
+    async updateUserData(_request: UserHousingDataUpsertDto) {},
+    async calculateMortgage(request: MortgageRequestDto): Promise<MortgageResultDto> {
+      const loanAmount = request.totalPrice * (1 - request.downPaymentPercent / 100)
+      const monthlyRate = request.annualInterestRate / 100 / 12
+      const totalMonths = request.loanYears * 12
+      const monthlyPayment =
+        monthlyRate === 0
+          ? (loanAmount * 10_000) / totalMonths
+          : ((loanAmount * 10_000) * monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) /
+            (Math.pow(1 + monthlyRate, totalMonths) - 1)
+      const totalPayment = monthlyPayment * totalMonths
+      const totalInterest = totalPayment - loanAmount * 10_000
+      return {
+        loanAmount,
+        monthlyPayment,
+        totalInterest: totalInterest / 10_000,
+        totalPayment: totalPayment / 10_000,
+        interestRatio: totalInterest / totalPayment,
+        schedule: []
+      }
+    }
   },
   backtest: {
     async historyList() {

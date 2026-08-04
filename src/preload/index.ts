@@ -6,9 +6,11 @@ import type {
   AssetBacktestRequestDto,
   AuthSessionDto,
   DividendHistoryRequest,
+  MortgageRequestDto,
   PortfolioPositionUpsertDto,
   PortfolioPositionReplaceByAssetDto,
   SyncStatusDto,
+  UserHousingDataUpsertDto,
   WatchlistGroupAssetActionDto,
   WatchlistGroupUpsertDto
 } from '@shared/contracts/api'
@@ -113,6 +115,16 @@ const api = {
   },
   fx: {
     getUsdCnyRate: () => ipcRenderer.invoke('fx:usd-cny-rate')
+  },
+  housing: {
+    listCities: () => ipcRenderer.invoke('housing:list-cities'),
+    getCityDetail: (city: string) => ipcRenderer.invoke('housing:get-city-detail', city),
+    watchCity: (city: string) => ipcRenderer.invoke('housing:watch-city', city),
+    unwatchCity: (city: string) => ipcRenderer.invoke('housing:unwatch-city', city),
+    updateUserData: (request: UserHousingDataUpsertDto) =>
+      ipcRenderer.invoke('housing:update-user-data', request),
+    calculateMortgage: (request: MortgageRequestDto) =>
+      ipcRenderer.invoke('housing:calculate-mortgage', request)
   },
   dividend: {
     getHistory: (request?: DividendHistoryRequest) => ipcRenderer.invoke('dividend:history', request),

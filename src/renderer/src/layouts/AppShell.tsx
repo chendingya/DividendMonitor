@@ -12,6 +12,7 @@ type AppIconName =
   | 'dividend-center'
   | 'watchlist'
   | 'backtest'
+  | 'housing'
   | 'user'
   | 'search'
   | 'notification'
@@ -54,6 +55,11 @@ const menuItems: MenuProps['items'] = [
     label: '分红统计',
     icon: <AppShellIcon name="dividend-center" className="ledger-icon-svg" />
   },
+  {
+    key: '/housing',
+    label: '房产',
+    icon: <AppShellIcon name="housing" className="ledger-icon-svg" />
+  },
   { type: 'divider' },
   {
     key: '/user-center',
@@ -73,6 +79,7 @@ const NAV_ROUTES: NavItem[] = [
   { key: '/backtest', label: '回测', icon: 'backtest' },
   { key: '/backtest-history', label: '回测历史', icon: 'backtest' },
   { key: '/dividend-center', label: '分红统计', icon: 'dividend-center' },
+  { key: '/housing', label: '房产', icon: 'housing' },
   { key: '/user-center', label: '用户中心', icon: 'user' },
   { key: '/settings', label: '设置', icon: 'settings' }
 ]
@@ -127,6 +134,16 @@ function AppShellIcon({ name, className }: { name: AppIconName; className?: stri
         <path d="M4 18h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
         <path d="M6 15l3-4 3 2 5-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         <path d="M16 7h3v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+
+  if (name === 'housing') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M3.5 11 12 4l8.5 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M5.5 9.5V20h13V9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M10 20v-5h4v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     )
   }
@@ -214,6 +231,14 @@ export function AppShell({ children }: { children: ReactNode }) {
       items.push({ label: '回测' })
       if (symbol) {
         items.push({ label: symbol })
+      }
+      return items
+    }
+
+    if (location.pathname.startsWith('/housing')) {
+      items.push({ label: '房产' })
+      if (location.pathname.startsWith('/housing/mortgage')) {
+        items.push({ label: '房贷计算器' })
       }
       return items
     }

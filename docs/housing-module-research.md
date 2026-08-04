@@ -268,9 +268,13 @@ CREATE TABLE IF NOT EXISTS housing_watchlist (
 - [x] 东财房价指数 Spike（§2.6）
 - [x] 中指研究院绝对房价/租金验证（§2.7）
 - [x] 中指页面解析适配器落地（`cihIndexEndpoints.ts` + `cihIndexHousingDataSource.ts`）
-- [ ] housingRepository 聚合层（自动数据 + 用户数据 + 内置数据优先级合并）
-- [ ] 领域服务：租金收益率/租售比计算
-- [ ] IPC 通道 + 前端页面
+- [x] housingRepository 聚合层（自动数据 + 用户数据 + 内置数据优先级合并）
+- [x] 领域服务：租金收益率/租售比计算（`housingCalculationService.ts`）
+- [x] 房贷计算（`mortgageCalculationService.ts`：等额本息/等额本金）
+- [x] 共享契约 + 用例层 + IPC 通道（`housing:*`）+ HTTP 路由
+- [x] 前端页面：`HousingPage` / `HousingCityDetailPage` / `MortgageCalculatorPage` + 路由 + 导航
+- [ ] Dashboard 集成房产收益卡片
+- [ ] 跨资产对比页（Phase 2：散点图）
 
 ---
 
@@ -559,4 +563,5 @@ IPC 通道：
 
 ## 七、更新日志
 
+- **2026-08-04**：Phase 1 完成。领域层（租金收益率/租售比/房贷计算）+ SQLite 三表 + 仓储聚合 + 共享契约 + 用例 + IPC/HTTP + 前端三页面（房价观察/城市详情/房贷计算器）全部落地，浏览器预览实测通过（北京 47194 元/㎡、租金收益率 2.09%、用户数据覆盖重算生效）。
 - **2026-08-03**：复核修订。数据源首选改为东财接口（Spike 已验证，§2.6）；补充中指研究院官网绝对房价/租金方案（已验证，§2.7）；确认定基指数停发；统计局 API 降级为备选。

@@ -136,6 +136,16 @@ export function getDividendDesktopApi(): DividendMonitorApi['dividend'] {
   return api.dividend
 }
 
+export function getHousingDesktopApi(): DividendMonitorApi['housing'] {
+  const api = getRuntimeApi()
+
+  if (!api.housing) {
+    throw new Error('Runtime API is missing the housing namespace.')
+  }
+
+  return api.housing
+}
+
 export function getBackupDesktopApi(): DividendMonitorApi['backup'] {
   const api = getRuntimeApi()
 
