@@ -6,6 +6,7 @@ import { handleAuthRoute } from '@main/http/routes/authRoutes'
 import { handleCalculationRoute } from '@main/http/routes/calculationRoutes'
 import { handleDividendRoute } from '@main/http/routes/dividendRoutes'
 import { handleFxRoute } from '@main/http/routes/fxRoutes'
+import { handleHousingRoute } from '@main/http/routes/housingRoutes'
 import { handleIndustryRoute } from '@main/http/routes/industryRoutes'
 import { handlePortfolioRoute } from '@main/http/routes/portfolioRoutes'
 import { handleSecurityRoute } from '@main/http/routes/securityRoutes'
@@ -133,6 +134,7 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
     (await handleAssetRoute({ pathname, method, body, response })) ||
     (await handleDividendRoute({ pathname, method, body, response })) ||
     (await handleFxRoute({ pathname, method, body, response })) ||
+    (await handleHousingRoute({ pathname, method, body, response })) ||
     (await handleIndustryRoute({ pathname, method, body, response })) ||
     (await handleSettingsRoute({ pathname, method, body, response })) ||
     (await handleWatchlistRoute({ pathname, method, body, response })) ||

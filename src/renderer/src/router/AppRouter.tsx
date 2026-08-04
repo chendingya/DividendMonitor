@@ -11,6 +11,9 @@ import { WatchlistPage } from '@renderer/pages/WatchlistPage'
 import SettingsPage from '@renderer/pages/SettingsPage'
 import IndustryAnalysisPage from '@renderer/pages/IndustryAnalysisPage'
 import BacktestHistoryPage from '@renderer/pages/BacktestHistoryPage'
+import { HousingPage } from '@renderer/pages/HousingPage'
+import { HousingCityDetailPage } from '@renderer/pages/HousingCityDetailPage'
+import { MortgageCalculatorPage } from '@renderer/pages/MortgageCalculatorPage'
 import { useAuth } from '@renderer/contexts/AuthContext'
 
 function LoadingScreen() {
@@ -66,6 +69,9 @@ export function AppRouter() {
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/industry-analysis" element={<IndustryAnalysisPage />} />
         <Route path="/backtest-history" element={<BacktestHistoryPage />} />
+        <Route path="/housing" element={<HousingPage />} />
+        <Route path="/housing/:city" element={<HousingCityDetailPage />} />
+        <Route path="/housing/mortgage" element={<MortgageCalculatorPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

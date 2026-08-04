@@ -664,6 +664,93 @@ export type WatchlistGroupAssetActionDto = {
   assetKey: AssetKey
 }
 
+// ====== Housing (房价房租模块) ======
+
+export type HousingCitySummaryDto = {
+  city: string
+  pricePerSqm?: number          // 新建样本均价（元/㎡）
+  secondHandPricePerSqm?: number
+  rentPerSqm?: number           // 月租金（元/㎡·月）
+  momPercent?: number           // 新建环比（%）
+  yoyPercent?: number           // 新建同比（%）
+  rentalYieldPercent?: number   // 租金收益率（%）= 年租金/房价
+  priceToRentRatio?: number     // 租售比（年）
+  isWatched: boolean
+}
+
+export type HousingIndexPointDto = {
+  reportDate: string            // YYYY-MM
+  newHomeMoM?: number
+  newHomeYoY?: number
+  secondHandMoM?: number
+  secondHandYoY?: number
+}
+
+export type HousingPriceTrendPointDto = {
+  period: string                // YYYY-MM
+  pricePerSqm?: number
+  momPercent?: number
+}
+
+export type HousingCityDetailDto = {
+  city: string
+  period: string
+  unit: string
+  pricePerSqm?: number
+  secondHandPricePerSqm?: number
+  rentPerSqm?: number
+  momPercent?: number
+  yoyPercent?: number
+  rentalYieldPercent?: number
+  priceToRentRatio?: number
+  indexHistory: HousingIndexPointDto[]
+  priceTrend: HousingPriceTrendPointDto[]
+  rentTrend: HousingPriceTrendPointDto[]
+  userData?: {
+    district?: string
+    community?: string
+    pricePerSqm?: number
+    rentPerSqm?: number
+    note?: string
+    updatedAt: string
+  }
+}
+
+export type UserHousingDataUpsertDto = {
+  city: string
+  district?: string
+  community?: string
+  pricePerSqm?: number
+  rentPerSqm?: number
+  note?: string
+}
+
+export type MortgageRequestDto = {
+  totalPrice: number            // 房屋总价（万元）
+  downPaymentPercent: number    // 首付比例（%）
+  loanYears: number             // 贷款年限（年）
+  annualInterestRate: number    // 年利率（%）
+  repaymentMethod: 'EQUAL_INSTALLMENT' | 'EQUAL_PRINCIPAL'
+}
+
+export type MortgageRepaymentItemDto = {
+  month: number
+  payment: number
+  principal: number
+  interest: number
+  remainingBalance: number
+}
+
+export type MortgageResultDto = {
+  loanAmount: number            // 贷款金额（万元）
+  monthlyPayment?: number       // 等额本息月供（元）
+  firstMonthPayment?: number    // 等额本金首月月供（元）
+  totalInterest: number         // 利息总额（万元）
+  totalPayment: number          // 还款总额（万元）
+  interestRatio: number         // 利息占比
+  schedule: MortgageRepaymentItemDto[]
+}
+
 export interface DividendMonitorApi {
   auth: {
     login(email: string, password: string): Promise<AuthSessionDto>
@@ -742,6 +829,14 @@ export interface DividendMonitorApi {
   }
   fx: {
     getUsdCnyRate(): Promise<number>
+  }
+  housing: {
+    listCities(): Promise<HousingCitySummaryDto[]>
+    getCityDetail(city: string): Promise<HousingCityDetailDto>
+    watchCity(city: string): Promise<void>
+    unwatchCity(city: string): Promise<void>
+    updateUserData(request: UserHousingDataUpsertDto): Promise<void>
+    calculateMortgage(request: MortgageRequestDto): Promise<MortgageResultDto>
   }
   dividend: {
     getHistory(request?: DividendHistoryRequest): Promise<DividendHistoryResult>

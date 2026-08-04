@@ -12,6 +12,7 @@ import type {
   DividendMonitorApi,
   HistoricalYieldResponseDto,
   FutureYieldResponseDto,
+  MortgageRequestDto,
   PortfolioPositionReplaceByAssetDto,
   PortfolioPositionUpsertDto,
   PortfolioRiskMetricsDto,
@@ -20,6 +21,7 @@ import type {
   SyncResultDto,
   SyncStatusDto,
   UpcomingDividendDto,
+  UserHousingDataUpsertDto,
   WatchlistAddRequestDto,
   WatchlistEntryDto,
   WatchlistGroupAssetActionDto,
@@ -237,6 +239,26 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
   fx: {
     getUsdCnyRate() {
       return authedRequest<{ rate: number }>('/api/fx/usd-cny-rate').then((r) => r.rate)
+    }
+  },
+  housing: {
+    listCities() {
+      return authedRequest('/api/housing/cities')
+    },
+    getCityDetail(city: string) {
+      return authedRequest(`/api/housing/cities/${encodeURIComponent(city)}`)
+    },
+    watchCity(city: string) {
+      return postJson<void>('/api/housing/watch', { city })
+    },
+    unwatchCity(city: string) {
+      return postJson<void>('/api/housing/unwatch', { city })
+    },
+    updateUserData(request: UserHousingDataUpsertDto) {
+      return postJson<void>('/api/housing/user-data', request)
+    },
+    calculateMortgage(request: MortgageRequestDto) {
+      return postJson('/api/housing/mortgage', request)
     }
   },
   backtest: {
