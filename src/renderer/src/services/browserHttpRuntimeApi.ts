@@ -12,6 +12,7 @@ import type {
   DividendMonitorApi,
   HistoricalYieldResponseDto,
   FutureYieldResponseDto,
+  MarketYieldMapDto,
   MortgageRequestDto,
   PortfolioPositionReplaceByAssetDto,
   PortfolioPositionUpsertDto,
@@ -303,6 +304,14 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
     },
     getForecast(): Promise<DividendForecastDto> {
       return postJson<DividendForecastDto>('/api/dividend/forecast', {})
+    }
+  },
+  yieldMap: {
+    get(): Promise<MarketYieldMapDto> {
+      return authedRequest<MarketYieldMapDto>('/api/yield-map')
+    },
+    refresh(): Promise<MarketYieldMapDto> {
+      return postJson<MarketYieldMapDto>('/api/yield-map/refresh', {})
     }
   }
 }
