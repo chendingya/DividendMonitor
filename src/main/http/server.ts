@@ -13,6 +13,7 @@ import { handleSecurityRoute } from '@main/http/routes/securityRoutes'
 import { handleSettingsRoute } from '@main/http/routes/settingsRoutes'
 import { handleSyncRoute } from '@main/http/routes/syncRoutes'
 import { handleWatchlistRoute } from '@main/http/routes/watchlistRoutes'
+import { handleYieldMapRoute } from '@main/http/routes/yieldMapRoutes'
 import { HttpError, asHttpError, sendJson } from '@main/http/httpErrors'
 import { getSecurityHeaders } from '@main/security/contentSecurityPolicy'
 
@@ -135,6 +136,7 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
     (await handleDividendRoute({ pathname, method, body, response })) ||
     (await handleFxRoute({ pathname, method, body, response })) ||
     (await handleHousingRoute({ pathname, method, body, response })) ||
+    (await handleYieldMapRoute({ pathname, method, body, response })) ||
     (await handleIndustryRoute({ pathname, method, body, response })) ||
     (await handleSettingsRoute({ pathname, method, body, response })) ||
     (await handleWatchlistRoute({ pathname, method, body, response })) ||

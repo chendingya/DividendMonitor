@@ -130,6 +130,10 @@ const api = {
     getHistory: (request?: DividendHistoryRequest) => ipcRenderer.invoke('dividend:history', request),
     listUpcoming: () => ipcRenderer.invoke('dividend:upcoming'),
     getForecast: () => ipcRenderer.invoke('dividend:forecast')
+  },
+  yieldMap: {
+    get: () => ipcRenderer.invoke('yield-map:get'),
+    refresh: () => ipcRenderer.invoke('yield-map:refresh')
   }
 }
 
