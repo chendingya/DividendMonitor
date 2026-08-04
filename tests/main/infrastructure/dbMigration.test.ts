@@ -1,6 +1,11 @@
 import { DatabaseSync } from 'node:sqlite'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('electron', () => ({
+  app: { getPath: () => 'userData' }
+}))
+
+const { migrateYieldMapSnapshots } = await import('@main/infrastructure/db/sqlite')
 const { migrateWatchlistGroupAssetsForeignKey } = await import(
   '@main/infrastructure/db/migrations/watchlistGroupAssetsMigration'
 )
@@ -142,5 +147,27 @@ describe('db migrations', () => {
     const s = cols.find((c) => c.name === 'status')
     expect(s).toBeDefined()
     expect(s?.dflt_value).toBe("'IMPLEMENTED'")
+  })
+})
+
+describe('yield_map_snapshots migration', () => {
+  let db: DatabaseSync
+
+  beforeEach(() => {
+    db = new DatabaseSync(':memory:')
+  })
+
+  it('创建 yield_map_snapshots 表并支持读写', () => {
+    migrateYieldMapSnapshots(db)
+    db.prepare(`
+      INSERT INTO yield_map_snapshots (asset_key, symbol, name, industry, price, yield_ttm, total_dps_12m, fetched_at)
+      VALUES ('STOCK:A_SHARE:600519', '600519', '贵州茅台', '白酒', 1450, 0.0207, 30, '2026-08-03T00:00:00.000Z')
+    `).run()
+    const row = db.prepare('SELECT * FROM yield_map_snapshots WHERE asset_key = ?').get('STOCK:A_SHARE:600519')
+    expect(row).toMatchObject({
+      symbol: '600519',
+      industry: '白酒',
+      yield_ttm: 0.0207
+    })
   })
 })
