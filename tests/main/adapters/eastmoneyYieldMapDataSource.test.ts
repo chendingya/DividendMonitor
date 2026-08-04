@@ -28,6 +28,8 @@ describe('EastmoneyYieldMapDataSource', () => {
     const source = new EastmoneyYieldMapDataSource()
     const records = await source.fetchAllQuotes()
     expect(records).toHaveLength(3)
+    expect(records.every((r) => typeof r.code === 'string' && typeof r.name === 'string')).toBe(true)
+    expect(records.every((r) => !('records' in r))).toBe(true)
     expect(mockGateway.request).toHaveBeenCalledTimes(4)
     expect(mockGateway.request).toHaveBeenNthCalledWith(1, {
       capability: 'market.clist',

@@ -12,17 +12,17 @@ const CLIST_PAGE_SIZE = 100
 const DIVIDEND_PAGE_SIZE = 500
 const PAGE_CACHE_TTL_MS = 60 * 60 * 1000
 
-async function fetchPages<TInput, TOutput>(
+async function fetchPages<TInput, TOutput extends { records: unknown[] }>(
   capability: 'market.clist' | 'market.dividend',
   _firstPage: TOutput,
   total: number,
   pageSize: number,
   inputFor: (page: number) => TInput,
   keyFor: (page: number) => string
-): Promise<Array<TOutput extends { records: unknown } ? TOutput['records'] : never>> {
+): Promise<TOutput['records']> {
   const pageCount = Math.ceil(total / pageSize)
   const pagesToFetch = Math.max(0, pageCount - 1)
-  const results: unknown[] = []
+  const results: TOutput['records'][] = []
 
   for (let start = 0; start < pagesToFetch; start += CONCURRENCY) {
     const batch = Array.from(
@@ -41,13 +41,11 @@ async function fetchPages<TInput, TOutput>(
     )
     for (const result of settled) {
       if (result.status === 'fulfilled') {
-        results.push(
-          result.value.data as TOutput extends { records: unknown } ? TOutput['records'] : never
-        )
+        results.push(result.value.data.records)
       }
     }
   }
-  return results as Array<TOutput extends { records: unknown } ? TOutput['records'] : never>
+  return results
 }
 
 export class EastmoneyYieldMapDataSource implements YieldMapDataSource {
