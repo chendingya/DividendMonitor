@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildYieldMap } from '@main/domain/services/yieldMapService'
+import { buildIndustryYieldMap, buildYieldMap } from '@main/domain/services/yieldMapService'
 
 const TODAY = new Date('2026-08-03T00:00:00.000Z')
 
@@ -57,5 +57,39 @@ describe('buildYieldMap', () => {
     const events = [{ code: '600000', pretaxBonusRmb: 4 }]
     const result = buildYieldMap(quotes, events, TODAY)
     expect(result[0].yieldTtm).toBe(0)
+  })
+})
+
+describe('buildIndustryYieldMap', () => {
+  it('按行业分组，中位数/均值/样本数正确且降序', () => {
+    const stocks = [
+      { assetKey: 'a', symbol: 'a', name: 'a', industry: '银行', price: 1, yieldTtm: 0.05 },
+      { assetKey: 'b', symbol: 'b', name: 'b', industry: '银行', price: 1, yieldTtm: 0.07 },
+      { assetKey: 'c', symbol: 'c', name: 'c', industry: '白酒', price: 1, yieldTtm: 0.03 },
+      { assetKey: 'd', symbol: 'd', name: 'd', industry: '银行', price: 1, yieldTtm: 0.09 },
+      { assetKey: 'e', symbol: 'e', name: 'e', industry: '银行', price: 1, yieldTtm: 0.11 }
+    ]
+    const result = buildIndustryYieldMap(stocks as never)
+    expect(result).toHaveLength(2)
+    expect(result[0].industry).toBe('银行')
+    expect(result[0].medianYield).toBeCloseTo(0.08, 6)
+    expect(result[0].avgYield).toBeCloseTo(0.08, 6)
+    expect(result[0].stockCount).toBe(4)
+    expect(result[1].industry).toBe('白酒')
+  })
+
+  it('yieldTtm=0 的股票不进入行业聚合', () => {
+    const stocks = [
+      { assetKey: 'a', symbol: 'a', name: 'a', industry: '银行', price: 1, yieldTtm: 0 },
+      { assetKey: 'b', symbol: 'b', name: 'b', industry: '银行', price: 1, yieldTtm: 0.06 }
+    ]
+    const result = buildIndustryYieldMap(stocks as never)
+    expect(result).toHaveLength(1)
+    expect(result[0].stockCount).toBe(1)
+    expect(result[0].medianYield).toBeCloseTo(0.06, 6)
+  })
+
+  it('空输入返回空数组', () => {
+    expect(buildIndustryYieldMap([])).toEqual([])
   })
 })

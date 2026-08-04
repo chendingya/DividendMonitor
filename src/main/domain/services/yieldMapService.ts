@@ -64,3 +64,38 @@ export function buildYieldMap(
     return entry
   })
 }
+
+export type YieldMapIndustryEntry = {
+  industry: string
+  medianYield: number
+  avgYield: number
+  stockCount: number
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid]
+}
+
+export function buildIndustryYieldMap(stocks: YieldMapStockEntry[]): YieldMapIndustryEntry[] {
+  const groups = new Map<string, number[]>()
+  for (const stock of stocks) {
+    if (stock.yieldTtm <= 0) continue
+    const list = groups.get(stock.industry) ?? []
+    list.push(stock.yieldTtm)
+    groups.set(stock.industry, list)
+  }
+
+  return [...groups.entries()]
+    .map(([industry, yields]) => ({
+      industry,
+      medianYield: median(yields),
+      avgYield: yields.reduce((sum, value) => sum + value, 0) / yields.length,
+      stockCount: yields.length
+    }))
+    .sort((a, b) => b.medianYield - a.medianYield)
+}
