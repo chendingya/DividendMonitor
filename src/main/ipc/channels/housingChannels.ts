@@ -4,6 +4,7 @@ import { listHousingCities } from '@main/application/useCases/listHousingCities'
 import { getHousingCityDetail } from '@main/application/useCases/getHousingCityDetail'
 import { watchHousingCity, unwatchHousingCity } from '@main/application/useCases/toggleHousingWatchlist'
 import { updateHousingUserData } from '@main/application/useCases/updateHousingUserData'
+import { removeHousingUserData } from '@main/application/useCases/removeHousingUserData'
 import { calculateMortgageUseCase } from '@main/application/useCases/calculateMortgage'
 
 export function registerHousingChannels() {
@@ -25,6 +26,10 @@ export function registerHousingChannels() {
 
   ipcMain.handle('housing:update-user-data', async (_event, request: UserHousingDataUpsertDto) => {
     updateHousingUserData(request)
+  })
+
+  ipcMain.handle('housing:remove-user-data', async (_event, city: string) => {
+    removeHousingUserData(city)
   })
 
   ipcMain.handle('housing:calculate-mortgage', async (_event, request: MortgageRequestDto) => {

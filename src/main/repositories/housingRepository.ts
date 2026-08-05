@@ -1,10 +1,80 @@
 import { getDatabase } from '@main/infrastructure/db/sqlite'
-import type { UserHousingData } from '@main/domain/entities/Housing'
+import type { HousingIndexRecord, UserHousingData } from '@main/domain/entities/Housing'
 
 export type HousingWatchCityRecord = {
   cityCode: string
   cityName: string
   addedAt: string
+}
+
+/** 房价指数 SQLite 持久缓存 TTL（月度数据，30 天刷新一次） */
+export const HOUSING_INDEX_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000
+
+/**
+ * 70 城房价指数持久缓存仓储（本地 SQLite）。
+ * 读取优先本地（30 天 TTL），未命中/过期才回源东财；抓取失败时允许回退过期缓存。
+ */
+export class HousingIndexCacheRepository {
+  /**
+   * 查询某城市的指数缓存；整体过期（任一月超过 TTL）或不存在时返回 undefined。
+   * allowStale 为 true 时忽略 TTL（用于回源失败兜底）。
+   */
+  findByCity(cityCode: string, options: { allowStale?: boolean } = {}): HousingIndexRecord[] | undefined {
+    const db = getDatabase()
+    const rows = db
+      .prepare(
+        `SELECT city_code, period, new_home_index_mom, new_home_index_yoy,
+                second_hand_index_mom, second_hand_index_yoy, fetched_at
+         FROM housing_index_cache WHERE city_code = ? ORDER BY period`
+      )
+      .all(cityCode) as Array<Record<string, string | number | null>>
+    if (rows.length === 0) return undefined
+
+    if (!options.allowStale) {
+      const newestFetchedAt = Math.max(...rows.map((row) => new Date(String(row.fetched_at)).getTime()))
+      if (Date.now() - newestFetchedAt > HOUSING_INDEX_CACHE_TTL_MS) {
+        return undefined
+      }
+    }
+
+    return rows.map((row) => ({
+      reportDate: String(row.period),
+      city: cityCode,
+      newHomeMoM: row.new_home_index_mom != null ? Number(row.new_home_index_mom) : undefined,
+      newHomeYoY: row.new_home_index_yoy != null ? Number(row.new_home_index_yoy) : undefined,
+      secondHandMoM: row.second_hand_index_mom != null ? Number(row.second_hand_index_mom) : undefined,
+      secondHandYoY: row.second_hand_index_yoy != null ? Number(row.second_hand_index_yoy) : undefined
+    }))
+  }
+
+  /** 全量覆盖某城市缓存（先删后插，保证与回源数据一致） */
+  upsertMany(cityCode: string, records: HousingIndexRecord[]): void {
+    const db = getDatabase()
+    const now = new Date().toISOString()
+    db.prepare('DELETE FROM housing_index_cache WHERE city_code = ?').run(cityCode)
+    const insert = db.prepare(
+      `INSERT INTO housing_index_cache
+         (city_code, period, new_home_index_mom, new_home_index_yoy, second_hand_index_mom, second_hand_index_yoy, fetched_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(city_code, period) DO UPDATE SET
+         new_home_index_mom = excluded.new_home_index_mom,
+         new_home_index_yoy = excluded.new_home_index_yoy,
+         second_hand_index_mom = excluded.second_hand_index_mom,
+         second_hand_index_yoy = excluded.second_hand_index_yoy,
+         fetched_at = excluded.fetched_at`
+    )
+    for (const record of records) {
+      insert.run(
+        cityCode,
+        record.reportDate,
+        record.newHomeMoM ?? null,
+        record.newHomeYoY ?? null,
+        record.secondHandMoM ?? null,
+        record.secondHandYoY ?? null,
+        now
+      )
+    }
+  }
 }
 
 /** 用户手动录入的房价/租金数据仓储（本地 SQLite） */
@@ -13,7 +83,7 @@ export class UserHousingDataRepository {
     const db = getDatabase()
     const row = db
       .prepare(
-        `SELECT id, city_code, district, community, price_per_sqm, rent_per_sqm, note, updated_at
+        `SELECT id, city_code, district, community, price_total_yuan, rent_total_month_yuan, note, updated_at
          FROM user_housing_data WHERE city_code = ? ORDER BY updated_at DESC LIMIT 1`
       )
       .get(cityCode) as Record<string, string | number | null> | undefined
@@ -22,8 +92,8 @@ export class UserHousingDataRepository {
       cityCode: String(row.city_code),
       district: row.district ? String(row.district) : undefined,
       community: row.community ? String(row.community) : undefined,
-      pricePerSqm: row.price_per_sqm != null ? Number(row.price_per_sqm) : undefined,
-      rentPerSqm: row.rent_per_sqm != null ? Number(row.rent_per_sqm) : undefined,
+      priceTotalYuan: row.price_total_yuan != null ? Number(row.price_total_yuan) : undefined,
+      rentTotalMonthYuan: row.rent_total_month_yuan != null ? Number(row.rent_total_month_yuan) : undefined,
       note: row.note ? String(row.note) : undefined,
       updatedAt: String(row.updated_at)
     }
@@ -34,13 +104,13 @@ export class UserHousingDataRepository {
     const now = new Date().toISOString()
 
     db.prepare(
-      `INSERT INTO user_housing_data (id, city_code, district, community, price_per_sqm, rent_per_sqm, note, updated_at)
+      `INSERT INTO user_housing_data (id, city_code, district, community, price_total_yuan, rent_total_month_yuan, note, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          district = excluded.district,
          community = excluded.community,
-         price_per_sqm = excluded.price_per_sqm,
-         rent_per_sqm = excluded.rent_per_sqm,
+         price_total_yuan = excluded.price_total_yuan,
+         rent_total_month_yuan = excluded.rent_total_month_yuan,
          note = excluded.note,
          updated_at = excluded.updated_at`
     ).run(
@@ -48,8 +118,8 @@ export class UserHousingDataRepository {
       input.cityCode,
       input.district ?? null,
       input.community ?? null,
-      input.pricePerSqm ?? null,
-      input.rentPerSqm ?? null,
+      input.priceTotalYuan ?? null,
+      input.rentTotalMonthYuan ?? null,
       input.note ?? null,
       now
     )

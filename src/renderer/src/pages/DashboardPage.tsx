@@ -12,6 +12,7 @@ import { DashboardMetricCards } from '@renderer/components/dashboard/DashboardMe
 import { PortfolioTable } from '@renderer/components/dashboard/PortfolioTable'
 import { DashboardOpportunities } from '@renderer/components/dashboard/DashboardOpportunities'
 import { DashboardTools } from '@renderer/components/dashboard/DashboardTools'
+import { HousingYieldCard } from '@renderer/components/dashboard/HousingYieldCard'
 import { usePortfolio, type PortfolioRow, type PortfolioTransaction } from '@renderer/hooks/usePortfolio'
 import { usePortfolioRiskMetrics } from '@renderer/hooks/usePortfolioRiskMetrics'
 import { CorrelationMatrix } from '@renderer/components/dashboard/CorrelationMatrix'
@@ -766,6 +767,8 @@ export function DashboardPage() {
         opportunities={opportunities}
         onGoToDetail={(row) => goToDetail(row)}
       />
+
+      <HousingYieldCard />
 
       <CorrelationMatrix
         data={riskMetrics?.correlationMatrix}

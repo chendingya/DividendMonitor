@@ -25,6 +25,9 @@ export const housingApi = {
   updateUserData(request: UserHousingDataUpsertDto): Promise<void> {
     return api().updateUserData(request)
   },
+  removeUserData(city: string): Promise<void> {
+    return api().removeUserData(city)
+  },
   calculateMortgage(request: MortgageRequestDto): Promise<MortgageResultDto> {
     return api().calculateMortgage(request)
   }

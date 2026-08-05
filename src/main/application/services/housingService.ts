@@ -7,8 +7,12 @@ import type {
 } from '@shared/contracts/api'
 import { EastmoneyHousingDataSource } from '@main/adapters/eastmoney/eastmoneyHousingDataSource'
 import { CihIndexHousingDataSource } from '@main/adapters/cihIndex/cihIndexHousingDataSource'
-import { UserHousingDataRepository, HousingWatchlistRepository } from '@main/repositories/housingRepository'
-import { calculateHousingDerivedMetrics } from '@main/domain/services/housingCalculationService'
+import {
+  HousingIndexCacheRepository,
+  HousingWatchlistRepository,
+  UserHousingDataRepository
+} from '@main/repositories/housingRepository'
+import { calculateHousingDerivedMetrics, rebuildIndexSeries } from '@main/domain/services/housingCalculationService'
 import type { HousingIndexRecord } from '@main/domain/entities/Housing'
 
 export class HousingService {
@@ -16,6 +20,7 @@ export class HousingService {
   private readonly cih = new CihIndexHousingDataSource()
   private readonly userDataRepo = new UserHousingDataRepository()
   private readonly watchlistRepo = new HousingWatchlistRepository()
+  private readonly indexCacheRepo = new HousingIndexCacheRepository()
 
   async listCities(): Promise<HousingCitySummaryDto[]> {
     const [newHouse, esfHouse, rent, watchlist] = await Promise.all([
@@ -68,14 +73,13 @@ export class HousingService {
       this.fetchIndexHistory(city),
       Promise.resolve(this.userDataRepo.findByCity(city))
     ])
-
     const newHome = newHouse.cities.find((item) => item.city === city)
     const esf = esfHouse.cities.find((item) => item.city === city)
     const rentInfo = rent.cities.find((item) => item.city === city)
 
-    // 用户手动数据优先（区/小区级精细化）
-    const effectivePrice = userData?.pricePerSqm ?? newHome?.pricePerSqm ?? esf?.pricePerSqm
-    const effectiveRent = userData?.rentPerSqm ?? rentInfo?.pricePerSqm
+    // 用户手动数据优先（区/小区级精细化，总价/整套月租口径）
+    const effectivePrice = userData?.priceTotalYuan ?? newHome?.pricePerSqm ?? esf?.pricePerSqm
+    const effectiveRent = userData?.rentTotalMonthYuan ?? rentInfo?.pricePerSqm
     const metrics = calculateHousingDerivedMetrics({ rentPerSqm: effectiveRent, pricePerSqm: effectivePrice })
 
     const priceTrend: HousingPriceTrendPointDto[] = (newHouse.trend ?? []).map((point) => ({
@@ -102,14 +106,15 @@ export class HousingService {
       rentalYieldPercent: metrics.rentalYieldPercent,
       priceToRentRatio: metrics.priceToRentRatio,
       indexHistory,
+      indexSeries: this.buildIndexSeries(indexHistory),
       priceTrend,
       rentTrend,
       userData: userData
         ? {
             district: userData.district,
             community: userData.community,
-            pricePerSqm: userData.pricePerSqm,
-            rentPerSqm: userData.rentPerSqm,
+            priceTotalYuan: userData.priceTotalYuan,
+            rentTotalMonthYuan: userData.rentTotalMonthYuan,
             note: userData.note,
             updatedAt: userData.updatedAt
           }
@@ -117,12 +122,13 @@ export class HousingService {
     }
   }
 
+  /** 缓存优先读取 70 城指数：本地 SQLite（30 天 TTL）→ 东财回源并写缓存 → 回源失败用过期缓存兜底 */
   private async fetchIndexHistory(city: string): Promise<HousingIndexPointDto[]> {
-    try {
-      const records: HousingIndexRecord[] = await this.eastmoney.getCityHistory(city)
-      return records
+    // 统一按 reportDate 升序（旧 → 新）：东财返回降序、缓存返回升序，不依赖来源顺序
+    const toDto = (records: HousingIndexRecord[]): HousingIndexPointDto[] =>
+      records
         .slice()
-        .reverse()
+        .sort((left, right) => left.reportDate.localeCompare(right.reportDate))
         .map((record) => ({
           reportDate: record.reportDate,
           newHomeMoM: record.newHomeMoM,
@@ -130,9 +136,56 @@ export class HousingService {
           secondHandMoM: record.secondHandMoM,
           secondHandYoY: record.secondHandYoY
         }))
-    } catch {
-      return []
+
+    const cached = this.indexCacheRepo.findByCity(city)
+    if (cached) {
+      return toDto(cached)
     }
+
+    try {
+      const records: HousingIndexRecord[] = await this.eastmoney.getCityHistory(city)
+      if (records.length > 0) {
+        this.indexCacheRepo.upsertMany(city, records)
+      }
+      return toDto(records)
+    } catch {
+      const stale = this.indexCacheRepo.findByCity(city, { allowStale: true })
+      return stale ? toDto(stale) : []
+    }
+  }
+
+  /** 环比连乘重建连续指数序列（定基指数停发后的替代：基准 100，逐月 × MoM/100） */
+  private buildIndexSeries(history: HousingIndexPointDto[]) {
+    // history 已是升序（旧 → 新）；rebuildIndexSeries 要求升序，从最早月锚定 100 向后连乘
+    const newHomeSeries = rebuildIndexSeries(
+      history.map((item) => ({ reportDate: item.reportDate, secondHandMoM: item.newHomeMoM })),
+      100
+    )
+    const secondHandSeries = rebuildIndexSeries(
+      history.map((item) => ({ reportDate: item.reportDate, secondHandMoM: item.secondHandMoM })),
+      100
+    )
+
+    const byDate = new Map<string, { newHomeIndex: number; secondHandIndex: number }>()
+    for (const point of newHomeSeries) {
+      byDate.set(point.reportDate, { newHomeIndex: point.index, secondHandIndex: 100 })
+    }
+    for (const point of secondHandSeries) {
+      const existing = byDate.get(point.reportDate)
+      if (existing) {
+        existing.secondHandIndex = point.index
+      } else {
+        byDate.set(point.reportDate, { newHomeIndex: 100, secondHandIndex: point.index })
+      }
+    }
+
+    return [...byDate.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([reportDate, values]) => ({
+        reportDate,
+        newHomeIndex: Number(values.newHomeIndex.toFixed(2)),
+        secondHandIndex: Number(values.secondHandIndex.toFixed(2))
+      }))
   }
 
   watchCity(city: string): void {
@@ -148,9 +201,13 @@ export class HousingService {
       cityCode: request.city,
       district: request.district,
       community: request.community,
-      pricePerSqm: request.pricePerSqm,
-      rentPerSqm: request.rentPerSqm,
+      priceTotalYuan: request.priceTotalYuan,
+      rentTotalMonthYuan: request.rentTotalMonthYuan,
       note: request.note
     })
+  }
+
+  removeUserData(city: string): void {
+    this.userDataRepo.remove(city)
   }
 }

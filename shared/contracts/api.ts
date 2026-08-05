@@ -716,6 +716,12 @@ export type HousingPriceTrendPointDto = {
   momPercent?: number
 }
 
+export type HousingIndexSeriesPointDto = {
+  reportDate: string            // YYYY-MM
+  newHomeIndex: number          // 新建住宅环比连乘重建指数（基准 100）
+  secondHandIndex: number       // 二手住宅环比连乘重建指数（基准 100）
+}
+
 export type HousingCityDetailDto = {
   city: string
   period: string
@@ -728,13 +734,14 @@ export type HousingCityDetailDto = {
   rentalYieldPercent?: number
   priceToRentRatio?: number
   indexHistory: HousingIndexPointDto[]
+  indexSeries: HousingIndexSeriesPointDto[]
   priceTrend: HousingPriceTrendPointDto[]
   rentTrend: HousingPriceTrendPointDto[]
   userData?: {
     district?: string
     community?: string
-    pricePerSqm?: number
-    rentPerSqm?: number
+    priceTotalYuan?: number        // 用户录入房价总价（元）
+    rentTotalMonthYuan?: number    // 用户录入整套月租金（元/月）
     note?: string
     updatedAt: string
   }
@@ -744,8 +751,8 @@ export type UserHousingDataUpsertDto = {
   city: string
   district?: string
   community?: string
-  pricePerSqm?: number
-  rentPerSqm?: number
+  priceTotalYuan?: number    // 房价总价（元）
+  rentTotalMonthYuan?: number    // 整套月租金（元/月）
   note?: string
 }
 
@@ -860,6 +867,7 @@ export interface DividendMonitorApi {
     watchCity(city: string): Promise<void>
     unwatchCity(city: string): Promise<void>
     updateUserData(request: UserHousingDataUpsertDto): Promise<void>
+    removeUserData(city: string): Promise<void>
     calculateMortgage(request: MortgageRequestDto): Promise<MortgageResultDto>
   }
   dividend: {

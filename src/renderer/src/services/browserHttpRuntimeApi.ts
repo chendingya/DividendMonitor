@@ -258,6 +258,12 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
     updateUserData(request: UserHousingDataUpsertDto) {
       return postJson<void>('/api/housing/user-data', request)
     },
+    removeUserData(city: string) {
+      return authedRequest<void>('/api/housing/user-data', {
+        method: 'DELETE',
+        body: { city }
+      })
+    },
     calculateMortgage(request: MortgageRequestDto) {
       return postJson('/api/housing/mortgage', request)
     }
