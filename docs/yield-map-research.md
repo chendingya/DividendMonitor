@@ -1,8 +1,8 @@
 # 股息率地图（yield-map）预调研
 
-> 状态：调研完成，**2026-08-03 Alex 已确认方案 A（全市场）**，实现计划见 `docs/superpowers/plans/2026-08-03-yield-map.md`
+> 状态：调研完成，**2026-08-03 Alex 已确认方案 A（全市场）**；功能已于 2026-08-05 实现并合入 main（验收见 `docs/yield-map-acceptance.md`）
 > 日期：2026-08-03
-> 关联文档：`docs/PRD.md` §8.2-1 / §9.7 / Phase 2、`docs/FRONTEND-IMPLEMENTATION-PLAN.md` §8-2
+> 关联文档：`docs/PRD.md` §8.2 / §9.7 / Phase 2、`docs/FRONTEND-IMPLEMENTATION-PLAN.md` §7
 
 ## 1. 需求背景
 

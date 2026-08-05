@@ -104,7 +104,19 @@ Invoke-RestMethod 'http://127.0.0.1:3210/api/auth/login' -Method POST -Headers @
 |------|------|------|------|
 | GET | `/api/fx/usd-cny-rate` | — | 美元/人民币汇率，返回 `{ rate }`（数据源失败时返回默认值 7.2） |
 
-### 5.6 行业域（industry）
+### 5.6 房产域（housing）
+
+| 方法 | 路径 | 参数 | 说明 |
+|------|------|------|------|
+| GET | `/api/housing/cities` | — | 城市列表（含均价/租金/收益率/已关注） |
+| GET | `/api/housing/cities/:city` | — | 城市详情（含 70 城指数历史与重建序列、样本均价/租金趋势） |
+| POST | `/api/housing/watch` | body：`{ city }` | 关注城市（204） |
+| POST | `/api/housing/unwatch` | body：`{ city }` | 取消关注（204） |
+| POST | `/api/housing/user-data` | body：`UserHousingDataUpsertDto` | 保存自定义数据（204） |
+| DELETE | `/api/housing/user-data` | body：`{ city }` | 删除自定义数据（204） |
+| POST | `/api/housing/mortgage` | body：`MortgageRequestDto` | 房贷计算 |
+
+### 5.7 行业域（industry）
 
 | 方法 | 路径 | 参数 | 说明 |
 |------|------|------|------|
@@ -112,7 +124,7 @@ Invoke-RestMethod 'http://127.0.0.1:3210/api/auth/login' -Method POST -Headers @
 | GET | `/api/industry/distribution` | — | 行业分布数据 |
 | POST | `/api/industry/benchmark` | body：`{ industryName }` | 行业基准对比 |
 
-### 5.7 持仓域（portfolio）
+### 5.8 持仓域（portfolio）
 
 | 方法 | 路径 | 参数 | 说明 |
 |------|------|------|------|
@@ -123,13 +135,13 @@ Invoke-RestMethod 'http://127.0.0.1:3210/api/auth/login' -Method POST -Headers @
 | POST | `/api/portfolio/replace-by-asset` | body：`PortfolioPositionReplaceByAssetDto` | 替换资产持仓（204） |
 | POST | `/api/portfolio/risk-metrics` | body：`{ items: [{ assetKey, marketValue }] }` | 组合风险指标 |
 
-### 5.8 安全域（security）
+### 5.9 安全域（security）
 
 | 方法 | 路径 | 参数 | 说明 |
 |------|------|------|------|
 | GET | `/api/security/nonce` | — | 获取本地 nonce，返回 `{ nonce }` |
 
-### 5.9 设置域（settings）
+### 5.10 设置域（settings）
 
 | 方法 | 路径 | 参数 | 说明 |
 |------|------|------|------|
@@ -137,14 +149,14 @@ Invoke-RestMethod 'http://127.0.0.1:3210/api/auth/login' -Method POST -Headers @
 | PUT | `/api/settings` | body：`Record<string, unknown>` | 更新设置（部分字段） |
 | DELETE | `/api/settings` | — | 重置所有设置为默认值 |
 
-### 5.10 同步域（sync）
+### 5.11 同步域（sync）
 
 | 方法 | 路径 | 参数 | 说明 |
 |------|------|------|------|
 | POST | `/api/sync/data` | body：`{ direction: 'push' | 'pull' | 'bidirectional' }` | 推送/拉取/双向同步 |
 | GET | `/api/sync/status` | — | 同步状态 |
 
-### 5.11 自选域（watchlist）
+### 5.12 自选域（watchlist）
 
 | 方法 | 路径 | 参数 | 说明 |
 |------|------|------|------|
@@ -159,6 +171,13 @@ Invoke-RestMethod 'http://127.0.0.1:3210/api/auth/login' -Method POST -Headers @
 | POST | `/api/watchlist/groups/remove-asset` | body：`{ groupId, assetKey }` | 移出分组（204） |
 | GET | `/api/watchlist/groups/:id/assets` | — | 分组内资产 |
 | GET | `/api/watchlist/asset-groups/:key` | — | 资产所属分组（`assetKey` 需 URL 编码） |
+
+### 5.13 股息率地图域（yieldMap）
+
+| 方法 | 路径 | 参数 | 说明 |
+|------|------|------|------|
+| GET / POST | `/api/yield-map` | — | 全市场股息率地图快照（行业/股票 Treemap 数据） |
+| GET / POST | `/api/yield-map/refresh` | — | 强制重新抓取全市场快照 |
 
 ## 6. CORS 与安全
 

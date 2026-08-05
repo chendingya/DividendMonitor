@@ -23,9 +23,8 @@
 
 1. 双端虽然已统一到同一业务数据源，但仍通过 IPC 与 HTTP 两条传输通道接入
 2. mock runtime 仍保留为显式调试兜底，需要继续控制其使用边界
-3. SQLite 当前已覆盖自选与持仓持久化，但完整缓存层尚未形成
-4. `yield-map`、`settings` 仍是预留能力，当前尚未落地页面
-5. 空态/错误态/无数据态已部分统一，但还未提炼为更完整的通用组件层
+3. SQLite 已覆盖自选/持仓/估值/分红/回测等持久化，但数据源网关的请求级缓存（RequestCache）仍是内存缓存，未全面落到磁盘
+4. 空态/错误态/无数据态已部分统一，但还未提炼为更完整的通用组件层
 
 ## 3. 页面与路径
 
@@ -38,6 +37,15 @@
 | `/watchlist` | `WatchlistPage` | 自选列表、排序筛选、批量选择、进入对比 |
 | `/comparison` | `ComparisonPage` | 多股指标对比、行内进入详情、10Y/20Y 估值窗口切换 |
 | `/backtest` | `BacktestPage` | 股息复投回测、交易流水与假设说明 |
+| `/backtest-history` | `BacktestHistoryPage` | 回测历史保存/查看/删除 |
+| `/dividend-center` | `DividendCenterPage` | 分红统计中心（即将到账/年度月度汇总） |
+| `/yield-map` | `YieldMapPage` | 全市场股息率地图（行业/股票 Treemap drill-down） |
+| `/industry` | `IndustryAnalysisPage` | 行业分析 |
+| `/housing` | `HousingPage` | 房产观察（70 城房价指数/样本均价/租金） |
+| `/housing/:city` | `HousingCityDetailPage` | 城市详情（指数走势/自定义数据） |
+| `/housing/mortgage` | `MortgageCalculatorPage` | 房贷计算器 |
+| `/user-center` | `UserCenterPage` | 用户中心（在线模式账号管理） |
+| `/settings` | `SettingsPage` | 设置（佣金费率、备份恢复等） |
 
 ### 3.2 当前主路径
 
@@ -103,11 +111,12 @@
 9. 设置页已支持本地整库备份与恢复（仅桌面模式，恢复前自动保留安全备份）
 10. 详情页显示数据更新时间（`fetchedAt`），工作台/自选页显示最近刷新时间
 11. 前端页面状态已统一为 `PageState` 三态组件 + `useFetch` hook
+12. 股息率地图已落地：全市场 TTM 抓取 + 24h SQLite 快照 + 行业/股票 Treemap（验收见 `docs/yield-map-acceptance.md`）
+13. 房产模块已落地：70 城指数（环比连乘重建走势）、中指样本均价/租金、自定义数据、房贷计算器（调研见 `docs/housing-module-research.md`）
 
 ## 8. 当前未完成项
 
-1. SQLite 尚未扩展为完整缓存层（SourceGateway 的 RequestCache 仍是内存缓存；估值链路已先行落地 `valuation_cache` 表，见 `docs/superpowers/specs/2026-08-01-technical-debt-hardening-design.md`）
-2. 股息率地图页（`yield-map`）仍未落地（需全市场批量抓取 + Supabase 云端聚合）
+1. SQLite 缓存已覆盖估值（`valuation_cache`）、价格（`price_cache`）、资产快照、分红事件、股息率地图快照等表，但 SourceGateway 的请求级缓存（RequestCache）仍是内存缓存，未全面落到磁盘
 
 ## 9. 验收建议
 
@@ -122,7 +131,7 @@
 ## 10. 配套文档
 
 1. IPC 与运行时接口清单：`docs/IPC-CONTRACTS.md`
-2. 手动验证手册：`docs/MANUAL-VERIFICATION-GUIDE.md`
+2. 本地 HTTP API：`docs/HTTP-API.md`
 3. 若只想验证浏览器预览真实链路，可使用 `npm run dev:browser-preview` 启动 headless Electron runtime + 本地 HTTP API
-3. 系统设计总览：`docs/SDD.md`
-4. 代码结构与依赖边界：`docs/ARCHITECTURE.md`
+4. 系统设计总览：`docs/SDD.md`
+5. 代码结构与依赖边界：`docs/ARCHITECTURE.md`

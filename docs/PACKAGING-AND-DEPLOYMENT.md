@@ -176,7 +176,7 @@ npm run dist:win
 
 本仓库当前一次实际验证后的产物示例：
 
-- `release/收息佬 Setup 0.1.0.exe`
+- `release/收息佬 Setup 0.3.0.exe`
 - `release/win-unpacked/DividendMonitor.exe`
 
 ### 4.3 两个打包命令的区别

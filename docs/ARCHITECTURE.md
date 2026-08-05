@@ -250,7 +250,7 @@ src/main/infrastructure/
 
 1. `sqlite.ts` 目前使用 Node 内建 `node:sqlite`
 2. 当前尚未引入第三方 SQLite npm 包，也尚未引入 ORM
-3. 当前 schema 仅覆盖 `watchlist_items` 与 `app_settings`
+3. 当前 schema 已覆盖自选/分组、持仓、分红、估值/价格缓存、回测历史、股息率地图快照与房产模块等 15+ 张表（详见 `docs/IPC-CONTRACTS.md` §8）
 
 ### 6.2 Adapter 层
 
@@ -324,7 +324,8 @@ src/main/repositories/
 1. `watchlistRepository.ts` 已落地，并已改为走 SQLite
 2. `stockRepository.ts` 当前负责聚合基础股票数据与估值数据
 3. `valuationRepository.ts` 已落地，负责估值链路的 source priority、15 分钟内存缓存与本地 percentile fallback
-4. "缓存优先再回源"的完整仓库模式仍未全面落地，目前仅估值链路具备最小缓存策略
+4. 缓存已扩展：`price_cache` / `valuation_cache` / `dividend_events` / `asset_snapshots` / `yield_map_snapshots` / `housing_index_cache` 均落 SQLite；SourceGateway 的请求级缓存（RequestCache）仍为内存缓存
+5. 仓储族按功能域扩展：`housingRepository`、`yieldMapRepository`、`portfolioRepository`、`settingsRepository` 等，在线模式通过 `repositoryFactory` 切换 Supabase 仓储
 
 ### 6.4 Domain 层
 
@@ -896,7 +897,7 @@ flowchart LR
 3. `docs/DB-DDL.sql`
 4. `src` 目录脚手架初始化
 
-## 18. 当前实现状态（2026-05-01）
+## 18. 当前实现状态（2026-05-01，2026-08 更新）
 
 1. Main 侧已落地最小数据库设施与 `watchlistRepository`
 2. Main 侧已落地多资产路由：`AssetProviderRegistry` + Stock / ETF / Fund 三个 Provider
@@ -921,3 +922,5 @@ flowchart LR
     健康状态（SourceHealthRegistry）和统一错误模型（SourceError）
 20. 所有 adapter 已完成网关迁移：搜索/行情/分红/K线/估值/回测 benchmark 全部通过 `getDefaultSourceGateway().request()` 统一接入
 21. 断路器/速率限制器按策略开关控制（useCircuitBreaker/useRateLimit），策略表中当前所有能力均设为关闭，仅保留并发控制和缓存保护
+22. 股息率地图已落地（2026-08-05）：`yield_map_snapshots` 表 + `YieldMapRepository` + 全市场抓取/聚合 useCase + `YieldMapPage`（Treemap drill-down）+ Supabase `industry_yield_snapshots` 在线模式（验收见 `docs/yield-map-acceptance.md`）
+23. 房产模块已落地（2026-08）：`housingCalculationService`（租金收益率/租售比/指数重建）+ `housingRepository`（指数 30 天缓存/关注/自定义数据）+ 东财 70 城指数与中指研究院数据源 + 三页面（调研见 `docs/housing-module-research.md`）

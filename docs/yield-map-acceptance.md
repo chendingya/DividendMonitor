@@ -1,6 +1,6 @@
 # 股息率地图（yield-map）验收记录（2026-08-05）
 
-> 对应实现计划 `docs/superpowers/plans/2026-08-03-yield-map.md` 的 Phase F（Task F1）。
+> 功能已实现并合入 main（`Merge branch 'feat/yield-map'`）；本文档为回归基准与遗留项清单。
 
 ## 回归测试
 

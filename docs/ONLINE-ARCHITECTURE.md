@@ -440,42 +440,9 @@ SUPABASE_ANON_KEY=eyJhbGciOi...
 - `.env.example` 提供模板
 - 构建脚本通过 `--config` 或环境变量区分 dev/prod
 
-## 13. 实施顺序
+## 13. 实施状态
 
-### 第一阶段：基础设施 + 登录页（约 1-2 天）
-
-1. 搭建 Supabase 项目，创建数据库表 + RLS
-2. 添加 `@supabase/supabase-js` 依赖
-3. 创建 `authService.ts`（主进程 Supabase client）
-4. 注册 IPC 通道：`auth:login`、`auth:logout`、`auth:getSession`
-5. HTTP 路由：`/api/auth/login`、`/api/auth/logout`
-6. 创建 `AuthContext`（渲染进程）
-7. 创建 `LoginPage`（路由 `/login`）
-8. 实现路由守卫
-9. 调整 `AppShell` 侧边栏（底部 auth 状态区）
-
-### 第二阶段：在线数据仓库（约 1-2 天）
-
-1. 创建 `OnlineAssetSnapshotRepository`
-2. 创建 `OnlineWatchlistRepository`
-3. 创建 `OnlinePortfolioPositionStore`
-4. 实现工厂函数按模式切换仓库
-5. 在线模式 CRUD 对接 Supabase
-6. 本地 SQLite 同步写入作为缓存
-
-### 第三阶段：数据迁移与同步（约 1 天）
-
-1. 实现本地 → 云端数据迁移流程
-2. 迁移确认 UI
-3. 网络断线检测与降级处理
-4. 网络恢复后自动同步
-5. SyncStatus 徽标组件
-
-### 第四阶段：收尾与测试（约 0.5 天）
-
-1. 离线模式回归测试（确保无影响）
-2. 在线模式端到端测试
-3. 文档更新（SDD、ARCHITECTURE、用户手册）
+在线版已按上述设计实施完毕（认证链路、在线仓储切换、数据同步三策略、用户中心页面均已落地），实施细节见 `docs/ARCHITECTURE.md` §18 与 `docs/PRD.md` §18。
 
 ## 14. 风险评估
 
@@ -498,11 +465,11 @@ SUPABASE_ANON_KEY=eyJhbGciOi...
 ## 16. 后续升级路径
 
 ```
-v1.0 离线版（当前）
+v1.0 离线版（已完成）
   │
   ▼
-v1.5 在线版（本文档）
-  │  Auth + CRUD + 数据迁移
+v1.5 在线版（已完成）
+  │  Auth + CRUD + 数据迁移 + 备份恢复
   │
   ▼
 v2.0 Web 版

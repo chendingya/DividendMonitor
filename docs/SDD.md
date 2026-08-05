@@ -59,8 +59,8 @@
 ### 4.2 后续预留能力
 
 - 付费数据源切换
-- 登录与同步
-- 房价租售比
+- ~~登录与同步~~（已实现：Supabase 认证 + 云同步）
+- ~~房价租售比~~（已实现：房产模块，见 `docs/housing-module-research.md`）
 - 用户自定义指标
 - 多市场扩展
 
@@ -179,8 +179,8 @@ DividendMonitor/
 
 当前实现补充：
 
-1. 当前 renderer 已落地页面为：首页、个股详情页、自选页、对比页、回测页、回测历史页、行业分析页、设置页、用户中心页
-2. `yield-map` 仍属于预留能力
+1. 当前 renderer 已落地页面为：首页、个股详情页、自选页、对比页、回测页、回测历史页、行业分析页、分红统计页、股息率地图页、房产模块（房价观察/城市详情/房贷计算器）、设置页、用户中心页
+2. ~~`yield-map` 仍属于预留能力~~（已实现：全市场 TTM Treemap + 24h SQLite 快照 + Supabase 云端聚合，验收见 `docs/yield-map-acceptance.md`）
 3. 运行时适配已经落地在 `desktopApi.ts`、`browserRuntimeApi.ts` 与 `browserHttpRuntimeApi.ts`
 
 ### 7.3 数据适配模块
@@ -281,118 +281,9 @@ type AssetDetailModulesDto = {
 
 前端通过 `capabilities` 决定渲染哪些模块，不再硬编码 `assetType === 'STOCK'` 分支。
 
-### 8.3 Stock（遗留，仅股票内部使用）
-  industry?: string;
-  currency?: string;
-};
-```
+### 8.3 早期扁平数据模型（已废弃，仅供参考）
 
-### 8.2 QuoteSnapshot
-
-```ts
-type QuoteSnapshot = {
-  symbol: string;
-  price: number;
-  marketCap?: number;
-  peRatio?: number;
-  totalShares?: number;
-  updatedAt: string;
-};
-```
-
-### 8.3 DividendRecord
-
-```ts
-type DividendRecord = {
-  symbol: string;
-  announceDate?: string;
-  recordDate?: string;
-  exDate?: string;
-  payDate?: string;
-  fiscalYear?: number;
-  calendarYear: number;
-  dividendPerShare: number;
-  totalDividendAmount?: number;
-  payoutRatio?: number;
-  source: string;
-};
-```
-
-### 8.4 ShareCapitalRecord
-
-```ts
-type ShareCapitalRecord = {
-  symbol: string;
-  changeDate: string;
-  totalShares: number;
-  floatShares?: number;
-  changeReason: string;
-  source: string;
-};
-```
-
-### 8.5 FinancialMetric
-
-```ts
-type FinancialMetric = {
-  symbol: string;
-  reportPeriod: string;
-  revenue?: number;
-  netProfit?: number;
-  roe?: number;
-  roic?: number;
-  roi?: number;
-  peRatio?: number;
-  totalShares?: number;
-};
-```
-
-### 8.6 WatchlistItem
-
-```ts
-type WatchlistItem = {
-  symbol: string;
-  groupName?: string;
-  note?: string;
-  createdAt: string;
-};
-```
-
-### 8.7 BacktestResult
-
-```ts
-type BacktestResult = {
-  symbol: string;
-  buyDate: string;
-  buyPrice: number;
-  finalDate: string;
-  finalShares: number;
-  totalDividendsReceived: number;
-  reinvestCount: number;
-  finalMarketValue: number;
-  totalReturn: number;
-  annualizedReturn: number;
-  maxDrawdown: number;
-  totalFees: number;
-  benchmarkReturn?: number;
-  benchmarkAnnualizedReturn?: number;
-};
-```
-
-### 8.8 CalculationResult
-
-```ts
-type CalculationResult = {
-  symbol: string;
-  year?: number;
-  yearRange?: [number, number];
-  historicalYield?: number;
-  averageYield?: number;
-  estimatedDividendPerShare?: number;
-  estimatedFutureYield?: number;
-  calculationBasis: string;
-};
-```
+早期版本的扁平 DTO（`Stock` / `QuoteSnapshot` / `DividendRecord` / `ShareCapitalRecord` / `FinancialMetric` / `WatchlistItem` / `BacktestResult` / `CalculationResult`）已被 §8.1-8.2 的多资产模型取代，字段散落进各功能域的 DTO 与领域实体中，不再作为独立类型存在。
 
 ## 9. 本地数据库设计
 
@@ -422,12 +313,12 @@ type CalculationResult = {
 
 ### 9.3 当前实现状态
 
-截至当前代码：
+截至当前代码（2026-08）：
 
-1. 已正式落地的表只有 `watchlist_items` 与 `app_settings`
+1. 已落地表：`app_settings`、`watchlist_items` / `watchlist_items_v2`、`watchlist_groups` / `watchlist_group_assets`、`portfolio_positions`、`portfolio_risk_snapshots`、`dividend_events`、`asset_snapshots`、`price_cache`、`valuation_cache`、`backtest_results`、`yield_map_snapshots`、`housing_index_cache` / `housing_watchlist` / `user_housing_data`
 2. `watchlist_items` 已用于替代旧的 JSON 自选文件
-3. 其他缓存表仍处于设计态，尚未开始落地
-4. 当前数据库封装位于 `src/main/infrastructure/db/sqlite.ts`
+3. 完整表结构与迁移见 `src/main/infrastructure/db/sqlite.ts` + `migrations/`
+4. 当前数据库封装位于 `src/main/infrastructure/db/sqlite.ts`（Node 内建 `node:sqlite`）
 
 ## 10. 关键计算设计
 
