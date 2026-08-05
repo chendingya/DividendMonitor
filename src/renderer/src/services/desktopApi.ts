@@ -136,6 +136,16 @@ export function getDividendDesktopApi(): DividendMonitorApi['dividend'] {
   return api.dividend
 }
 
+export function getYieldMapDesktopApi(): DividendMonitorApi['yieldMap'] {
+  const api = getRuntimeApi()
+
+  if (!api.yieldMap) {
+    throw new Error('Runtime API is missing the yieldMap namespace.')
+  }
+
+  return api.yieldMap
+}
+
 export function getHousingDesktopApi(): DividendMonitorApi['housing'] {
   const api = getRuntimeApi()
 
