@@ -321,6 +321,30 @@ export type DividendForecastDto = {
   }
 }
 
+export type YieldMapStockDto = {
+  assetKey: string
+  symbol: string
+  name: string
+  industry: string
+  price?: number
+  yieldTtm: number
+}
+
+export type YieldMapIndustryDto = {
+  industry: string
+  medianYield: number
+  avgYield: number
+  stockCount: number
+}
+
+export type MarketYieldMapDto = {
+  industries: YieldMapIndustryDto[]
+  stocks: YieldMapStockDto[]
+  fetchedAt?: string
+  partial: boolean
+  stockCount: number
+}
+
 export type BacktestTransactionDto = {
   type: 'BUY' | 'DIVIDEND' | 'REINVEST' | 'BONUS_ADJUSTMENT' | 'DCA_BUY'
   date: string
@@ -842,6 +866,10 @@ export interface DividendMonitorApi {
     getHistory(request?: DividendHistoryRequest): Promise<DividendHistoryResult>
     listUpcoming(): Promise<UpcomingDividendDto[]>
     getForecast(): Promise<DividendForecastDto>
+  }
+  yieldMap: {
+    get(): Promise<MarketYieldMapDto>
+    refresh(): Promise<MarketYieldMapDto>
   }
 }
 

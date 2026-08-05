@@ -15,6 +15,7 @@ import type {
   HistoricalYieldResponseDto,
   HousingCityDetailDto,
   HousingCitySummaryDto,
+  MarketYieldMapDto,
   MortgageRequestDto,
   MortgageResultDto,
   SettingsDto,
@@ -1533,6 +1534,27 @@ export const browserRuntimeApi: DividendMonitorApi = {
         remainingEstimated: 0,
         details: { upcoming: [] }
       }
+    }
+  },
+  yieldMap: {
+    async get(): Promise<MarketYieldMapDto> {
+      return {
+        industries: [
+          { industry: '银行', medianYield: 0.048, avgYield: 0.052, stockCount: 42 },
+          { industry: '煤炭', medianYield: 0.065, avgYield: 0.071, stockCount: 33 }
+        ],
+        stocks: [
+          { assetKey: 'STOCK:A_SHARE:601398', symbol: '601398', name: '工商银行', industry: '银行', price: 5.2, yieldTtm: 0.058 },
+          { assetKey: 'STOCK:A_SHARE:601088', symbol: '601088', name: '中国神华', industry: '煤炭', price: 38.5, yieldTtm: 0.072 },
+          { assetKey: 'STOCK:A_SHARE:600519', symbol: '600519', name: '贵州茅台', industry: '白酒', price: 1450, yieldTtm: 0.021 }
+        ],
+        fetchedAt: new Date().toISOString(),
+        partial: false,
+        stockCount: 3
+      }
+    },
+    async refresh(): Promise<MarketYieldMapDto> {
+      return this.get()
     }
   }
 }

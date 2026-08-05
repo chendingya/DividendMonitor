@@ -11,6 +11,7 @@ import { WatchlistPage } from '@renderer/pages/WatchlistPage'
 import SettingsPage from '@renderer/pages/SettingsPage'
 import IndustryAnalysisPage from '@renderer/pages/IndustryAnalysisPage'
 import BacktestHistoryPage from '@renderer/pages/BacktestHistoryPage'
+import YieldMapPage from '@renderer/pages/YieldMapPage'
 import { HousingPage } from '@renderer/pages/HousingPage'
 import { HousingCityDetailPage } from '@renderer/pages/HousingCityDetailPage'
 import { MortgageCalculatorPage } from '@renderer/pages/MortgageCalculatorPage'
@@ -68,6 +69,7 @@ export function AppRouter() {
         <Route path="/user-center" element={<UserCenterPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/industry-analysis" element={<IndustryAnalysisPage />} />
+        <Route path="/yield-map" element={<YieldMapPage />} />
         <Route path="/backtest-history" element={<BacktestHistoryPage />} />
         <Route path="/housing" element={<HousingPage />} />
         <Route path="/housing/:city" element={<HousingCityDetailPage />} />

@@ -10,6 +10,7 @@ type AppIconName =
   | 'dashboard'
   | 'dividend'
   | 'dividend-center'
+  | 'yield-map'
   | 'watchlist'
   | 'backtest'
   | 'housing'
@@ -56,6 +57,11 @@ const menuItems: MenuProps['items'] = [
     icon: <AppShellIcon name="dividend-center" className="ledger-icon-svg" />
   },
   {
+    key: '/yield-map',
+    label: '股息率地图',
+    icon: <AppShellIcon name="yield-map" className="ledger-icon-svg" />
+  },
+  {
     key: '/housing',
     label: '房产',
     icon: <AppShellIcon name="housing" className="ledger-icon-svg" />
@@ -79,6 +85,7 @@ const NAV_ROUTES: NavItem[] = [
   { key: '/backtest', label: '回测', icon: 'backtest' },
   { key: '/backtest-history', label: '回测历史', icon: 'backtest' },
   { key: '/dividend-center', label: '分红统计', icon: 'dividend-center' },
+  { key: '/yield-map', label: '股息率地图', icon: 'yield-map' },
   { key: '/housing', label: '房产', icon: 'housing' },
   { key: '/user-center', label: '用户中心', icon: 'user' },
   { key: '/settings', label: '设置', icon: 'settings' }
@@ -144,6 +151,18 @@ function AppShellIcon({ name, className }: { name: AppIconName; className?: stri
         <path d="M3.5 11 12 4l8.5 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         <path d="M5.5 9.5V20h13V9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         <path d="M10 20v-5h4v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+
+  if (name === 'yield-map') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="3.5" y="3.5" width="17" height="17" rx="2" stroke="currentColor" strokeWidth="1.8" />
+        <rect x="7" y="7" width="6" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="15" y="7" width="3" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="7" y="13.5" width="3" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+        <rect x="12" y="13.5" width="6" height="4.5" rx="1" stroke="currentColor" strokeWidth="1.5" />
       </svg>
     )
   }

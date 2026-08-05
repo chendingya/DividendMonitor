@@ -239,6 +239,7 @@ function initializeSchema(db: DatabaseSync) {
   migrateCorporateActionsCursorResetV2(db)
   migrateDividendEventStatus(db)
   migrateDividendFiscalYearNotNull(db)
+  migrateYieldMapSnapshots(db)
   migrateHousingTables(db)
   // dividend_events 索引必须在迁移之后创建：旧库（无 status 列）在迁移前建
   // status 索引会因 "no such column" 抛错，且 CREATE INDEX IF NOT EXISTS
@@ -395,4 +396,21 @@ function migrateDividendFiscalYearNotNull(db: DatabaseSync) {
 
 export function getDatabaseFilePathForDebug() {
   return getDatabaseFilePath()
+}
+
+export function migrateYieldMapSnapshots(db: DatabaseSync) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS yield_map_snapshots (
+      asset_key     TEXT PRIMARY KEY,
+      symbol        TEXT NOT NULL,
+      name          TEXT NOT NULL,
+      industry      TEXT NOT NULL,
+      price         REAL,
+      yield_ttm     REAL NOT NULL,
+      total_dps_12m REAL,
+      fetched_at    TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_yield_map_snapshots_industry
+      ON yield_map_snapshots(industry);
+  `)
 }

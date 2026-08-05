@@ -13,21 +13,45 @@ import { handleSecurityRoute } from '@main/http/routes/securityRoutes'
 import { handleSettingsRoute } from '@main/http/routes/settingsRoutes'
 import { handleSyncRoute } from '@main/http/routes/syncRoutes'
 import { handleWatchlistRoute } from '@main/http/routes/watchlistRoutes'
+import { handleYieldMapRoute } from '@main/http/routes/yieldMapRoutes'
 import { HttpError, asHttpError, sendJson } from '@main/http/httpErrors'
 import { getSecurityHeaders } from '@main/security/contentSecurityPolicy'
 
 let httpServer: Server | null = null
+let currentBaseUrl: URL | null = null
 
-/**
- * CORS 白名单：仅放行本地 HTTP API 自身与固定端口的前端 dev server。
- * 此前允许 localhost:任意端口，任何本地恶意网页都能读写本机 API。
- */
-const ALLOWED_ORIGINS = [
+/** 生产模式固定白名单：与历史行为一致（打包版不使用端口退避） */
+const FIXED_ALLOWED_ORIGINS = [
   'http://127.0.0.1:3210',
   'http://localhost:3210',
   'http://127.0.0.1:8192',
   'http://localhost:8192'
 ]
+
+/**
+ * 动态计算 CORS 白名单：仅放行本地 HTTP API 自身（含 127.0.0.1/localhost
+ * 两种 host 形式）与 dev 模式下前端 dev server 的 origin（端口退避后可能
+ * 不再是 8192）。此前允许 localhost:任意端口，任何本地恶意网页都能读写本机 API。
+ */
+function getAllowedOrigins(): string[] {
+  const baseUrl = getBaseUrl()
+  const origins = new Set<string>([
+    `http://127.0.0.1:${baseUrl.port}`,
+    `http://localhost:${baseUrl.port}`
+  ])
+
+  const rendererUrl = process.env['ELECTRON_RENDERER_URL']
+  if (rendererUrl) {
+    origins.add(new URL(rendererUrl).origin)
+  } else {
+    // 生产（非 dev）模式：回退到固定 3210/8192 白名单
+    for (const origin of FIXED_ALLOWED_ORIGINS) {
+      origins.add(origin)
+    }
+  }
+
+  return [...origins]
+}
 
 /** Host 白名单：防 DNS rebinding，Host 只能是本机回环地址 */
 const ALLOWED_HOSTNAMES = new Set(['127.0.0.1', 'localhost'])
@@ -88,7 +112,7 @@ async function readJsonBody(request: IncomingMessage): Promise<unknown> {
 async function handleRequest(request: IncomingMessage, response: ServerResponse) {
   // Apply security headers to all responses
   const isDevelopment = Boolean(process.env['ELECTRON_RENDERER_URL'])
-  const securityHeaders = getSecurityHeaders(isDevelopment)
+  const securityHeaders = getSecurityHeaders(isDevelopment, getBaseUrl().origin)
   for (const [key, value] of Object.entries(securityHeaders)) {
     if (value) {
       response.setHeader(key, value)
@@ -107,10 +131,10 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
   // Origin must match the strict local whitelist when present. Requests from
   // arbitrary web pages (any origin, any local port) are rejected outright.
   const origin = request.headers.origin
-  if (origin && !ALLOWED_ORIGINS.includes(origin)) {
+  if (origin && !getAllowedOrigins().includes(origin)) {
     throw new HttpError('跨域请求被拒绝。', 403)
   }
-  response.setHeader('Access-Control-Allow-Origin', origin ?? LOCAL_HTTP_API_ORIGIN)
+  response.setHeader('Access-Control-Allow-Origin', origin ?? getBaseUrl().origin)
   response.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
   response.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Local-Nonce')
 
@@ -135,6 +159,7 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
     (await handleDividendRoute({ pathname, method, body, response })) ||
     (await handleFxRoute({ pathname, method, body, response })) ||
     (await handleHousingRoute({ pathname, method, body, response })) ||
+    (await handleYieldMapRoute({ pathname, method, body, response })) ||
     (await handleIndustryRoute({ pathname, method, body, response })) ||
     (await handleSettingsRoute({ pathname, method, body, response })) ||
     (await handleWatchlistRoute({ pathname, method, body, response })) ||
@@ -172,10 +197,25 @@ export async function startLocalHttpServer() {
     httpServer!.once('error', reject)
     httpServer!.listen(port, host, () => {
       httpServer?.off('error', reject)
-      console.log(`[http-api] listening on http://${host}:${port}`)
+      const address = httpServer!.address()
+      const actualPort = typeof address === 'object' && address ? address.port : port
+      // 端口 0 时记录实际绑定的随机端口，供 getLocalApiBaseUrl 使用
+      currentBaseUrl = new URL(`http://${host}:${actualPort}`)
+      console.log(`[http-api] listening on http://${host}:${actualPort}`)
       resolve()
     })
   })
+}
+
+/**
+ * 当前 HTTP API 的可访问基地址（origin）。
+ * 端口 0（随机空闲端口）场景下返回实际绑定端口；未启动时按配置计算。
+ */
+export function getLocalApiBaseUrl(): string {
+  if (currentBaseUrl) {
+    return currentBaseUrl.origin
+  }
+  return getBaseUrl().origin
 }
 
 export async function stopLocalHttpServer() {
@@ -185,6 +225,7 @@ export async function stopLocalHttpServer() {
 
   const server = httpServer
   httpServer = null
+  currentBaseUrl = null
   await new Promise<void>((resolve, reject) => {
     server.close((error) => {
       if (error) {

@@ -29,6 +29,15 @@ function toAuthSession(session: Session | null): AuthSession | null {
   }
 }
 
+/** 邮件确认回调地址：跟随 LOCAL_HTTP_API_PORT（端口退避后仍可直达 API） */
+function getAuthCallbackUrl(): string {
+  const port = process.env['LOCAL_HTTP_API_PORT']?.trim()
+  if (port && /^\d+$/.test(port)) {
+    return `http://127.0.0.1:${port}/auth/callback`
+  }
+  return 'http://127.0.0.1:3210/auth/callback'
+}
+
 function broadcastAuthChange(session: AuthSession | null): void {
   for (const win of BrowserWindow.getAllWindows()) {
     win.webContents.send('auth:state-changed', session)
@@ -83,7 +92,7 @@ export const authService = {
       email,
       password,
       options: {
-        emailRedirectTo: 'http://127.0.0.1:3210/auth/callback'
+        emailRedirectTo: getAuthCallbackUrl()
       }
     })
 

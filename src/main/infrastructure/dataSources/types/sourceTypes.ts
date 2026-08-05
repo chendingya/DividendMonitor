@@ -16,6 +16,8 @@ export type Capability =
   | 'fx.quote'
   | 'housing.priceIndex'
   | 'housing.marketSnapshot'
+  | 'market.clist'
+  | 'market.dividend'
 
 export type DegradeMode = 'strict' | 'fallback' | 'stale-while-error'
 
@@ -245,4 +247,42 @@ export type HousingMarketSnapshotOutput = {
   nationalYoyPercent?: number
   cities: HousingCitySnapshot[]          // 全量城市明细
   trend: HousingMarketTrendPoint[]       // 全国历史趋势（近 12 个月）
+}
+
+// ====== Market-wide yield map capability types ======
+
+export type MarketQuoteRecord = {
+  code: string
+  market: string
+  name: string
+  price?: number
+  industry?: string
+}
+
+export type MarketClistInput = {
+  page: number
+  pageSize?: number
+}
+
+export type MarketClistOutput = {
+  records: MarketQuoteRecord[]
+  total: number
+}
+
+export type MarketDividendRecord = {
+  code: string
+  name?: string
+  exDate?: string
+  pretaxBonusRmb?: number
+  assignProgress?: string
+}
+
+export type MarketDividendInput = {
+  page: number
+  pageSize?: number
+}
+
+export type MarketDividendOutput = {
+  records: MarketDividendRecord[]
+  total: number
 }

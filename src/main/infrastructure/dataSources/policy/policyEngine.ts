@@ -103,6 +103,23 @@ const POLICY_MAP: Record<Capability, RequestPolicy> = {
     useRateLimit: false,
     cacheTtlMs: 30 * 60_000,
     staleTtlMs: 24 * 60 * 60_000
+  },
+  'market.clist': {
+    retryCount: 1,
+    degradeMode: 'fallback',
+    useInFlightDedupe: true,
+    useCircuitBreaker: false,
+    useRateLimit: false,
+    cacheTtlMs: 30_000,
+    staleTtlMs: 2 * 60_000
+  },
+  'market.dividend': {
+    retryCount: 0,
+    degradeMode: 'fallback',
+    useInFlightDedupe: true,
+    useCircuitBreaker: false,
+    useRateLimit: false,
+    cacheTtlMs: 5 * 60_000
   }
 }
 

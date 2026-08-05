@@ -13,6 +13,8 @@ import { SupabaseWatchlistGroupRepository } from '@main/repositories/supabaseWat
 import { DividendRepository } from '@main/repositories/dividendRepository'
 import { SupabaseDividendRepository } from '@main/repositories/supabaseDividendRepository'
 import type { IDividendRepository } from '@main/repositories/interfaces'
+import { YieldMapRepository } from '@main/repositories/yieldMapRepository'
+import { SupabaseYieldMapRepository } from '@main/repositories/supabaseYieldMapRepository'
 
 let watchlistInstance: IWatchlistRepository | null = null
 let portfolioInstance: IPortfolioRepository | null = null
@@ -97,4 +99,12 @@ export function getDividendRepository(mode?: AppRuntimeMode): IDividendRepositor
     dividendInstance = new DividendRepository()
   }
   return dividendInstance
+}
+
+export function getYieldMapRepository(mode?: AppRuntimeMode): YieldMapRepository | SupabaseYieldMapRepository {
+  const runtimeMode = mode ?? getRuntimeMode()
+  if (runtimeMode === 'online') {
+    return new SupabaseYieldMapRepository()
+  }
+  return new YieldMapRepository()
 }

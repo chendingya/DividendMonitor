@@ -12,6 +12,7 @@ import { registerIndustryChannels } from '@main/ipc/channels/industryChannels'
 import { registerSettingsChannels } from '@main/ipc/channels/settingsChannels'
 import { registerBackupChannels } from '@main/ipc/channels/backupChannels'
 import { registerHousingChannels } from '@main/ipc/channels/housingChannels'
+import { registerYieldMapChannels } from '@main/ipc/channels/yieldMapChannels'
 import { getNonce } from '@main/security/localNonce'
 
 export function registerIpcHandlers() {
@@ -22,6 +23,7 @@ export function registerIpcHandlers() {
   registerFxChannels()
   registerHousingChannels()
   registerIndustryChannels()
+  registerYieldMapChannels()
   registerPortfolioChannels()
   registerSettingsChannels()
   registerBackupChannels()

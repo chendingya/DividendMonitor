@@ -16,7 +16,13 @@ import type {
   HousingPriceIndexInput,
   HousingPriceIndexOutput,
   HousingPriceIndexRecord,
-  StockDividendRecord
+  StockDividendRecord,
+  MarketClistInput,
+  MarketClistOutput,
+  MarketDividendInput,
+  MarketDividendOutput,
+  MarketQuoteRecord,
+  MarketDividendRecord
 } from '@main/infrastructure/dataSources/types/sourceTypes'
 import type { HistoricalPricePoint, DividendEvent } from '@main/domain/entities/Stock'
 
@@ -594,6 +600,113 @@ export const eastmoneyFxQuoteEndpoint: EndpointDefinition<
   })
 }
 
+// ====== Market-wide yield map endpoints ======
+
+type EastmoneyClistResponse = {
+  data?: {
+    total?: number
+    diff?: Array<{
+      f2?: number | string
+      f12?: string
+      f13?: number
+      f14?: string
+      f100?: string | null
+    }>
+  }
+}
+
+type EastmoneyMarketDividendResponse = {
+  result?: {
+    count?: number
+    data?: Array<{
+      SECURITY_CODE?: string
+      SECURITY_NAME_ABBR?: string
+      EX_DIVIDEND_DATE?: string
+      PRETAX_BONUS_RMB?: number
+      ASSIGN_PROGRESS?: string
+    }>
+  }
+}
+
+const A_SHARE_LIST_FS =
+  'm:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048'
+
+export const eastmoneyMarketClistEndpoint: EndpointDefinition<
+  MarketClistInput,
+  EastmoneyClistResponse,
+  MarketClistOutput
+> = {
+  id: 'eastmoney.market.clist',
+  provider: 'eastmoney',
+  capability: 'market.clist',
+  parser: 'json',
+  method: 'GET',
+  timeoutMs: 10000,
+  headers: { Referer: 'https://quote.eastmoney.com/' },
+  buildUrl: ({ page, pageSize = 100 }) =>
+    `https://push2.eastmoney.com/api/qt/clist/get?pn=${page}&pz=${pageSize}&po=1&np=1&fltt=2&invt=2&fid=f12` +
+    `&fs=${A_SHARE_LIST_FS}&fields=f12,f13,f14,f2,f100`,
+  mapResponse: (raw) => {
+    const diff = raw.data?.diff ?? []
+    const records: MarketQuoteRecord[] = diff.flatMap((item) => {
+      const code = item.f12?.trim()
+      if (!code) return []
+      const rawPrice = item.f2
+      const price =
+        typeof rawPrice === 'number' && Number.isFinite(rawPrice) && rawPrice > 0
+          ? rawPrice
+          : undefined
+      const industry = item.f100?.trim() || undefined
+      return [
+        {
+          code,
+          market: String(item.f13 ?? ''),
+          name: item.f14?.trim() ?? '',
+          price,
+          industry
+        }
+      ]
+    })
+    return { records, total: raw.data?.total ?? records.length }
+  }
+}
+
+export const eastmoneyMarketDividendEndpoint: EndpointDefinition<
+  MarketDividendInput,
+  EastmoneyMarketDividendResponse,
+  MarketDividendOutput
+> = {
+  id: 'eastmoney.market.dividend',
+  provider: 'eastmoney',
+  capability: 'market.dividend',
+  parser: 'json',
+  method: 'GET',
+  timeoutMs: 15000,
+  buildUrl: ({ page, pageSize = 500 }) =>
+    'https://datacenter-web.eastmoney.com/api/data/v1/get' +
+    '?reportName=RPT_SHAREBONUS_DET&columns=ALL' +
+    `&pageNumber=${page}&pageSize=${pageSize}` +
+    '&sortColumns=EX_DIVIDEND_DATE&sortTypes=-1&source=WEB&client=WEB',
+  mapResponse: (raw) => {
+    const data = raw.result?.data ?? []
+    const records: MarketDividendRecord[] = data.flatMap((item) => {
+      const code = item.SECURITY_CODE?.trim()
+      if (!code) return []
+      const exDate = item.EX_DIVIDEND_DATE?.trim().slice(0, 10) || undefined
+      return [
+        {
+          code,
+          name: item.SECURITY_NAME_ABBR?.trim() || undefined,
+          exDate,
+          pretaxBonusRmb: item.PRETAX_BONUS_RMB,
+          assignProgress: item.ASSIGN_PROGRESS?.trim() || undefined
+        }
+      ]
+    })
+    return { records, total: raw.result?.count ?? records.length }
+  }
+}
+
 // ====== Housing price index endpoint (70 cities, monthly) ======
 
 type EastmoneyHousingPriceResponse = {
@@ -664,5 +777,7 @@ export const eastmoneyEndpoints = [
   eastmoneyPreciousMetalQuoteEndpoint,
   eastmoneyPreciousMetalKlineEndpoint,
   eastmoneyFxQuoteEndpoint,
-  eastmoneyHousingPriceIndexEndpoint
+  eastmoneyHousingPriceIndexEndpoint,
+  eastmoneyMarketClistEndpoint,
+  eastmoneyMarketDividendEndpoint
 ]

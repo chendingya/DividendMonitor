@@ -60,6 +60,13 @@ export class CapabilityRouter {
           fallbacks: [],
           degradeMode: 'fallback'
         }
+      case 'market.clist':
+      case 'market.dividend':
+        return {
+          primary: 'eastmoney',
+          fallbacks: [],
+          degradeMode: 'fallback'
+        }
       case 'housing.marketSnapshot':
         return {
           primary: 'cih',
