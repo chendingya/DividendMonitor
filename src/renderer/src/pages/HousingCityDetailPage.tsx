@@ -100,8 +100,15 @@ function IndexSeriesChart({ series }: { series: HousingIndexSeriesPointDto[] }) 
   }, [baseYear, baseYearOptions])
   const changeResult = useMemo(() => computeIndexChangePercent(series, effectiveBaseYear), [series, effectiveBaseYear])
 
+  /** 图表只展示基准锚点起的数据（选 2021 则横坐标从 2021-01 开始，避免 2011 全量挤压） */
+  const visiblePoints = useMemo(() => {
+    if (changeResult.points.length === 0 || changeResult.baseDate == null) return changeResult.points
+    const baseIndex = changeResult.points.findIndex((point) => point.reportDate === changeResult.baseDate)
+    return baseIndex > 0 ? changeResult.points.slice(baseIndex) : changeResult.points
+  }, [changeResult])
+
   useEffect(() => {
-    if (!chartRef.current || changeResult.points.length === 0) return
+    if (!chartRef.current || visiblePoints.length === 0) return
     const chart = echarts.init(chartRef.current)
     instanceRef.current = chart
 
@@ -115,7 +122,7 @@ function IndexSeriesChart({ series }: { series: HousingIndexSeriesPointDto[] }) 
       legend: { top: 4, right: 8, itemWidth: 12, itemHeight: 12, textStyle: { color: '#66707a' } },
       xAxis: {
         type: 'category',
-        data: changeResult.points.map((item) => item.reportDate),
+        data: visiblePoints.map((item) => item.reportDate),
         axisLine: { lineStyle: { color: 'rgba(171, 173, 175, 0.28)' } },
         axisLabel: { color: '#66707a' }
       },
@@ -130,7 +137,7 @@ function IndexSeriesChart({ series }: { series: HousingIndexSeriesPointDto[] }) 
         {
           name: '新建住宅指数',
           type: 'line',
-          data: changeResult.points.map((item) => item.newHomeChangePercent),
+          data: visiblePoints.map((item) => item.newHomeChangePercent),
           smooth: true,
           symbolSize: 4,
           lineStyle: { color: '#0052d0', width: 2 },
@@ -139,7 +146,7 @@ function IndexSeriesChart({ series }: { series: HousingIndexSeriesPointDto[] }) 
         {
           name: '二手住宅指数',
           type: 'line',
-          data: changeResult.points.map((item) => item.secondHandChangePercent),
+          data: visiblePoints.map((item) => item.secondHandChangePercent),
           smooth: true,
           symbolSize: 4,
           lineStyle: { color: '#f0883e', width: 2 },
@@ -156,7 +163,7 @@ function IndexSeriesChart({ series }: { series: HousingIndexSeriesPointDto[] }) 
       chart.dispose()
       instanceRef.current = null
     }
-  }, [changeResult])
+  }, [visiblePoints, changeResult.baseDate])
 
   if (series.length === 0) {
     return (
