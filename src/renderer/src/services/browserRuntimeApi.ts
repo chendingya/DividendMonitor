@@ -1454,6 +1454,14 @@ export const browserRuntimeApi: DividendMonitorApi = {
         yoyPercent: -1.82,
         rentalYieldPercent: 2.08,
         priceToRentRatio: 47.96,
+        userData: {
+          district: '朝阳区',
+          community: '望京某小区',
+          priceTotalYuan: 5000000,
+          rentTotalMonthYuan: 8000,
+          note: 'mock 自定义数据',
+          updatedAt: new Date().toISOString()
+        },
         indexHistory: [
           { reportDate: '2026-01', newHomeMoM: 99.5, newHomeYoY: 96.1, secondHandMoM: 99.9, secondHandYoY: 94.5 },
           { reportDate: '2026-02', newHomeMoM: 99.6, newHomeYoY: 96.2, secondHandMoM: 99.8, secondHandYoY: 94.6 },

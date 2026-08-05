@@ -1,4 +1,4 @@
-import { Button, Input, Table, Tag, Tooltip, message } from 'antd'
+import { Button, Input, Segmented, Table, Tag, Tooltip, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -15,14 +15,15 @@ export function HousingPage() {
   const navigate = useNavigate()
   const [apiMessage, messageHolder] = message.useMessage()
   const [keyword, setKeyword] = useState('')
+  const [watchFilter, setWatchFilter] = useState<'all' | 'watched'>('all')
   const { data, loading, error, reload, toggleWatch, mutatingCity } = useHousingCities()
 
   const filteredData = useMemo(() => {
     if (!data) return []
     const normalized = keyword.trim().toLowerCase()
-    if (!normalized) return data
-    return data.filter((item) => item.city.includes(normalized))
-  }, [data, keyword])
+    const keywordFiltered = normalized ? data.filter((item) => item.city.includes(normalized)) : data
+    return watchFilter === 'watched' ? keywordFiltered.filter((item) => item.isWatched) : keywordFiltered
+  }, [data, keyword, watchFilter])
 
   const watchedCount = useMemo(() => data?.filter((item) => item.isWatched).length ?? 0, [data])
 
@@ -175,13 +176,23 @@ export function HousingPage() {
 
         <section className="ledger-toolbar-card" style={{ marginTop: 20 }}>
           <div className="ledger-filter-bar" style={{ alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <Input
-              allowClear
-              placeholder="筛选城市"
-              value={keyword}
-              onChange={(event) => setKeyword(event.target.value)}
-              style={{ width: 240 }}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <Segmented
+                options={[
+                  { label: '全部', value: 'all' },
+                  { label: `已关注 (${watchedCount})`, value: 'watched' }
+                ]}
+                value={watchFilter}
+                onChange={(value) => setWatchFilter(value as 'all' | 'watched')}
+              />
+              <Input
+                allowClear
+                placeholder="筛选城市"
+                value={keyword}
+                onChange={(event) => setKeyword(event.target.value)}
+                style={{ width: 240 }}
+              />
+            </div>
             <span style={{ fontSize: 12, color: '#8b949e' }}>
               点击城市名查看指数趋势、租金走势与自定义数据。
             </span>
