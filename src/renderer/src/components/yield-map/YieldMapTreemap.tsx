@@ -44,7 +44,7 @@ export function YieldMapTreemap({ industries, stocks, onSelectStock }: Props) {
         {
           type: 'treemap',
           roam: false,
-          nodeClick: false,
+          nodeClick: 'zoomToNode',
           breadcrumb: { show: true, height: 24 },
           label: { show: true, formatter: '{b}' },
           upperLabel: { show: true, height: 24, formatter: '{b}' },
@@ -64,7 +64,7 @@ export function YieldMapTreemap({ industries, stocks, onSelectStock }: Props) {
             itemStyle: { color: yieldColor(industry.medianYield) },
             children: (byIndustry.get(industry.industry) ?? []).map((stock) => ({
               name: `${stock.name} (${stock.symbol})`,
-              value: 1,
+              value: 1 + stock.yieldTtm * 20,
               symbol: stock.symbol,
               yieldTtm: stock.yieldTtm,
               itemStyle: { color: yieldColor(stock.yieldTtm) }
