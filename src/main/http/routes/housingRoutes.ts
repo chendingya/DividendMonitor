@@ -4,6 +4,7 @@ import { listHousingCities } from '@main/application/useCases/listHousingCities'
 import { getHousingCityDetail } from '@main/application/useCases/getHousingCityDetail'
 import { watchHousingCity, unwatchHousingCity } from '@main/application/useCases/toggleHousingWatchlist'
 import { updateHousingUserData } from '@main/application/useCases/updateHousingUserData'
+import { removeHousingUserData } from '@main/application/useCases/removeHousingUserData'
 import { calculateMortgageUseCase } from '@main/application/useCases/calculateMortgage'
 import { HttpError, sendJson, sendNoContent } from '@main/http/httpErrors'
 
@@ -56,6 +57,16 @@ export async function handleHousingRoute({ pathname, method, body, response }: R
       throw new HttpError('用户数据请求体无效。', 400)
     }
     updateHousingUserData(body as UserHousingDataUpsertDto)
+    sendNoContent(response)
+    return true
+  }
+
+  if (pathname === '/api/housing/user-data' && method === 'DELETE') {
+    const city = (body as { city?: unknown } | undefined)?.city
+    if (typeof city !== 'string' || !city) {
+      throw new HttpError('城市不能为空。', 400)
+    }
+    removeHousingUserData(city)
     sendNoContent(response)
     return true
   }

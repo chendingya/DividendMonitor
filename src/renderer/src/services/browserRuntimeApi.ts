@@ -1499,6 +1499,7 @@ export const browserRuntimeApi: DividendMonitorApi = {
     async watchCity(_city: string) {},
     async unwatchCity(_city: string) {},
     async updateUserData(_request: UserHousingDataUpsertDto) {},
+    async removeUserData(_city: string) {},
     async calculateMortgage(request: MortgageRequestDto): Promise<MortgageResultDto> {
       const loanAmount = request.totalPrice * (1 - request.downPaymentPercent / 100)
       const monthlyRate = request.annualInterestRate / 100 / 12

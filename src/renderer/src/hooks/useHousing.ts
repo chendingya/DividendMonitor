@@ -36,6 +36,7 @@ export function useHousingCityDetail(city: string) {
 
 export function useHousingUserData(onSaved?: () => void) {
   const [saving, setSaving] = useState(false)
+  const [removing, setRemoving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const save = useCallback(async (request: UserHousingDataUpsertDto) => {
@@ -51,5 +52,18 @@ export function useHousingUserData(onSaved?: () => void) {
     }
   }, [onSaved])
 
-  return { save, saving, error }
+  const remove = useCallback(async (city: string) => {
+    setRemoving(true)
+    setError(null)
+    try {
+      await housingApi.removeUserData(city)
+      onSaved?.()
+    } catch (removeError) {
+      setError(removeError instanceof Error ? removeError.message : '清除失败')
+    } finally {
+      setRemoving(false)
+    }
+  }, [onSaved])
+
+  return { save, remove, saving, removing, error }
 }

@@ -2,8 +2,13 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { UserHousingDataRepository, HousingWatchlistRepository } from '@main/repositories/housingRepository'
-import { closeDatabase } from '@main/infrastructure/db/sqlite'
+import {
+  HousingIndexCacheRepository,
+  HOUSING_INDEX_CACHE_TTL_MS,
+  UserHousingDataRepository,
+  HousingWatchlistRepository
+} from '@main/repositories/housingRepository'
+import { closeDatabase, getDatabase } from '@main/infrastructure/db/sqlite'
 import { getHousingCityDetail } from '@main/application/useCases/getHousingCityDetail'
 import { calculateMortgageUseCase } from '@main/application/useCases/calculateMortgage'
 
@@ -58,6 +63,60 @@ describe('housingRepository', () => {
     watchRepo.remove('北京')
     expect(watchRepo.has('北京')).toBe(false)
     expect(watchRepo.list()).toHaveLength(1)
+  })
+})
+
+describe('housingIndexCacheRepository', () => {
+  let cacheRepo: HousingIndexCacheRepository
+
+  beforeEach(() => {
+    cacheRepo = new HousingIndexCacheRepository()
+  })
+
+  afterEach(() => {
+    closeDatabase()
+  })
+
+  const sampleRecords = [
+    { reportDate: '2026-05', city: '北京', newHomeMoM: 99.8, newHomeYoY: 97.9, secondHandMoM: 100.1, secondHandYoY: 93.5 },
+    { reportDate: '2026-06', city: '北京', newHomeMoM: 99.7, newHomeYoY: 97.9, secondHandMoM: 100.1, secondHandYoY: 94.5 }
+  ]
+
+  it('upsertMany 后 findByCity 返回同一城市数据（升序）', () => {
+    cacheRepo.upsertMany('测试城A', sampleRecords)
+    const cached = cacheRepo.findByCity('测试城A')
+    expect(cached).toHaveLength(2)
+    expect(cached?.[0].reportDate).toBe('2026-05')
+    expect(cached?.[0].newHomeMoM).toBe(99.8)
+    expect(cached?.[1].reportDate).toBe('2026-06')
+  })
+
+  it('upsertMany 全量覆盖：重复写入不残留旧行', () => {
+    cacheRepo.upsertMany('测试城A', sampleRecords)
+    cacheRepo.upsertMany('测试城A', [sampleRecords[1]])
+    expect(cacheRepo.findByCity('测试城A')).toHaveLength(1)
+  })
+
+  it('无缓存时返回 undefined', () => {
+    expect(cacheRepo.findByCity('不存在城市')).toBeUndefined()
+  })
+
+  it('allowStale=false 时过期缓存视为未命中；allowStale=true 返回过期数据', () => {
+    const past = new Date(Date.now() - HOUSING_INDEX_CACHE_TTL_MS - 60_000).toISOString()
+    const db = getDatabase()
+    db.prepare(
+      `INSERT INTO housing_index_cache (city_code, period, new_home_index_mom, fetched_at) VALUES (?, ?, ?, ?)`
+    ).run('上海', '2026-06', 99.7, past)
+
+    expect(cacheRepo.findByCity('上海')).toBeUndefined()
+    const stale = cacheRepo.findByCity('上海', { allowStale: true })
+    expect(stale).toHaveLength(1)
+    expect(stale?.[0].newHomeMoM).toBe(99.7)
+  })
+
+  it('新鲜缓存（TTL 内）直接命中', () => {
+    cacheRepo.upsertMany('测试城A', sampleRecords)
+    expect(cacheRepo.findByCity('测试城A')).toHaveLength(2)
   })
 })
 

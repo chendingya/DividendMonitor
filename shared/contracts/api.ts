@@ -843,6 +843,7 @@ export interface DividendMonitorApi {
     watchCity(city: string): Promise<void>
     unwatchCity(city: string): Promise<void>
     updateUserData(request: UserHousingDataUpsertDto): Promise<void>
+    removeUserData(city: string): Promise<void>
     calculateMortgage(request: MortgageRequestDto): Promise<MortgageResultDto>
   }
   dividend: {

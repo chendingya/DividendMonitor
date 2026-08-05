@@ -1,4 +1,4 @@
-import { Button, Col, Empty, Form, Input, InputNumber, Row, Segmented, Tag, message } from 'antd'
+import { Button, Col, Empty, Form, Input, InputNumber, Popconfirm, Row, Segmented, Tag, message } from 'antd'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import * as echarts from 'echarts'
@@ -214,8 +214,7 @@ export function HousingCityDetailPage() {
   const [apiMessage, messageHolder] = message.useMessage()
   const [form] = Form.useForm()
   const { data, loading, error, reload } = useHousingCityDetail(city)
-  const { save, saving } = useHousingUserData(() => {
-    apiMessage.success('自定义数据已保存')
+  const { save, remove, saving, removing } = useHousingUserData(() => {
     void reload()
   })
 
@@ -233,6 +232,13 @@ export function HousingCityDetailPage() {
   async function handleSave() {
     const values = await form.validateFields()
     await save({ city, ...values })
+    apiMessage.success('自定义数据已保存')
+  }
+
+  async function handleRemove() {
+    await remove(city)
+    form.resetFields()
+    apiMessage.success('已清除自定义数据')
   }
 
   const hasCustomData = data?.userData?.priceTotalYuan != null || data?.userData?.rentTotalMonthYuan != null
@@ -313,9 +319,22 @@ export function HousingCityDetailPage() {
                   保存
                 </Button>
                 {data?.userData ? (
-                  <span style={{ marginLeft: 12, color: '#8b949e', fontSize: 12 }}>
-                    上次更新 {new Date(data.userData.updatedAt).toLocaleString()}
-                  </span>
+                  <>
+                    <Popconfirm
+                      title="清除自定义数据"
+                      description="将删除该城市录入的总价与月租金，恢复自动数据口径。"
+                      okText="清除"
+                      okButtonProps={{ danger: true }}
+                      onConfirm={() => void handleRemove()}
+                    >
+                      <Button danger loading={removing} style={{ marginLeft: 8 }}>
+                        清除
+                      </Button>
+                    </Popconfirm>
+                    <span style={{ marginLeft: 12, color: '#8b949e', fontSize: 12 }}>
+                      上次更新 {new Date(data.userData.updatedAt).toLocaleString()}
+                    </span>
+                  </>
                 ) : null}
               </Form>
             </AppCard>

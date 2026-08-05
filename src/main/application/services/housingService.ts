@@ -7,7 +7,11 @@ import type {
 } from '@shared/contracts/api'
 import { EastmoneyHousingDataSource } from '@main/adapters/eastmoney/eastmoneyHousingDataSource'
 import { CihIndexHousingDataSource } from '@main/adapters/cihIndex/cihIndexHousingDataSource'
-import { UserHousingDataRepository, HousingWatchlistRepository } from '@main/repositories/housingRepository'
+import {
+  HousingIndexCacheRepository,
+  HousingWatchlistRepository,
+  UserHousingDataRepository
+} from '@main/repositories/housingRepository'
 import { calculateHousingDerivedMetrics, rebuildIndexSeries } from '@main/domain/services/housingCalculationService'
 import type { HousingIndexRecord } from '@main/domain/entities/Housing'
 
@@ -16,6 +20,7 @@ export class HousingService {
   private readonly cih = new CihIndexHousingDataSource()
   private readonly userDataRepo = new UserHousingDataRepository()
   private readonly watchlistRepo = new HousingWatchlistRepository()
+  private readonly indexCacheRepo = new HousingIndexCacheRepository()
 
   async listCities(): Promise<HousingCitySummaryDto[]> {
     const [newHouse, esfHouse, rent, watchlist] = await Promise.all([
@@ -117,12 +122,13 @@ export class HousingService {
     }
   }
 
+  /** 缓存优先读取 70 城指数：本地 SQLite（30 天 TTL）→ 东财回源并写缓存 → 回源失败用过期缓存兜底 */
   private async fetchIndexHistory(city: string): Promise<HousingIndexPointDto[]> {
-    try {
-      const records: HousingIndexRecord[] = await this.eastmoney.getCityHistory(city)
-      return records
+    // 统一按 reportDate 升序（旧 → 新）：东财返回降序、缓存返回升序，不依赖来源顺序
+    const toDto = (records: HousingIndexRecord[]): HousingIndexPointDto[] =>
+      records
         .slice()
-        .reverse()
+        .sort((left, right) => left.reportDate.localeCompare(right.reportDate))
         .map((record) => ({
           reportDate: record.reportDate,
           newHomeMoM: record.newHomeMoM,
@@ -130,8 +136,21 @@ export class HousingService {
           secondHandMoM: record.secondHandMoM,
           secondHandYoY: record.secondHandYoY
         }))
+
+    const cached = this.indexCacheRepo.findByCity(city)
+    if (cached) {
+      return toDto(cached)
+    }
+
+    try {
+      const records: HousingIndexRecord[] = await this.eastmoney.getCityHistory(city)
+      if (records.length > 0) {
+        this.indexCacheRepo.upsertMany(city, records)
+      }
+      return toDto(records)
     } catch {
-      return []
+      const stale = this.indexCacheRepo.findByCity(city, { allowStale: true })
+      return stale ? toDto(stale) : []
     }
   }
 
@@ -186,5 +205,9 @@ export class HousingService {
       rentTotalMonthYuan: request.rentTotalMonthYuan,
       note: request.note
     })
+  }
+
+  removeUserData(city: string): void {
+    this.userDataRepo.remove(city)
   }
 }
