@@ -188,6 +188,13 @@ create table public.industry_yield_snapshots (
 5. Phase 4：Supabase `industry_yield_snapshots` 建表 + 上传/读取（在线模式）
 6. Phase 5（可选）：Edge Function 定时抓取云端自治
 
+### 7.1 迁移实施记录
+
+- **2026-08-05**：Supabase 迁移 `create_industry_yield_snapshots`（版本 20260805003819）已执行，Phase 4 云端建表完成
+- **表结构**（`industry_yield_snapshots`）：`industry` text、`snapshot_date` date、`median_yield` float4、`avg_yield` float4、`stock_count` int4、`fetched_at` timestamptz（default now()）；`id` uuid 主键，`user_id` 外键 → `auth.users(id)` ON DELETE CASCADE；唯一约束 `unique(user_id, industry, snapshot_date)`
+- **RLS policy**：4 个 policy 全部为 own 语义（select / insert / update / delete 均以 `auth.uid() = user_id` 限定）
+- **advisors 复查**：仅既有 `auth_leaked_password_protection` WARN（auth 层面的泄漏密码保护未开启，与本迁移无关），无新增安全/性能告警
+
 ## 8. 结论
 
 全市场股息率地图**数据源可行**（东财两个免费接口实测可用，无需新第三方），主要工作量在聚合口径定义、172 请求的抓取调度与快照存储，前端 treemap 无技术风险。建议按 §7 分 5-6 个 Phase 渐进实施，先本地后云端。
