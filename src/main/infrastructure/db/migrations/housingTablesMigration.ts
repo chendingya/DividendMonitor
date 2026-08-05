@@ -28,13 +28,36 @@ export function migrateHousingTables(db: DatabaseSync): void {
         city_code TEXT NOT NULL,
         district TEXT,
         community TEXT,
-        price_per_sqm REAL,
-        rent_per_sqm REAL,
+        price_total_yuan REAL,
+        rent_total_month_yuan REAL,
         note TEXT,
         updated_at TEXT NOT NULL
       );
       CREATE INDEX IF NOT EXISTS idx_user_housing_data_city ON user_housing_data(city_code);
     `)
+  } else {
+    // 旧版单价口径（price_per_sqm/rent_per_sqm）→ 新版总价口径（price_total_yuan/rent_total_month_yuan）。
+    // 单价无法可靠换算为总价（缺面积信息），旧数据直接清空。
+    const columns = db
+      .prepare("SELECT name FROM pragma_table_info('user_housing_data')")
+      .all() as Array<{ name: string }>
+    const columnNames = new Set(columns.map((row) => row.name))
+
+    if (!columnNames.has('price_total_yuan')) {
+      db.exec('ALTER TABLE user_housing_data ADD COLUMN price_total_yuan REAL')
+    }
+    if (!columnNames.has('rent_total_month_yuan')) {
+      db.exec('ALTER TABLE user_housing_data ADD COLUMN rent_total_month_yuan REAL')
+    }
+    if (columnNames.has('price_per_sqm') || columnNames.has('rent_per_sqm')) {
+      db.exec('UPDATE user_housing_data SET price_total_yuan = NULL, rent_total_month_yuan = NULL')
+      if (columnNames.has('price_per_sqm')) {
+        db.exec('ALTER TABLE user_housing_data DROP COLUMN price_per_sqm')
+      }
+      if (columnNames.has('rent_per_sqm')) {
+        db.exec('ALTER TABLE user_housing_data DROP COLUMN rent_per_sqm')
+      }
+    }
   }
 
   if (!existing.has('housing_watchlist')) {

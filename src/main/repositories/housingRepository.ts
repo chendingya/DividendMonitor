@@ -13,7 +13,7 @@ export class UserHousingDataRepository {
     const db = getDatabase()
     const row = db
       .prepare(
-        `SELECT id, city_code, district, community, price_per_sqm, rent_per_sqm, note, updated_at
+        `SELECT id, city_code, district, community, price_total_yuan, rent_total_month_yuan, note, updated_at
          FROM user_housing_data WHERE city_code = ? ORDER BY updated_at DESC LIMIT 1`
       )
       .get(cityCode) as Record<string, string | number | null> | undefined
@@ -22,8 +22,8 @@ export class UserHousingDataRepository {
       cityCode: String(row.city_code),
       district: row.district ? String(row.district) : undefined,
       community: row.community ? String(row.community) : undefined,
-      pricePerSqm: row.price_per_sqm != null ? Number(row.price_per_sqm) : undefined,
-      rentPerSqm: row.rent_per_sqm != null ? Number(row.rent_per_sqm) : undefined,
+      priceTotalYuan: row.price_total_yuan != null ? Number(row.price_total_yuan) : undefined,
+      rentTotalMonthYuan: row.rent_total_month_yuan != null ? Number(row.rent_total_month_yuan) : undefined,
       note: row.note ? String(row.note) : undefined,
       updatedAt: String(row.updated_at)
     }
@@ -34,13 +34,13 @@ export class UserHousingDataRepository {
     const now = new Date().toISOString()
 
     db.prepare(
-      `INSERT INTO user_housing_data (id, city_code, district, community, price_per_sqm, rent_per_sqm, note, updated_at)
+      `INSERT INTO user_housing_data (id, city_code, district, community, price_total_yuan, rent_total_month_yuan, note, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          district = excluded.district,
          community = excluded.community,
-         price_per_sqm = excluded.price_per_sqm,
-         rent_per_sqm = excluded.rent_per_sqm,
+         price_total_yuan = excluded.price_total_yuan,
+         rent_total_month_yuan = excluded.rent_total_month_yuan,
          note = excluded.note,
          updated_at = excluded.updated_at`
     ).run(
@@ -48,8 +48,8 @@ export class UserHousingDataRepository {
       input.cityCode,
       input.district ?? null,
       input.community ?? null,
-      input.pricePerSqm ?? null,
-      input.rentPerSqm ?? null,
+      input.priceTotalYuan ?? null,
+      input.rentTotalMonthYuan ?? null,
       input.note ?? null,
       now
     )

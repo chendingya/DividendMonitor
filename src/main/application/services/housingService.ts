@@ -72,9 +72,9 @@ export class HousingService {
     const esf = esfHouse.cities.find((item) => item.city === city)
     const rentInfo = rent.cities.find((item) => item.city === city)
 
-    // 用户手动数据优先（区/小区级精细化）
-    const effectivePrice = userData?.pricePerSqm ?? newHome?.pricePerSqm ?? esf?.pricePerSqm
-    const effectiveRent = userData?.rentPerSqm ?? rentInfo?.pricePerSqm
+    // 用户手动数据优先（区/小区级精细化，总价/整套月租口径）
+    const effectivePrice = userData?.priceTotalYuan ?? newHome?.pricePerSqm ?? esf?.pricePerSqm
+    const effectiveRent = userData?.rentTotalMonthYuan ?? rentInfo?.pricePerSqm
     const metrics = calculateHousingDerivedMetrics({ rentPerSqm: effectiveRent, pricePerSqm: effectivePrice })
 
     const priceTrend: HousingPriceTrendPointDto[] = (newHouse.trend ?? []).map((point) => ({
@@ -108,8 +108,8 @@ export class HousingService {
         ? {
             district: userData.district,
             community: userData.community,
-            pricePerSqm: userData.pricePerSqm,
-            rentPerSqm: userData.rentPerSqm,
+            priceTotalYuan: userData.priceTotalYuan,
+            rentTotalMonthYuan: userData.rentTotalMonthYuan,
             note: userData.note,
             updatedAt: userData.updatedAt
           }
@@ -182,8 +182,8 @@ export class HousingService {
       cityCode: request.city,
       district: request.district,
       community: request.community,
-      pricePerSqm: request.pricePerSqm,
-      rentPerSqm: request.rentPerSqm,
+      priceTotalYuan: request.priceTotalYuan,
+      rentTotalMonthYuan: request.rentTotalMonthYuan,
       note: request.note
     })
   }

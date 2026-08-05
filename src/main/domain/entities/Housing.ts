@@ -26,8 +26,8 @@ export type UserHousingData = {
   cityCode: string
   district?: string
   community?: string
-  pricePerSqm?: number      // 用户录入房价（元/㎡）
-  rentPerSqm?: number       // 用户录入月租金（元/㎡·月）
+  priceTotalYuan?: number      // 用户录入房价总价（元）
+  rentTotalMonthYuan?: number  // 用户录入整套月租金（元/月）
   note?: string
   updatedAt: string
 }

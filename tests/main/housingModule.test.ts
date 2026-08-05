@@ -31,20 +31,20 @@ describe('housingRepository', () => {
   })
 
   it('upserts and reads user housing data per city', () => {
-    userRepo.upsert({ cityCode: '北京', district: '朝阳区', pricePerSqm: 58000, rentPerSqm: 95 })
+    userRepo.upsert({ cityCode: '北京', district: '朝阳区', priceTotalYuan: 5000000, rentTotalMonthYuan: 8000 })
     const found = userRepo.findByCity('北京')
     expect(found?.cityCode).toBe('北京')
-    expect(found?.pricePerSqm).toBe(58000)
-    expect(found?.rentPerSqm).toBe(95)
+    expect(found?.priceTotalYuan).toBe(5000000)
+    expect(found?.rentTotalMonthYuan).toBe(8000)
 
     // 再次 upsert 覆盖（id 为 cityCode）
-    userRepo.upsert({ cityCode: '北京', pricePerSqm: 60000 })
+    userRepo.upsert({ cityCode: '北京', priceTotalYuan: 6000000 })
     const updated = userRepo.findByCity('北京')
-    expect(updated?.pricePerSqm).toBe(60000)
+    expect(updated?.priceTotalYuan).toBe(6000000)
   })
 
   it('removes user housing data', () => {
-    userRepo.upsert({ cityCode: '上海', pricePerSqm: 60000 })
+    userRepo.upsert({ cityCode: '上海', priceTotalYuan: 6000000 })
     userRepo.remove('上海')
     expect(userRepo.findByCity('上海')).toBeUndefined()
   })

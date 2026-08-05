@@ -716,8 +716,8 @@ export type HousingCityDetailDto = {
   userData?: {
     district?: string
     community?: string
-    pricePerSqm?: number
-    rentPerSqm?: number
+    priceTotalYuan?: number        // 用户录入房价总价（元）
+    rentTotalMonthYuan?: number    // 用户录入整套月租金（元/月）
     note?: string
     updatedAt: string
   }
@@ -727,8 +727,8 @@ export type UserHousingDataUpsertDto = {
   city: string
   district?: string
   community?: string
-  pricePerSqm?: number
-  rentPerSqm?: number
+  priceTotalYuan?: number    // 房价总价（元）
+  rentTotalMonthYuan?: number    // 整套月租金（元/月）
   note?: string
 }
 
