@@ -15,3 +15,6 @@ supabase/.temp/
 .superpowers/
 .workbuddy/
 .playwright-mcp/
+
+# git worktrees (parallel development worktrees inside the repo)
+.worktrees/
