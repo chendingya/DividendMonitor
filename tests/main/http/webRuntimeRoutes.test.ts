@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { LOCAL_HTTP_API_ORIGIN } from '@shared/contracts/api'
-import { startLocalHttpServer, stopLocalHttpServer } from '@main/http/server'
+import { getLocalApiBaseUrl, startLocalHttpServer, stopLocalHttpServer } from '@main/http/server'
 
 /**
  * Smoke test for the browser-preview (headless HTTP) runtime.
@@ -18,15 +17,18 @@ describe('web runtime HTTP routes', () => {
   let nonce = ''
 
   beforeAll(async () => {
+    // 端口 0 = 随机空闲端口，避免与其他预览实例（3210）冲突导致 EADDRINUSE
+    process.env.LOCAL_HTTP_API_PORT = '0'
     await startLocalHttpServer()
   })
 
   afterAll(async () => {
     await stopLocalHttpServer()
+    delete process.env.LOCAL_HTTP_API_PORT
   })
 
   it('exposes a local security nonce for the web runtime', async () => {
-    const res = await fetch(`${LOCAL_HTTP_API_ORIGIN}/api/security/nonce`, { method: 'GET' })
+    const res = await fetch(`${getLocalApiBaseUrl()}/api/security/nonce`, { method: 'GET' })
     expect(res.status).toBe(200)
     const payload = (await res.json()) as { nonce?: string }
     expect(typeof payload.nonce).toBe('string')
@@ -35,12 +37,12 @@ describe('web runtime HTTP routes', () => {
   })
 
   it('rejects API calls without a valid nonce with 403', async () => {
-    const res = await fetch(`${LOCAL_HTTP_API_ORIGIN}/api/sync/status`, { method: 'GET' })
+    const res = await fetch(`${getLocalApiBaseUrl()}/api/sync/status`, { method: 'GET' })
     expect(res.status).toBe(403)
   })
 
   it('rejects requests with a forged nonce with 403', async () => {
-    const res = await fetch(`${LOCAL_HTTP_API_ORIGIN}/api/sync/status`, {
+    const res = await fetch(`${getLocalApiBaseUrl()}/api/sync/status`, {
       method: 'GET',
       headers: { 'X-Local-Nonce': 'forged-nonce-value' }
     })
@@ -48,7 +50,7 @@ describe('web runtime HTTP routes', () => {
   })
 
   it('rejects cross-origin requests with 403', async () => {
-    const res = await fetch(`${LOCAL_HTTP_API_ORIGIN}/api/sync/status`, {
+    const res = await fetch(`${getLocalApiBaseUrl()}/api/sync/status`, {
       method: 'GET',
       headers: {
         'X-Local-Nonce': nonce,
@@ -59,7 +61,7 @@ describe('web runtime HTTP routes', () => {
   })
 
   it('exposes the sync status endpoint for the web runtime', async () => {
-    const res = await fetch(`${LOCAL_HTTP_API_ORIGIN}/api/sync/status`, {
+    const res = await fetch(`${getLocalApiBaseUrl()}/api/sync/status`, {
       method: 'GET',
       headers: { 'X-Local-Nonce': nonce }
     })
@@ -69,7 +71,7 @@ describe('web runtime HTTP routes', () => {
   })
 
   it('rejects an invalid sync direction with 400', async () => {
-    const res = await fetch(`${LOCAL_HTTP_API_ORIGIN}/api/sync/data`, {
+    const res = await fetch(`${getLocalApiBaseUrl()}/api/sync/data`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Local-Nonce': nonce },
       body: JSON.stringify({ direction: 'sideways' })
@@ -78,7 +80,7 @@ describe('web runtime HTTP routes', () => {
   })
 
   it('returns 404 for unknown api paths', async () => {
-    const res = await fetch(`${LOCAL_HTTP_API_ORIGIN}/api/does-not-exist`, {
+    const res = await fetch(`${getLocalApiBaseUrl()}/api/does-not-exist`, {
       method: 'GET',
       headers: { 'X-Local-Nonce': nonce }
     })

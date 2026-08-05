@@ -6,16 +6,16 @@
  */
 
 const SUPABASE_CONNECT_SRC = 'https://*.supabase.co'
-const LOCAL_API_ORIGIN = 'http://127.0.0.1:3210'
+const DEFAULT_API_ORIGIN = 'http://127.0.0.1:3210'
 
-function buildBasePolicy(): Record<string, string[]> {
+function buildBasePolicy(apiOrigin: string): Record<string, string[]> {
   return {
     'default-src': ["'self'"],
     'script-src': ["'self'"],
     'style-src': ["'self'", "'unsafe-inline'"], // antd uses inline styles
     'img-src': ["'self'", 'data:', 'blob:'],
     'font-src': ["'self'"],
-    'connect-src': ["'self'", LOCAL_API_ORIGIN, SUPABASE_CONNECT_SRC],
+    'connect-src': ["'self'", apiOrigin, SUPABASE_CONNECT_SRC],
     'frame-src': ["'none'"],
     'object-src': ["'none'"],
     'base-uri': ["'self'"],
@@ -29,8 +29,8 @@ function serializePolicy(policy: Record<string, string[]>): string {
     .join('; ')
 }
 
-export function getCspHeader(isDevelopment: boolean): string {
-  const policy = buildBasePolicy()
+export function getCspHeader(isDevelopment: boolean, apiOrigin: string = DEFAULT_API_ORIGIN): string {
+  const policy = buildBasePolicy(apiOrigin)
 
   if (isDevelopment) {
     // Vite HMR needs WebSocket connection and eval for hot module replacement
@@ -45,9 +45,9 @@ export function getCspHeader(isDevelopment: boolean): string {
 /**
  * Standard security headers to apply to all HTTP responses.
  */
-export function getSecurityHeaders(isDevelopment: boolean): Record<string, string> {
+export function getSecurityHeaders(isDevelopment: boolean, apiOrigin?: string): Record<string, string> {
   return {
-    'Content-Security-Policy': getCspHeader(isDevelopment),
+    'Content-Security-Policy': getCspHeader(isDevelopment, apiOrigin),
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'Referrer-Policy': 'strict-origin-when-cross-origin',

@@ -1,5 +1,3 @@
-import { LOCAL_HTTP_API_ORIGIN } from '@shared/contracts/api'
-
 /** Allowed custom header keys — extend only when a legitimate need arises */
 const ALLOWED_CUSTOM_HEADERS = new Set(['X-Local-Nonce'])
 
@@ -24,7 +22,9 @@ export async function requestJson<T>(path: string, options: RequestOptions = {})
     ...customHeaders
   }
 
-  const response = await fetch(`${LOCAL_HTTP_API_ORIGIN}${path}`, {
+  // 相对路径：浏览器预览模式走 vite dev server 的 /api 代理（同源），
+  // 实际 API 端口由代理转发，renderer 无需感知。
+  const response = await fetch(path, {
     method: options.method ?? 'GET',
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body)
