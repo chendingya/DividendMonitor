@@ -309,7 +309,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             mode="inline"
             items={menuItems}
             selectedKeys={[selectedKey]}
-            defaultOpenKeys={['backtest']}
             onClick={({ key }) => navigate(key)}
             style={{ background: 'transparent', borderInlineEnd: 'none' }}
           />
