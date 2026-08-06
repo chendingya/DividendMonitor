@@ -1,6 +1,11 @@
 import { useRef, useEffect } from 'react'
-import * as echarts from 'echarts'
+import * as echarts from 'echarts/core'
+import { TreemapChart } from 'echarts/charts'
+import { TooltipComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 import type { YieldMapIndustryDto, YieldMapStockDto } from '@shared/contracts/api'
+
+echarts.use([TreemapChart, TooltipComponent, CanvasRenderer])
 
 type Props = {
   industries: YieldMapIndustryDto[]
@@ -42,6 +47,8 @@ export function YieldMapTreemap({ industries, stocks, onSelectStock }: Props) {
         {
           type: 'treemap',
           roam: false,
+          animation: false,
+          animationDurationUpdate: 0,
           nodeClick: 'zoomToNode',
           breadcrumb: { show: true, height: 24 },
           label: { show: true, formatter: '{b}' },
