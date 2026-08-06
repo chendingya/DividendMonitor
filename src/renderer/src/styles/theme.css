@@ -514,16 +514,21 @@ body {
 }
 
 .ledger-sidebar-nav .ant-menu-item:not(.ant-menu-item-selected):hover,
-.ledger-sidebar-nav .ant-menu-item-active:not(.ant-menu-item-selected),
 .ledger-sidebar-nav .ant-menu-submenu-title:hover {
   background: rgba(228, 233, 237, 0.88) !important;
   color: var(--primary, #0052d0) !important;
+}
+
+.ledger-sidebar-nav .ant-menu-item-active {
+  background: transparent !important;
+  color: inherit !important;
 }
 
 .ledger-sidebar-nav .ant-menu-item-selected {
   background: linear-gradient(135deg, #2866eb, var(--primary)) !important;
   color: #fff !important;
   box-shadow: 0 14px 26px rgba(0, 82, 208, 0.22) !important;
+  transition: none !important;
 }
 
 .ledger-sidebar-nav .ant-menu-item-selected .ant-menu-item-icon {
