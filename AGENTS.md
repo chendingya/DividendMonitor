@@ -12,7 +12,7 @@ npm run dist:dir             # 构建目录产物（electron-builder --dir）
 npm run dist:win             # 构建 Windows NSIS 安装包
 npm run preview              # electron-vite 预览
 npm run typecheck            # TypeScript 类型检查（tsc --noEmit）
-npm test                     # 运行全部测试（vitest run，tests/ 370+ 测试）
+npm test                     # 运行全部测试（vitest run，tests/ 420+ 测试）
 npm run test:watch           # 监听模式运行测试
 ```
 
@@ -35,7 +35,7 @@ npm run test:watch           # 监听模式运行测试
 - **路由**: HashRouter（兼容 Electron `file://` 协议）
 - **数据存储**: SQLite（Node 内建 `node:sqlite`，无 ORM），迁移位于 `src/main/infrastructure/db/migrations/`
 - **在线模式**: Supabase（`@supabase/supabase-js`，认证 + 云端仓储），配置见 `.env`（`SUPABASE_URL` / `SUPABASE_ANON_KEY`）
-- **测试**: Vitest（测试位于 `tests/`）
+- **测试**: Vitest（测试位于 `tests/`，70 个文件 420+ 测试）
 - **数据源**: 东方财富 / 腾讯 / 新浪免费接口 + 中指研究院（房产），通过统一网关（SourceGateway）调度
 - **其他**: zod（DTO 校验）、electron-log（日志）
 

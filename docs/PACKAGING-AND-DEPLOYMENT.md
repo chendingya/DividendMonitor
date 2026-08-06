@@ -43,20 +43,17 @@
 - 还没有代码签名证书，因此当前产物仍会显示为未签名
 - 还没有自动更新发布流程
 
-另外，网页部署目前也有一个明确限制：
+另外，网页部署目前有一个明确限制，已部分解决：
 
-- 前端 HTTP API 基址写死为 `http://127.0.0.1:3210`
-
-对应代码：
-
-- [httpClient.ts](file:///i:/code/DividendMonitor/src/renderer/src/services/httpClient.ts)
-- [api.ts](file:///i:/code/DividendMonitor/shared/contracts/api.ts)
+- ~~前端 HTTP API 基址写死为 `http://127.0.0.1:3210`~~（已配置化，2026-08-06）：
+  - 主进程：`LOCAL_HTTP_API_ORIGIN`（完整 host:port）/ `LOCAL_HTTP_API_PORT`（仅端口）覆盖默认基址；`LOCAL_HTTP_API_CORS_ORIGINS` 扩展 CORS 白名单；`LOCAL_HTTP_API_HOSTS` 扩展 Host 白名单（DNS rebinding 防护检查对象为请求 Host 头）
+  - 渲染进程：默认走相对路径（同源代理/同源部署）；构建时注入 `VITE_API_BASE_URL` 可指向远程 API 绝对地址（`src/renderer/src/services/httpClient.ts`）
 
 这意味着：
 
 - 本地浏览器预览可以工作
-- 直接部署到公网域名时，前端仍会请求用户本机的 `127.0.0.1:3210`
-- 所以当前代码不能直接作为“纯前端网页”部署到公网后正常使用
+- 直接部署到公网域名时，需将静态前端与 HTTP API 服务置于同一域名（反向代理），或构建时配置 `VITE_API_BASE_URL` 指向远程 API 服务
+- 远程 API 服务需设置 `LOCAL_HTTP_API_ORIGIN` / `LOCAL_HTTP_API_CORS_ORIGINS` / `LOCAL_HTTP_API_HOSTS` 环境变量放行前端 origin 与域名
 
 ## 2. 本地开发与预览
 
