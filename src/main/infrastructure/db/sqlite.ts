@@ -97,6 +97,15 @@ function createBaseSchema(db: DatabaseSync) {
 
     CREATE INDEX IF NOT EXISTS idx_price_cache_code ON price_cache(code);
 
+    CREATE TABLE IF NOT EXISTS request_cache (
+      cache_key TEXT PRIMARY KEY,
+      data_json TEXT NOT NULL,
+      cached_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_request_cache_cached_at
+      ON request_cache(cached_at);
+
     CREATE TABLE IF NOT EXISTS dividend_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       asset_key TEXT NOT NULL,

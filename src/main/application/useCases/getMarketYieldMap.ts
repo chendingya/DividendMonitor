@@ -47,9 +47,12 @@ export async function getMarketYieldMap(): Promise<MarketYieldMapDto> {
   // 在线且本地无股票快照时，先用云端行业级快照兜底（股票级留空，页面提示等待本地刷新）
   const cloud = cloudRepository()
   if (cloud) {
-    const industries = await cloud.getLatestIndustries().catch(() => [] as YieldMapIndustryDto[])
+    const { snapshotDate, industries } = await cloud.getLatestIndustries().catch(() => ({
+      snapshotDate: null as string | null,
+      industries: [] as YieldMapIndustryDto[]
+    }))
     if (industries.length > 0) {
-      return { industries, stocks: [], partial: true, stockCount: 0 }
+      return { industries, stocks: [], partial: true, stockCount: 0, fetchedAt: snapshotDate ?? undefined }
     }
   }
 
@@ -66,11 +69,11 @@ export async function refreshMarketYieldMap(): Promise<MarketYieldMapDto> {
   const fetchedAt = repository.getFetchedAt()
   const dto = toDto(entries, fetchedAt)
 
-  // 在线模式额外上传行业级快照到云端（失败不阻断本地结果）
+  // 在线模式额外上传行业级快照到云端（失败不阻断本地结果；不 await，避免拖慢刷新响应）
   const cloud = cloudRepository()
   if (cloud) {
     const snapshotDate = (fetchedAt ?? new Date().toISOString()).slice(0, 10)
-    await cloud.upsertIndustries(dto.industries, snapshotDate).catch((error) => {
+    void cloud.upsertIndustries(dto.industries, snapshotDate).catch((error) => {
       console.warn('[YieldMap] 上传行业快照到云端失败:', error instanceof Error ? error.message : error)
     })
   }

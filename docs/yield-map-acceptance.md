@@ -33,3 +33,13 @@
 
 - D2 review：`onSelectStock` 闭包身份、`chartRef` 死代码、`fetchedAt` 空值边界、双导出冗余、图例位置措辞
 - E2 review：`.limit(500)` 快照截断边界、在线兜底 DTO 无 `fetchedAt`、上传 await 增加延迟
+
+### 已修复（2026-08-06）
+
+- `.limit(500)` 截断：`getLatestIndustries` 改为两次查询（先取最新 `snapshot_date` 再按日期取全量，见 `supabaseYieldMapRepository.ts`）
+- 在线兜底 DTO 无 `fetchedAt`：兜底结果携带云端快照日期；页面 `formatUpdatedAtLabel` 对空/非法时间降级为「暂无数据」，不再显示 Invalid Date
+- 上传 await 增加延迟：`refreshMarketYieldMap` 云端上传改为 fire-and-forget，不再阻塞刷新响应
+- `onSelectStock` 闭包身份：页面 `useCallback` 稳定回调，treemap effect 不再每次渲染重建
+- `chartRef` 死代码：已删除
+- 图例措辞：图例标签补充「股息率」单位前缀
+- 双导出冗余：当前页面已无重复导出按钮，无需处理

@@ -19,12 +19,10 @@ function yieldColor(yieldTtm: number): string {
 
 export function YieldMapTreemap({ industries, stocks, onSelectStock }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const chartRef = useRef<echarts.ECharts | null>(null)
 
   useEffect(() => {
     if (!containerRef.current) return
     const chart = echarts.init(containerRef.current)
-    chartRef.current = chart
 
     const byIndustry = new Map<string, YieldMapStockDto[]>()
     for (const stock of stocks) {
@@ -48,14 +46,14 @@ export function YieldMapTreemap({ industries, stocks, onSelectStock }: Props) {
           breadcrumb: { show: true, height: 24 },
           label: { show: true, formatter: '{b}' },
           upperLabel: { show: true, height: 24, formatter: '{b}' },
-          itemStyle: { borderColor: '#1a1f2b', borderWidth: 1, gapWidth: 2 },
+          itemStyle: { borderColor: '#ffffff', borderWidth: 1, gapWidth: 2 },
           levels: [
             {
-              itemStyle: { borderColor: '#0f141e', borderWidth: 3, gapWidth: 3 }
+              itemStyle: { borderColor: '#ffffff', borderWidth: 3, gapWidth: 3 }
             },
             {
               colorSaturation: [0.35, 0.5],
-              itemStyle: { borderColor: '#1a1f2b', borderWidth: 1, gapWidth: 1 }
+              itemStyle: { borderColor: '#ffffff', borderWidth: 1, gapWidth: 1 }
             }
           ],
           data: industries.map((industry) => ({
@@ -83,7 +81,6 @@ export function YieldMapTreemap({ industries, stocks, onSelectStock }: Props) {
 
     return () => {
       chart.dispose()
-      chartRef.current = null
     }
   }, [industries, stocks, onSelectStock])
 

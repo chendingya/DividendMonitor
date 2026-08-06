@@ -3,6 +3,7 @@ import { PolicyEngine } from '@main/infrastructure/dataSources/policy/policyEngi
 import { CapabilityRouter } from '@main/infrastructure/dataSources/router/capabilityRouter'
 import { HttpTransport } from '@main/infrastructure/dataSources/transport/httpTransport'
 import { RequestCache } from '@main/infrastructure/dataSources/cache/requestCache'
+import { SqliteRequestCacheStore } from '@main/infrastructure/dataSources/cache/sqliteRequestCacheStore'
 import { SourceHealthRegistry } from '@main/infrastructure/dataSources/health/sourceHealthRegistry'
 import { ConcurrencyLimiter } from '@main/infrastructure/dataSources/guards/concurrencyLimiter'
 import { CircuitBreaker } from '@main/infrastructure/dataSources/guards/circuitBreaker'
@@ -182,7 +183,13 @@ let defaultSourceGateway: SourceGateway | undefined
 
 export function getDefaultSourceGateway() {
   if (!defaultSourceGateway) {
-    defaultSourceGateway = new SourceGateway()
+    defaultSourceGateway = new SourceGateway(
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      new RequestCache(new SqliteRequestCacheStore())
+    )
   }
   return defaultSourceGateway
 }

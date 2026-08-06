@@ -110,7 +110,7 @@ export function MortgageCalculatorPage() {
         <Col xs={24} lg={16}>
           <AppCard title="计算结果">
             {result == null ? (
-              <div style={{ color: '#8b949e', padding: 40, textAlign: 'center' }}>
+              <div style={{ color: 'var(--text-faint)', padding: 40, textAlign: 'center' }}>
                 填写左侧参数后点击「计算」。
               </div>
             ) : (
@@ -153,6 +153,7 @@ export function MortgageCalculatorPage() {
                     dataSource={result.schedule}
                     pagination={{ pageSize: 12, showSizeChanger: false }}
                     scroll={{ y: 360 }}
+                    className="soft-table"
                   />
                 ) : null}
               </>

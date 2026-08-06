@@ -4,9 +4,9 @@
  * Production: strict CSP that only allows self + Supabase endpoints.
  * Development: relaxed to support Vite HMR (WebSocket + eval).
  */
+import { LOCAL_HTTP_API_ORIGIN } from '@shared/contracts/api'
 
 const SUPABASE_CONNECT_SRC = 'https://*.supabase.co'
-const DEFAULT_API_ORIGIN = 'http://127.0.0.1:3210'
 
 function buildBasePolicy(apiOrigin: string): Record<string, string[]> {
   return {
@@ -29,7 +29,7 @@ function serializePolicy(policy: Record<string, string[]>): string {
     .join('; ')
 }
 
-export function getCspHeader(isDevelopment: boolean, apiOrigin: string = DEFAULT_API_ORIGIN): string {
+export function getCspHeader(isDevelopment: boolean, apiOrigin: string = LOCAL_HTTP_API_ORIGIN): string {
   const policy = buildBasePolicy(apiOrigin)
 
   if (isDevelopment) {

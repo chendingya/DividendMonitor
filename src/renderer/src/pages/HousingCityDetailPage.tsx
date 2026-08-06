@@ -1,4 +1,4 @@
-import { Button, Col, Empty, Form, Input, InputNumber, Popconfirm, Row, Segmented, Tag, message } from 'antd'
+import { Button, Col, Empty, Form, Input, InputNumber, Popconfirm, Row, Tag, message } from 'antd'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import * as echarts from 'echarts'
@@ -178,19 +178,26 @@ function IndexSeriesChart({ series }: { series: HousingIndexSeriesPointDto[] }) 
 
   return (
     <AppCard title="70 城房价指数走势（统计局口径）">
-      <div style={{ marginBottom: 8, color: '#8b949e', fontSize: 12 }}>
+      <div style={{ marginBottom: 8, color: 'var(--text-faint)', fontSize: 12 }}>
         定基指数已停发，此处由月度环比连乘重建。以所选基准月为 0%，展示相对累计涨跌幅。
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
-        <Segmented
-          options={baseYearOptions}
-          value={baseYearOptions.includes(effectiveBaseYear) ? effectiveBaseYear : '起点'}
-          onChange={(value) => {
-            touchedRef.current = true
-            setBaseYear(String(value))
-          }}
-        />
-        <div style={{ fontSize: 13, color: '#2c2f31' }}>
+        <div className="ledger-segmented-control">
+          {baseYearOptions.map((option) => (
+            <button
+              type="button"
+              key={option}
+              className={`ledger-filter-chip ${effectiveBaseYear === option ? 'is-active' : ''}`}
+              onClick={() => {
+                touchedRef.current = true
+                setBaseYear(option)
+              }}
+            >
+              {option}
+            </button>
+          ))}
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--text-main)' }}>
           较 {changeResult.baseDate ?? '--'}：
           <span style={{ color: '#0052d0', marginLeft: 4 }}>
             新建 {formatPercent(changeResult.newHomeChange ?? undefined, 1)}
@@ -284,7 +291,7 @@ export function HousingCityDetailPage() {
           </Col>
           <Col xs={24} lg={10}>
             <AppCard title="自定义数据">
-              <div style={{ marginBottom: 8, color: '#8b949e', fontSize: 12 }}>
+              <div style={{ marginBottom: 8, color: 'var(--text-faint)', fontSize: 12 }}>
                 录入区/小区级房产总价与整套月租金后，收益率按你的数据重算（覆盖自动数据）。
               </div>
               <Form form={form} layout="vertical" size="small">
@@ -331,7 +338,7 @@ export function HousingCityDetailPage() {
                         清除
                       </Button>
                     </Popconfirm>
-                    <span style={{ marginLeft: 12, color: '#8b949e', fontSize: 12 }}>
+                    <span style={{ marginLeft: 12, color: 'var(--text-faint)', fontSize: 12 }}>
                       上次更新 {new Date(data.userData.updatedAt).toLocaleString()}
                     </span>
                   </>
@@ -345,7 +352,7 @@ export function HousingCityDetailPage() {
           <Col xs={24} lg={10}>
             <AppCard title="环比涨跌">
               {!hasIndexData ? (
-                <div style={{ color: '#8b949e', fontSize: 12 }}>
+                <div style={{ color: 'var(--text-faint)', fontSize: 12 }}>
                   该城市暂无统计局指数数据（非 70 城样本）。
                 </div>
               ) : (
