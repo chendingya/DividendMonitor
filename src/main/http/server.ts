@@ -30,9 +30,16 @@ const FIXED_ALLOWED_ORIGINS = [
 
 /**
  * 动态计算 CORS 白名单：仅放行本地 HTTP API 自身（含 127.0.0.1/localhost
- * 两种 host 形式）与 dev 模式下前端 dev server 的 origin（端口退避后可能
- * 不再是 8192）。此前允许 localhost:任意端口，任何本地恶意网页都能读写本机 API。
+ * 两种 host 形式）、dev 模式下前端 dev server 的 origin（端口退避后可能
+ * 不再是 8192）与 LOCAL_HTTP_API_CORS_ORIGINS 显式配置的公网 origin。
  */
+function getConfiguredCorsOrigins(): string[] {
+  return (process.env['LOCAL_HTTP_API_CORS_ORIGINS'] ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+}
+
 function getAllowedOrigins(): string[] {
   const baseUrl = getBaseUrl()
   const origins = new Set<string>([
@@ -50,11 +57,23 @@ function getAllowedOrigins(): string[] {
     }
   }
 
+  for (const origin of getConfiguredCorsOrigins()) {
+    origins.add(origin)
+  }
+
   return [...origins]
 }
 
-/** Host 白名单：防 DNS rebinding，Host 只能是本机回环地址 */
+/** Host 白名单：默认只能回环地址；LOCAL_HTTP_API_HOSTS 可扩展公网域名（逗号分隔） */
 const ALLOWED_HOSTNAMES = new Set(['127.0.0.1', 'localhost'])
+
+function getConfiguredHostnames(): Set<string> {
+  const hosts = (process.env['LOCAL_HTTP_API_HOSTS'] ?? '')
+    .split(',')
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean)
+  return new Set([...ALLOWED_HOSTNAMES, ...hosts])
+}
 
 /**
  * 无需 nonce 校验的路径：
@@ -72,10 +91,33 @@ function requireValidNonce(request: IncomingMessage): void {
 }
 
 function isAllowedHost(hostname: string): boolean {
-  return ALLOWED_HOSTNAMES.has(hostname)
+  return getConfiguredHostnames().has(hostname)
+}
+
+/** 从请求 Host 头解析 hostname（DNS rebinding 检查对象）；缺失时回退到监听基址 */
+function resolveRequestHostname(request: IncomingMessage, baseUrl: URL): string {
+  const hostHeader = request.headers.host
+  if (!hostHeader) return baseUrl.hostname
+  try {
+    return new URL(`http://${hostHeader}`).hostname.toLowerCase()
+  } catch {
+    return ''
+  }
 }
 
 function getBaseUrl() {
+  const origin = process.env['LOCAL_HTTP_API_ORIGIN']?.trim()
+  if (origin) {
+    try {
+      const parsed = new URL(origin)
+      if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+        return parsed
+      }
+    } catch {
+      // 非法 origin 环境变量回退到端口/默认逻辑
+    }
+  }
+
   const port = process.env['LOCAL_HTTP_API_PORT']?.trim()
   if (port && /^\d+$/.test(port)) {
     return new URL(`http://127.0.0.1:${port}`)
@@ -123,8 +165,9 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
   const pathname = url.pathname
   const method = request.method ?? 'GET'
 
-  // Reject non-loopback Host headers to mitigate DNS rebinding attacks.
-  if (!isAllowedHost(url.hostname)) {
+  // Reject non-whitelisted Host headers to mitigate DNS rebinding attacks.
+  // 检查对象为请求 Host 头（而非监听地址），公网部署可用 LOCAL_HTTP_API_HOSTS 扩展。
+  if (!isAllowedHost(resolveRequestHostname(request, getBaseUrl()))) {
     throw new HttpError('非法请求来源。', 403)
   }
 

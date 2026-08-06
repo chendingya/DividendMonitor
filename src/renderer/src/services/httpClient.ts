@@ -7,6 +7,12 @@ type RequestOptions = {
   headers?: Record<string, string>
 }
 
+/** 允许的 API 基址：VITE_API_BASE_URL 配置为绝对地址（公网部署）时使用，默认空 = 相对路径走同源代理 */
+function getApiBaseUrl(): string {
+  const base = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? ''
+  return base.replace(/\/+$/, '')
+}
+
 export async function requestJson<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const customHeaders: Record<string, string> = {}
   if (options.headers) {
@@ -22,9 +28,9 @@ export async function requestJson<T>(path: string, options: RequestOptions = {})
     ...customHeaders
   }
 
-  // 相对路径：浏览器预览模式走 vite dev server 的 /api 代理（同源），
-  // 实际 API 端口由代理转发，renderer 无需感知。
-  const response = await fetch(path, {
+  // 默认相对路径：浏览器预览模式走 vite dev server 的 /api 代理（同源），
+  // 实际 API 端口由代理转发；配置 VITE_API_BASE_URL 后直接请求远程 API。
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
     method: options.method ?? 'GET',
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body)
