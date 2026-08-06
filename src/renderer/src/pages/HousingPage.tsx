@@ -1,7 +1,8 @@
-import { Button, Input, Segmented, Table, Tag, Tooltip, message } from 'antd'
+import { Button, Input, Table, Tag, Tooltip, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { AppCard } from '@renderer/components/app/AppCard'
 import { PageState } from '@renderer/components/app/PageState'
 import { useHousingCities } from '@renderer/hooks/useHousing'
 import type { HousingCitySummaryDto } from '@shared/contracts/api'
@@ -90,9 +91,9 @@ export function HousingPage() {
       sorter: (a, b) => (a.rentalYieldPercent ?? -1) - (b.rentalYieldPercent ?? -1),
       render: (value?: number) =>
         value == null ? (
-          <span style={{ color: '#8b949e', fontSize: 12 }}>暂无</span>
+          <span style={{ color: 'var(--text-faint)', fontSize: 12 }}>暂无</span>
         ) : (
-          <span style={{ color: value > 2 ? '#1a7f37' : '#57606a' }}>{value.toFixed(2)}%</span>
+          <span style={{ color: value > 2 ? '#1b7a47' : 'var(--text-soft)' }}>{value.toFixed(2)}%</span>
         )
     },
     {
@@ -110,7 +111,7 @@ export function HousingPage() {
       align: 'right',
       width: 90,
       render: (value?: number) => (
-        <span style={{ color: value != null && value >= 0 ? '#cf222e' : '#1a7f37' }}>{formatPercent(value)}</span>
+        <span style={{ color: value != null && value >= 0 ? '#b4232c' : '#1b7a47' }}>{formatPercent(value)}</span>
       )
     },
     {
@@ -120,7 +121,7 @@ export function HousingPage() {
       align: 'right',
       width: 90,
       render: (value?: number) => (
-        <span style={{ color: value != null && value >= 0 ? '#cf222e' : '#1a7f37' }}>{formatPercent(value)}</span>
+        <span style={{ color: value != null && value >= 0 ? '#b4232c' : '#1b7a47' }}>{formatPercent(value)}</span>
       )
     },
     {
@@ -177,14 +178,22 @@ export function HousingPage() {
         <section className="ledger-toolbar-card" style={{ marginTop: 20 }}>
           <div className="ledger-filter-bar" style={{ alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <Segmented
-                options={[
-                  { label: '全部', value: 'all' },
-                  { label: `已关注 (${watchedCount})`, value: 'watched' }
-                ]}
-                value={watchFilter}
-                onChange={(value) => setWatchFilter(value as 'all' | 'watched')}
-              />
+              <div className="ledger-segmented-control">
+                <button
+                  type="button"
+                  className={`ledger-filter-chip ${watchFilter === 'all' ? 'is-active' : ''}`}
+                  onClick={() => setWatchFilter('all')}
+                >
+                  全部
+                </button>
+                <button
+                  type="button"
+                  className={`ledger-filter-chip ${watchFilter === 'watched' ? 'is-active' : ''}`}
+                  onClick={() => setWatchFilter('watched')}
+                >
+                  已关注 ({watchedCount})
+                </button>
+              </div>
               <Input
                 allowClear
                 placeholder="筛选城市"
@@ -193,13 +202,13 @@ export function HousingPage() {
                 style={{ width: 240 }}
               />
             </div>
-            <span style={{ fontSize: 12, color: '#8b949e' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>
               点击城市名查看指数趋势、租金走势与自定义数据。
             </span>
           </div>
         </section>
 
-        <section style={{ marginTop: 20 }}>
+        <AppCard title={`城市列表（${filteredData.length} 城）`}>
           <Table<HousingCitySummaryDto>
             rowKey="city"
             size="middle"
@@ -208,8 +217,9 @@ export function HousingPage() {
             dataSource={filteredData}
             pagination={{ pageSize: 20, showSizeChanger: false }}
             scroll={{ x: 1020 }}
+            className="soft-table"
           />
-        </section>
+        </AppCard>
       </div>
     </PageState>
   )

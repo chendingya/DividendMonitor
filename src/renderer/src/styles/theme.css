@@ -332,6 +332,16 @@ body {
   padding-bottom: 16px;
 }
 
+.soft-table .ant-table-tbody > tr > td.ant-table-cell-fix-left,
+.soft-table .ant-table-tbody > tr > td.ant-table-cell-fix-right {
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
+.soft-table .ant-table-tbody > tr:hover > td.ant-table-cell-fix-left,
+.soft-table .ant-table-tbody > tr:hover > td.ant-table-cell-fix-right {
+  background: rgba(238, 241, 243, 0.68) !important;
+}
+
 .soft-table .ant-table-tbody > tr:hover > td {
   background: rgba(238, 241, 243, 0.68) !important;
 }
