@@ -16,29 +16,46 @@ type IndustrySnapshotRow = {
  * stock-level entries stay in the local SQLite snapshot.
  */
 export class SupabaseYieldMapRepository {
-  async getLatestIndustries(): Promise<YieldMapIndustryDto[]> {
+  /**
+   * 两次查询：先取最新 snapshot_date，再按该日期取全部行业，
+   * 避免单次 limit(500) 在最新快照行数超限时截断。
+   */
+  async getLatestIndustries(): Promise<{ snapshotDate: string | null; industries: YieldMapIndustryDto[] }> {
     const supabase = getSupabaseClient()
     if (!supabase) throw new Error('在线服务未配置（缺少 SUPABASE_URL / SUPABASE_ANON_KEY）')
+
+    const dateQuery = await supabase
+      .from('industry_yield_snapshots')
+      .select('snapshot_date')
+      .order('snapshot_date', { ascending: false })
+      .limit(1)
+    if (dateQuery.error) {
+      throw new Error(`读取云端行业快照失败: ${dateQuery.error.message}`)
+    }
+
+    const snapshotDate = ((dateQuery.data ?? [])[0] as { snapshot_date?: string } | undefined)?.snapshot_date ?? null
+    if (!snapshotDate) {
+      return { snapshotDate: null, industries: [] }
+    }
 
     const { data, error } = await supabase
       .from('industry_yield_snapshots')
       .select('industry, snapshot_date, median_yield, avg_yield, stock_count')
-      .order('snapshot_date', { ascending: false })
-      .limit(500)
+      .eq('snapshot_date', snapshotDate)
     if (error) {
       throw new Error(`读取云端行业快照失败: ${error.message}`)
     }
 
     const rows = (data ?? []) as unknown as IndustrySnapshotRow[]
-    const latestDate = rows[0]?.snapshot_date
-    return rows
-      .filter((row) => row.snapshot_date === latestDate)
-      .map((row) => ({
+    return {
+      snapshotDate,
+      industries: rows.map((row) => ({
         industry: row.industry,
         medianYield: row.median_yield,
         avgYield: row.avg_yield,
         stockCount: row.stock_count
       }))
+    }
   }
 
   async upsertIndustries(industries: YieldMapIndustryDto[], snapshotDate: string): Promise<void> {

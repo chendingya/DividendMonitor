@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { deriveDividendType } from '@renderer/utils/format'
+import { deriveDividendType, formatUpdatedAtLabel } from '@renderer/utils/format'
 
 describe('deriveDividendType', () => {
   it('returns 现金分红 for cash-only events', () => {
@@ -24,5 +24,23 @@ describe('deriveDividendType', () => {
 
   it('ignores undefined optional fields', () => {
     expect(deriveDividendType({ dividendPerShare: 1.2, bonusSharePer10: undefined, transferSharePer10: undefined })).toBe('现金分红')
+  })
+})
+
+describe('formatUpdatedAtLabel', () => {
+  it('返回「更新于」短语', () => {
+    expect(formatUpdatedAtLabel('2026-08-05T10:01:18.000Z')).toMatch(/^更新于 2026-08-05/)
+  })
+
+  it('undefined 时返回 null', () => {
+    expect(formatUpdatedAtLabel(undefined)).toBeNull()
+  })
+
+  it('空字符串时返回 null', () => {
+    expect(formatUpdatedAtLabel('')).toBeNull()
+  })
+
+  it('非法日期字符串时返回 null', () => {
+    expect(formatUpdatedAtLabel('not-a-date')).toBeNull()
   })
 })
