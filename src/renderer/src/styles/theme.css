@@ -514,6 +514,7 @@ body {
 }
 
 .ledger-sidebar-nav .ant-menu-item:hover,
+.ledger-sidebar-nav .ant-menu-item-active,
 .ledger-sidebar-nav .ant-menu-submenu-title:hover {
   background: rgba(228, 233, 237, 0.88) !important;
   color: var(--primary, #0052d0) !important;
