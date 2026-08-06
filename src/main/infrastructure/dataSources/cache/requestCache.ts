@@ -1,15 +1,25 @@
 import type { SourceRequest, SourceResponse } from '@main/infrastructure/dataSources/types/sourceTypes'
 
-type CachedEntry<T> = {
+export type CachedEntry<T> = {
   response: SourceResponse<T>
   cachedAt: string
+}
+
+/** 可选的持久化后端，用于把请求级缓存落到磁盘（如 SQLite） */
+export interface RequestCacheStore {
+  get(key: string): CachedEntry<unknown> | null
+  set(key: string, entry: CachedEntry<unknown>): void
+  delete(key: string): void
+  clear(): void
 }
 
 export class RequestCache {
   private readonly cache = new Map<string, CachedEntry<unknown>>()
 
+  constructor(private readonly store?: RequestCacheStore) {}
+
   getFresh<T>(key: string, ttlMs?: number): SourceResponse<T> | null {
-    const entry = this.cache.get(key) as CachedEntry<T> | undefined
+    const entry = this.readEntry<T>(key)
     if (!entry) return null
 
     const now = Date.now()
@@ -25,7 +35,7 @@ export class RequestCache {
   getStale<T>(key: string, staleTtlMs?: number): SourceResponse<T> | null {
     if (!staleTtlMs) return null
 
-    const entry = this.cache.get(key) as CachedEntry<T> | undefined
+    const entry = this.readEntry<T>(key)
     if (!entry) return null
 
     const now = Date.now()
@@ -35,6 +45,7 @@ export class RequestCache {
     if (now > staleDeadline) {
       // Even stale cache is too old
       this.cache.delete(key)
+      this.store?.delete(key)
       return null
     }
 
@@ -46,10 +57,25 @@ export class RequestCache {
   }
 
   set<T>(key: string, response: SourceResponse<T>): void {
-    this.cache.set(key, {
+    const entry: CachedEntry<unknown> = {
       response,
       cachedAt: new Date().toISOString()
-    })
+    }
+    this.cache.set(key, entry)
+    this.store?.set(key, entry)
+  }
+
+  /** 内存优先读取；未命中时回填磁盘条目 */
+  private readEntry<T>(key: string): CachedEntry<T> | undefined {
+    const memoryEntry = this.cache.get(key) as CachedEntry<T> | undefined
+    if (memoryEntry) {
+      return memoryEntry
+    }
+    const diskEntry = this.store?.get(key) ?? null
+    if (diskEntry) {
+      this.cache.set(key, diskEntry)
+    }
+    return diskEntry as CachedEntry<T> | undefined
   }
 
   buildKey(request: SourceRequest<unknown>): string {
@@ -61,8 +87,10 @@ export class RequestCache {
   clear(key?: string): void {
     if (key) {
       this.cache.delete(key)
+      this.store?.delete(key)
     } else {
       this.cache.clear()
+      this.store?.clear()
     }
   }
 
