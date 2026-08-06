@@ -254,6 +254,16 @@ export function AppShell({ children }: { children: ReactNode }) {
       return items
     }
 
+    if (location.pathname.startsWith('/dividend-center')) {
+      items.push({ label: '分红统计' })
+      return items
+    }
+
+    if (location.pathname.startsWith('/yield-map')) {
+      items.push({ label: '股息率地图' })
+      return items
+    }
+
     if (location.pathname.startsWith('/housing')) {
       items.push({ label: '房产' })
       if (location.pathname.startsWith('/housing/mortgage')) {

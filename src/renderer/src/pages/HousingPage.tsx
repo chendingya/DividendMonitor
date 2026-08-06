@@ -125,20 +125,14 @@ export function HousingPage() {
       )
     },
     {
-      title: '状态',
-      key: 'watched',
-      width: 90,
-      render: (_, record) =>
-        record.isWatched ? <Tag color="blue">已关注</Tag> : <Tag>未关注</Tag>
-    },
-    {
-      title: '操作',
+      title: '关注',
       key: 'actions',
-      width: 90,
+      width: 110,
       render: (_, record) => (
         <Button
           size="small"
           type={record.isWatched ? 'default' : 'primary'}
+          danger={record.isWatched}
           loading={mutatingCity === record.city}
           onClick={() => handleToggleWatch(record)}
         >
