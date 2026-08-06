@@ -22,6 +22,14 @@ export default defineConfig(({ mode }) => {
     },
   preload: {
     plugins: [externalizeDepsPlugin()],
+    build: {
+      rollupOptions: {
+        output: {
+          // sandbox: true 的渲染进程要求 preload 为 CJS（ESM preload 无法加载）
+          format: 'cjs'
+        }
+      }
+    },
     resolve: {
       alias: {
         '@preload': resolve('src/preload'),

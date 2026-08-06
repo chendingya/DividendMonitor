@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Menu, message } from 'antd'
 import type { MenuProps } from 'antd'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -216,6 +216,20 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { mode, session, logout } = useAuth()
   const [, messageHolder] = message.useMessage()
   const [topbarKeyword, setTopbarKeyword] = useState('')
+
+  useEffect(() => {
+    const prefetchTimer = setTimeout(() => {
+      void import('@renderer/pages/YieldMapPage')
+      void import('@renderer/pages/DividendCenterPage')
+      void import('@renderer/pages/HousingPage')
+      void import('@renderer/pages/WatchlistPage')
+      void import('@renderer/pages/BacktestPage')
+      void import('@renderer/services/yieldMapApi').then(({ yieldMapApi: api }) => {
+        void api.get().catch(() => undefined)
+      })
+    }, 2000)
+    return () => clearTimeout(prefetchTimer)
+  }, [])
 
   const selectedKey = useMemo(() => matchNavKey(location.pathname), [location.pathname])
 

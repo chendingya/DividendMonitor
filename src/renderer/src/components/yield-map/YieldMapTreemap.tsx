@@ -13,6 +13,19 @@ type Props = {
   onSelectStock: (symbol: string) => void
 }
 
+let cachedSnapshot: HTMLCanvasElement | null = null
+
+function snapshotFrom(source: HTMLCanvasElement): HTMLCanvasElement {
+  const copy = document.createElement('canvas')
+  copy.width = source.width
+  copy.height = source.height
+  const ctx = copy.getContext('2d')
+  if (ctx) {
+    ctx.drawImage(source, 0, 0)
+  }
+  return copy
+}
+
 function yieldColor(yieldTtm: number): string {
   if (yieldTtm <= 0) return '#8b949e'
   if (yieldTtm < 0.02) return '#6ba3d6'
@@ -27,7 +40,19 @@ export function YieldMapTreemap({ industries, stocks, onSelectStock }: Props) {
 
   useEffect(() => {
     if (!containerRef.current) return
-    const chart = echarts.init(containerRef.current)
+    const container = containerRef.current
+    container.style.position = 'relative'
+
+    let staleSnapshot: HTMLCanvasElement | null = null
+    if (cachedSnapshot) {
+      const snap = cachedSnapshot.cloneNode(true) as HTMLCanvasElement
+      staleSnapshot = snap
+      snap.dataset.snapshot = 'stale'
+      snap.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0'
+      container.appendChild(snap)
+    }
+
+    const chart = echarts.init(container)
 
     const byIndustry = new Map<string, YieldMapStockDto[]>()
     for (const stock of stocks) {
@@ -86,8 +111,37 @@ export function YieldMapTreemap({ industries, stocks, onSelectStock }: Props) {
       }
     })
 
+    const timer = setTimeout(() => {
+      try {
+        const source = chart.getRenderedCanvas()
+        const probe = document.createElement('canvas')
+        probe.width = source.width
+        probe.height = source.height
+        const probeCtx = probe.getContext('2d')
+        if (probeCtx) {
+          probeCtx.drawImage(source, 0, 0)
+          const pixels = probeCtx.getImageData(0, 0, probe.width, probe.height).data
+          let painted = false
+          for (let i = 3; i < pixels.length; i += 4096) {
+            if (pixels[i] !== 0) {
+              painted = true
+              break
+            }
+          }
+          if (painted) {
+            cachedSnapshot = snapshotFrom(source)
+          }
+        }
+      } catch {
+        cachedSnapshot = null
+      }
+      staleSnapshot?.remove()
+    }, 200)
+
     return () => {
+      clearTimeout(timer)
       chart.dispose()
+      staleSnapshot?.remove()
     }
   }, [industries, stocks, onSelectStock])
 
