@@ -14,6 +14,7 @@ type AppIconName =
   | 'watchlist'
   | 'backtest'
   | 'housing'
+  | 'cross-asset'
   | 'user'
   | 'search'
   | 'notification'
@@ -66,6 +67,11 @@ const menuItems: MenuProps['items'] = [
     label: '房产',
     icon: <AppShellIcon name="housing" className="ledger-icon-svg" />
   },
+  {
+    key: '/cross-asset',
+    label: '跨资产',
+    icon: <AppShellIcon name="cross-asset" className="ledger-icon-svg" />
+  },
   { type: 'divider' },
   {
     key: '/user-center',
@@ -87,6 +93,7 @@ const NAV_ROUTES: NavItem[] = [
   { key: '/dividend-center', label: '分红统计', icon: 'dividend-center' },
   { key: '/yield-map', label: '股息率地图', icon: 'yield-map' },
   { key: '/housing', label: '房产', icon: 'housing' },
+  { key: '/cross-asset', label: '跨资产', icon: 'cross-asset' },
   { key: '/user-center', label: '用户中心', icon: 'user' },
   { key: '/settings', label: '设置', icon: 'settings' }
 ]
@@ -167,6 +174,17 @@ function AppShellIcon({ name, className }: { name: AppIconName; className?: stri
     )
   }
 
+  if (name === 'cross-asset') {
+    return (
+      <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M4 18.5 9 12l3.5 4L20 5.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="9" cy="12" r="2" stroke="currentColor" strokeWidth="1.8" />
+        <circle cx="20" cy="5.5" r="2" stroke="currentColor" strokeWidth="1.8" />
+        <path d="M4 20h16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    )
+  }
+
   if (name === 'search') {
     return (
       <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -222,6 +240,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       void import('@renderer/pages/YieldMapPage')
       void import('@renderer/pages/DividendCenterPage')
       void import('@renderer/pages/HousingPage')
+      void import('@renderer/pages/CrossAssetComparePage')
       void import('@renderer/pages/WatchlistPage')
       void import('@renderer/pages/BacktestPage')
       void import('@renderer/services/yieldMapApi').then(({ yieldMapApi: api }) => {
@@ -283,6 +302,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       if (location.pathname.startsWith('/housing/mortgage')) {
         items.push({ label: '房贷计算器' })
       }
+      return items
+    }
+
+    if (location.pathname.startsWith('/cross-asset')) {
+      items.push({ label: '跨资产' })
       return items
     }
 

@@ -39,6 +39,14 @@ export function HousingYieldCard() {
     <section className="ledger-section">
       <div className="ledger-section-head">
         <h2>房产收息</h2>
+        <button
+          type="button"
+          className="ledger-link-button"
+          style={{ fontSize: 12 }}
+          onClick={() => navigate('/cross-asset')}
+        >
+          跨资产收益对比 →
+        </button>
       </div>
       <div className="ledger-list-card">
         <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(171, 173, 175, 0.12)' }}>

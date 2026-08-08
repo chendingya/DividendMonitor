@@ -8,6 +8,7 @@ import { handleDividendRoute } from '@main/http/routes/dividendRoutes'
 import { handleFxRoute } from '@main/http/routes/fxRoutes'
 import { handleHousingRoute } from '@main/http/routes/housingRoutes'
 import { handleIndustryRoute } from '@main/http/routes/industryRoutes'
+import { handleCrossAssetRoute } from '@main/http/routes/crossAssetRoutes'
 import { handlePortfolioRoute } from '@main/http/routes/portfolioRoutes'
 import { handleSecurityRoute } from '@main/http/routes/securityRoutes'
 import { handleSettingsRoute } from '@main/http/routes/settingsRoutes'
@@ -202,6 +203,7 @@ async function handleRequest(request: IncomingMessage, response: ServerResponse)
     (await handleDividendRoute({ pathname, method, body, response })) ||
     (await handleFxRoute({ pathname, method, body, response })) ||
     (await handleHousingRoute({ pathname, method, body, response })) ||
+    (await handleCrossAssetRoute({ pathname, method, response })) ||
     (await handleYieldMapRoute({ pathname, method, body, response })) ||
     (await handleIndustryRoute({ pathname, method, body, response })) ||
     (await handleSettingsRoute({ pathname, method, body, response })) ||

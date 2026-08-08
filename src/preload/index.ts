@@ -126,6 +126,9 @@ const api = {
     calculateMortgage: (request: MortgageRequestDto) =>
       ipcRenderer.invoke('housing:calculate-mortgage', request)
   },
+  crossAsset: {
+    getComparison: () => ipcRenderer.invoke('cross-asset:get-comparison')
+  },
   dividend: {
     getHistory: (request?: DividendHistoryRequest) => ipcRenderer.invoke('dividend:history', request),
     listUpcoming: () => ipcRenderer.invoke('dividend:upcoming'),

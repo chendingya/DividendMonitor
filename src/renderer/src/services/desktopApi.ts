@@ -156,6 +156,16 @@ export function getHousingDesktopApi(): DividendMonitorApi['housing'] {
   return api.housing
 }
 
+export function getCrossAssetDesktopApi(): DividendMonitorApi['crossAsset'] {
+  const api = getRuntimeApi()
+
+  if (!api.crossAsset) {
+    throw new Error('Runtime API is missing the crossAsset namespace.')
+  }
+
+  return api.crossAsset
+}
+
 export function getBackupDesktopApi(): DividendMonitorApi['backup'] {
   const api = getRuntimeApi()
 

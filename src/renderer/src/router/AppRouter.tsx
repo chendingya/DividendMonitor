@@ -25,6 +25,7 @@ const BacktestHistoryPage = lazyPage(() => import('@renderer/pages/BacktestHisto
 const HousingPage = lazyPage(() => import('@renderer/pages/HousingPage'), 'HousingPage')
 const HousingCityDetailPage = lazyPage(() => import('@renderer/pages/HousingCityDetailPage'), 'HousingCityDetailPage')
 const MortgageCalculatorPage = lazyPage(() => import('@renderer/pages/MortgageCalculatorPage'), 'MortgageCalculatorPage')
+const CrossAssetComparePage = lazyPage(() => import('@renderer/pages/CrossAssetComparePage'), 'CrossAssetComparePage')
 
 function RouteGuard() {
   const { mode, session } = useAuth()
@@ -65,6 +66,7 @@ export function AppRouter() {
           <Route path="/housing" element={<HousingPage />} />
           <Route path="/housing/:city" element={<HousingCityDetailPage />} />
           <Route path="/housing/mortgage" element={<MortgageCalculatorPage />} />
+          <Route path="/cross-asset" element={<CrossAssetComparePage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

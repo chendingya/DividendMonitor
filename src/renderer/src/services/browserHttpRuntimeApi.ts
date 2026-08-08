@@ -6,6 +6,7 @@ import type {
   AuthSessionDto,
   BacktestResultDto,
   ComparisonRowDto,
+  CrossAssetComparisonDto,
   DividendForecastDto,
   DividendHistoryRequest,
   DividendHistoryResult,
@@ -318,6 +319,11 @@ export const browserHttpRuntimeApi: DividendMonitorApi = {
     },
     refresh(): Promise<MarketYieldMapDto> {
       return postJson<MarketYieldMapDto>('/api/yield-map/refresh', {})
+    }
+  },
+  crossAsset: {
+    getComparison(): Promise<CrossAssetComparisonDto> {
+      return authedRequest<CrossAssetComparisonDto>('/api/cross-asset/comparison')
     }
   }
 }

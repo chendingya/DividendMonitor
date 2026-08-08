@@ -3,7 +3,8 @@ import {
   calculateRentalYield,
   calculatePriceToRentRatio,
   rebuildIndexSeries,
-  calculateHousingDerivedMetrics
+  calculateHousingDerivedMetrics,
+  calculateIndexSeriesVolatility
 } from '@main/domain/services/housingCalculationService'
 
 describe('housingCalculationService', () => {
@@ -79,6 +80,55 @@ describe('housingCalculationService', () => {
     it('returns empty object when data insufficient', () => {
       expect(calculateHousingDerivedMetrics({ rentPerSqm: 82 })).toEqual({})
       expect(calculateHousingDerivedMetrics({ pricePerSqm: 47194 })).toEqual({})
+    })
+  })
+
+  describe('calculateIndexSeriesVolatility', () => {
+    it('computes annualized volatility from monthly rebuilt index series', () => {
+      // 模拟房价月度小幅波动：100 → 99.5 → 100.4 → 99.8 → 100.6
+      const series = [
+        { reportDate: '2026-01', index: 100 },
+        { reportDate: '2026-02', index: 99.5 },
+        { reportDate: '2026-03', index: 100.4 },
+        { reportDate: '2026-04', index: 99.8 },
+        { reportDate: '2026-05', index: 100.6 }
+      ]
+      const volatility = calculateIndexSeriesVolatility(series)
+      expect(volatility).not.toBeNull()
+      expect(volatility).toBeGreaterThan(0)
+      // 房价月度波动远低于股票日频年化波动，通常小于 10%
+      expect(volatility).toBeLessThan(10)
+    })
+
+    it('returns null when fewer than 3 points', () => {
+      expect(calculateIndexSeriesVolatility([{ reportDate: '2026-01', index: 100 }])).toBeNull()
+      expect(
+        calculateIndexSeriesVolatility([
+          { reportDate: '2026-01', index: 100 },
+          { reportDate: '2026-02', index: 99.8 }
+        ])
+      ).toBeNull()
+    })
+
+    it('returns null when series has no variation', () => {
+      const series = [
+        { reportDate: '2026-01', index: 100 },
+        { reportDate: '2026-02', index: 100 },
+        { reportDate: '2026-03', index: 100 },
+        { reportDate: '2026-04', index: 100 }
+      ]
+      expect(calculateIndexSeriesVolatility(series)).toBeNull()
+    })
+
+    it('skips non-positive index values', () => {
+      const series = [
+        { reportDate: '2026-01', index: 100 },
+        { reportDate: '2026-02', index: 0 },
+        { reportDate: '2026-03', index: 99.8 },
+        { reportDate: '2026-04', index: 100.2 },
+        { reportDate: '2026-05', index: 99.9 }
+      ]
+      expect(calculateIndexSeriesVolatility(series)).not.toBeNull()
     })
   })
 })

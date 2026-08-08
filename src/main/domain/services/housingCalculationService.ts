@@ -53,6 +53,42 @@ export type HousingDerivedMetrics = {
   priceToRentRatio: number
 }
 
+/** 年化波动率计算所需的最少重建指数点数（少于 3 个月无法形成月收益序列） */
+export const MIN_INDEX_SERIES_POINTS = 3
+
+/**
+ * 由环比连乘重建的房价指数序列计算年化波动率（%）。
+ * 房价为月度数据：先算月收益率，样本标准差 × √12 得到年化口径，
+ * 与股票日频波动率（×√252）在同一个「年化波动率」坐标系下可比。
+ * 数据不足或指数序列无变化时返回 null。
+ */
+export function calculateIndexSeriesVolatility(
+  series: RebuiltIndexPoint[],
+  minPoints: number = MIN_INDEX_SERIES_POINTS
+): number | null {
+  const valid = series.filter((point) => point.index > 0)
+  if (valid.length < minPoints) {
+    return null
+  }
+
+  const returns: number[] = []
+  for (let i = 1; i < valid.length; i++) {
+    returns.push((valid[i].index - valid[i - 1].index) / valid[i - 1].index)
+  }
+  if (returns.length < 2) {
+    return null
+  }
+
+  const mean = returns.reduce((sum, item) => sum + item, 0) / returns.length
+  const variance =
+    returns.reduce((sum, item) => sum + (item - mean) * (item - mean), 0) / (returns.length - 1)
+  if (variance === 0) {
+    return null
+  }
+
+  return Math.sqrt(variance) * Math.sqrt(12) * 100
+}
+
 /** 由租金与房价推导收益率与租售比；任一缺失时返回空对象 */
 export function calculateHousingDerivedMetrics(input: {
   rentPerSqm?: number
