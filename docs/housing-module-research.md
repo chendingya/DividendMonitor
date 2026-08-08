@@ -273,8 +273,8 @@ CREATE TABLE IF NOT EXISTS housing_watchlist (
 - [x] 房贷计算（`mortgageCalculationService.ts`：等额本息/等额本金）
 - [x] 共享契约 + 用例层 + IPC 通道（`housing:*`）+ HTTP 路由
 - [x] 前端页面：`HousingPage` / `HousingCityDetailPage` / `MortgageCalculatorPage` + 路由 + 导航
-- [ ] Dashboard 集成房产收益卡片
-- [ ] 跨资产对比页（Phase 2：散点图）
+- [x] Dashboard 集成房产收益卡片（`HousingYieldCard`，展示关注城市最佳租金收益率）
+- [x] 跨资产对比页（Phase 2：散点图，`/cross-asset`：股票股息率 vs 城市租金收益率，X=年化波动率 / Y=收益率）
 
 ---
 

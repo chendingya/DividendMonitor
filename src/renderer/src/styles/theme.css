@@ -2063,3 +2063,100 @@ button.ledger-breadcrumb-item:hover {
   width: 16px;
   height: 16px;
 }
+
+/* ===== Cross Asset (跨资产收益对比) ===== */
+
+.cross-asset-table {
+  width: 100%;
+}
+
+.cross-asset-table-header,
+.cross-asset-table-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.4fr) 110px 170px 130px minmax(120px, 1fr);
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 16px;
+  text-align: left;
+}
+
+.cross-asset-table-header {
+  border-bottom: 1px solid rgba(171, 173, 175, 0.14);
+  color: var(--text-soft, #66707a);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.cross-asset-table-row {
+  border: none;
+  background: transparent;
+  border-bottom: 1px solid rgba(171, 173, 175, 0.08);
+  color: var(--text-main);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 140ms ease;
+}
+
+.cross-asset-table-row:last-child {
+  border-bottom: none;
+}
+
+.cross-asset-table-row:hover {
+  background: rgba(238, 241, 243, 0.6);
+}
+
+.cross-asset-table-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cross-asset-table-cell.is-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.cross-asset-table-cell.is-numeric {
+  font-variant-numeric: tabular-nums;
+}
+
+.cross-asset-table-cell.is-sub {
+  color: var(--text-soft, #66707a);
+  font-size: 12px;
+}
+
+.cross-asset-table-cell small {
+  color: var(--text-soft, #66707a);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.cross-asset-kind-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.cross-asset-kind-dot.is-stock {
+  background: #0052d0;
+}
+
+.cross-asset-kind-dot.is-housing {
+  background: #d97706;
+}
+
+@media (max-width: 900px) {
+  .cross-asset-table-header,
+  .cross-asset-table-row {
+    grid-template-columns: minmax(120px, 1.4fr) 90px 150px 110px;
+  }
+
+  .cross-asset-table-cell.is-sub {
+    display: none;
+  }
+}

@@ -782,6 +782,32 @@ export type MortgageResultDto = {
   schedule: MortgageRepaymentItemDto[]
 }
 
+// ====== Cross Asset (跨资产收益对比) ======
+
+export type CrossAssetPointKind = 'stock' | 'housing'
+
+/** 跨资产散点图上的单个资产点：统一用收益率（Y）与年化波动率（X）描述风险收益 */
+export type CrossAssetPointDto = {
+  id: string                     // 股票 = assetKey；房产 = 城市名
+  kind: CrossAssetPointKind
+  name: string
+  code?: string                  // 股票代码
+  city?: string
+  yieldPercent?: number          // 收益率（%）：股息率 / 租金收益率
+  volatilityPercent?: number     // 年化波动率（%）
+  yieldLabel?: string            // 收益率口径说明（如「估算未来股息率」「租金收益率」）
+  subInfo?: string               // 辅助信息（行业 / 均价）
+  detailPath?: string            // 点击跳转路径
+}
+
+export type CrossAssetComparisonDto = {
+  points: CrossAssetPointDto[]
+  riskFreeRatePercent: number    // 无风险利率参考线（%）
+  stockCount: number
+  housingCount: number
+  generatedAt: string
+}
+
 export interface DividendMonitorApi {
   auth: {
     login(email: string, password: string): Promise<AuthSessionDto>
@@ -869,6 +895,9 @@ export interface DividendMonitorApi {
     updateUserData(request: UserHousingDataUpsertDto): Promise<void>
     removeUserData(city: string): Promise<void>
     calculateMortgage(request: MortgageRequestDto): Promise<MortgageResultDto>
+  }
+  crossAsset: {
+    getComparison(): Promise<CrossAssetComparisonDto>
   }
   dividend: {
     getHistory(request?: DividendHistoryRequest): Promise<DividendHistoryResult>

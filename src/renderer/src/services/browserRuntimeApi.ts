@@ -26,6 +26,7 @@ import type {
   WatchlistGroupDto,
   WatchlistGroupUpsertDto,
   ComparisonRowDto,
+  CrossAssetComparisonDto,
   StockDetailDto,
   StockSearchItemDto,
   ValuationSnapshotDto
@@ -1572,6 +1573,73 @@ export const browserRuntimeApi: DividendMonitorApi = {
     },
     async refresh(): Promise<MarketYieldMapDto> {
       return this.get()
+    }
+  },
+  crossAsset: {
+    async getComparison(): Promise<CrossAssetComparisonDto> {
+      return {
+        riskFreeRatePercent: 2.5,
+        stockCount: 3,
+        housingCount: 2,
+        generatedAt: new Date().toISOString(),
+        points: [
+          {
+            id: 'STOCK:A_SHARE:601398',
+            kind: 'stock',
+            name: '工商银行',
+            code: '601398',
+            yieldPercent: 5.8,
+            volatilityPercent: 18.2,
+            yieldLabel: '估算股息率',
+            subInfo: '银行',
+            detailPath: '/stock-detail?assetKey=STOCK%3AA_SHARE%3A601398'
+          },
+          {
+            id: 'STOCK:A_SHARE:601088',
+            kind: 'stock',
+            name: '中国神华',
+            code: '601088',
+            yieldPercent: 7.2,
+            volatilityPercent: 24.6,
+            yieldLabel: '估算股息率',
+            subInfo: '煤炭',
+            detailPath: '/stock-detail?assetKey=STOCK%3AA_SHARE%3A601088'
+          },
+          {
+            id: 'STOCK:A_SHARE:600519',
+            kind: 'stock',
+            name: '贵州茅台',
+            code: '600519',
+            yieldPercent: 2.1,
+            volatilityPercent: 28.4,
+            yieldLabel: '估算股息率',
+            subInfo: '白酒',
+            detailPath: '/stock-detail?assetKey=STOCK%3AA_SHARE%3A600519'
+          },
+          {
+            id: '北京',
+            kind: 'housing',
+            name: '北京',
+            city: '北京',
+            yieldPercent: 2.08,
+            volatilityPercent: 2.4,
+            yieldLabel: '租金收益率',
+            subInfo: '均价 47194 元/㎡',
+            detailPath: '/housing/%E5%8C%97%E4%BA%AC'
+          },
+          {
+            id: '上海',
+            kind: 'housing',
+            name: '上海',
+            city: '上海',
+            yieldPercent: 1.56,
+            volatilityPercent: 3.1,
+            yieldLabel: '租金收益率',
+            subInfo: '均价 64712 元/㎡',
+            detailPath: '/housing/%E4%B8%8A%E6%B5%B7'
+          }
+        ]
+      }
     }
   }
 }
