@@ -244,7 +244,15 @@ export function AppShell({ children }: { children: ReactNode }) {
     setNavOpen(false)
   }, [location.pathname])
 
+  // 窗口离开窄屏范围时收起抽屉，避免与侧边栏叠加
+  useEffect(() => {
+    if (!isMobile) {
+      setNavOpen(false)
+    }
+  }, [isMobile])
+
   const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
+    setNavOpen(false)
     navigate(key)
   }
 
