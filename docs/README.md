@@ -33,7 +33,7 @@
 - `IPC-CONTRACTS.md`
 - `HTTP-API.md`
 - `PACKAGING-AND-DEPLOYMENT.md`
-- `ANDROID-PORT-ASSESSMENT.md`：Android 移植技术评估（路线决策 Capacitor、P0–P4 分阶段路线图、风险登记；P0 活跃计划见 `superpowers/plans/`）
+- `ANDROID-PORT-ASSESSMENT.md`：Android 移植技术评估（路线决策 Capacitor、P0–P4 分阶段路线图、风险登记；P0 移动响应式基础已于 2026-09 合并，实施计划见 git 历史）
 
 ### 数据源调研与沉淀
 
