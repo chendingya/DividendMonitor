@@ -2211,9 +2211,47 @@ button.ledger-breadcrumb-item:hover {
   }
 }
 
-/* 抽屉内复用侧边栏底部样式的微调（静态定位 + 分隔线） */
+/* 抽屉内复用侧边栏底部样式的微调（分隔线） */
 .ant-drawer .ledger-sidebar-footer {
-  position: static;
   padding-top: 12px;
   border-top: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+/* 顶栏与面包屑窄屏适配 */
+@media (max-width: 720px) {
+  .ledger-topbar-row {
+    gap: 10px;
+  }
+
+  .ledger-topbar-search-wrap {
+    max-width: none;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .ledger-topbar-search {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .ledger-topbar-actions {
+    flex-shrink: 0;
+  }
+
+  .ledger-breadcrumb-row {
+    gap: 8px;
+  }
+
+  .ledger-back-button {
+    flex-shrink: 0;
+  }
+
+  .ledger-breadcrumbs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .ledger-breadcrumbs::-webkit-scrollbar {
+    display: none;
+  }
 }
