@@ -2256,15 +2256,10 @@ button.ledger-breadcrumb-item:hover {
   }
 }
 
-/* 数据行窄屏横向滚动兜底（保持列结构完整，避免挤压错位） */
+/* 数据行窄屏横向滚动兜底（≤720px 行已折叠为单列堆叠，仅保留容器级溢出约束） */
 @media (max-width: 720px) {
   .ledger-data-card {
     overflow-x: auto;
-  }
-
-  .ledger-data-head,
-  .ledger-data-row {
-    min-width: 640px;
   }
 
   .ant-table-content {
