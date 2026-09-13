@@ -2160,3 +2160,109 @@ button.ledger-breadcrumb-item:hover {
     display: none;
   }
 }
+
+/* ============================================================
+   移动端适配（P0/L1）— 设计见 docs/ANDROID-PORT-ASSESSMENT.md
+   规则全部位于 ≤900px 媒体查询内，桌面宽度不生效；
+   max() 保证无安全区环境下维持最小内边距
+   ============================================================ */
+
+@media (max-width: 900px) {
+  .ledger-topbar-row {
+    padding-left: max(18px, env(safe-area-inset-left));
+    padding-right: max(18px, env(safe-area-inset-right));
+  }
+
+  .ledger-canvas {
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+}
+
+/* 窄屏抽屉导航触发按钮（仅 ≤900px 显示） */
+.ledger-mobile-nav-toggle {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  padding: 0 10px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 10px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.ledger-mobile-nav-toggle-bar {
+  display: block;
+  width: 100%;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+@media (min-width: 901px) {
+  .ledger-mobile-nav-toggle {
+    display: none;
+  }
+}
+
+/* 抽屉内复用侧边栏底部样式的微调（分隔线） */
+.ant-drawer .ledger-sidebar-footer {
+  padding-top: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+/* 顶栏与面包屑窄屏适配 */
+@media (max-width: 720px) {
+  .ledger-topbar-row {
+    gap: 10px;
+  }
+
+  .ledger-topbar-search-wrap {
+    max-width: none;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .ledger-topbar-search {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .ledger-topbar-actions {
+    flex-shrink: 0;
+  }
+
+  .ledger-breadcrumb-row {
+    gap: 8px;
+  }
+
+  .ledger-back-button {
+    flex-shrink: 0;
+  }
+
+  .ledger-breadcrumbs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .ledger-breadcrumbs::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* 数据行窄屏横向滚动兜底（≤720px 行已折叠为单列堆叠，仅保留容器级溢出约束） */
+@media (max-width: 720px) {
+  .ledger-data-card {
+    overflow-x: auto;
+  }
+
+  .ant-table-content {
+    overflow-x: auto;
+  }
+}

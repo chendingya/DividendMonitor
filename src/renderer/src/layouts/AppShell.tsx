@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
-import { Menu, message } from 'antd'
+import { Drawer, Menu, message } from 'antd'
 import type { MenuProps } from 'antd'
+import { useIsMobile } from '@renderer/hooks/useIsMobile'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { buildAssetSearchPath } from '@renderer/services/routeContext'
 import { useAuth } from '@renderer/contexts/AuthContext'
@@ -235,6 +236,26 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [, messageHolder] = message.useMessage()
   const [topbarKeyword, setTopbarKeyword] = useState('')
 
+  const isMobile = useIsMobile()
+  const [navOpen, setNavOpen] = useState(false)
+
+  // 路由变化后自动收起抽屉（菜单点击 / 返回键均触发）
+  useEffect(() => {
+    setNavOpen(false)
+  }, [location.pathname])
+
+  // 窗口离开窄屏范围时收起抽屉，避免与侧边栏叠加
+  useEffect(() => {
+    if (!isMobile) {
+      setNavOpen(false)
+    }
+  }, [isMobile])
+
+  const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
+    setNavOpen(false)
+    navigate(key)
+  }
+
   useEffect(() => {
     const prefetchTimer = setTimeout(() => {
       void import('@renderer/pages/YieldMapPage')
@@ -340,6 +361,57 @@ export function AppShell({ children }: { children: ReactNode }) {
     setTopbarKeyword('')
   }
 
+  function renderSidebarFooter() {
+    return mode === 'online' && session ? (
+      <>
+        <div
+          className="ledger-user-chip is-clickable"
+          onClick={() => navigate('/user-center')}
+        >
+          <div className="ledger-user-avatar is-online">
+            {(session.user.email ?? '?')[0].toUpperCase()}
+          </div>
+          <div>
+            <div className="ledger-user-name is-truncated">
+              {session.user.email ?? '在线用户'}
+            </div>
+            <div className="ledger-user-tier is-online">在线 · 已同步</div>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="ledger-help-link is-logout"
+          onClick={() => { void logout() }}
+        >
+          退出登录
+        </button>
+      </>
+    ) : (
+      <>
+        <button
+          type="button"
+          className="ledger-upgrade-button"
+          onClick={() => navigate('/user-center')}
+        >
+          登录 / 注册
+        </button>
+        <button type="button" className="ledger-help-link">
+          帮助中心
+        </button>
+        <div
+          className="ledger-user-chip is-clickable"
+          onClick={() => navigate('/user-center')}
+        >
+          <div className="ledger-user-avatar" />
+          <div>
+            <div className="ledger-user-name">离线模式</div>
+            <div className="ledger-user-tier is-offline">数据仅存于本机</div>
+          </div>
+        </div>
+      </>
+    )
+  }
+
   return (
     <div className="ledger-shell">
       {messageHolder}
@@ -357,66 +429,31 @@ export function AppShell({ children }: { children: ReactNode }) {
             mode="inline"
             items={menuItems}
             selectedKeys={[selectedKey]}
-            onClick={({ key }) => navigate(key)}
+            onClick={handleMenuClick}
             style={{ background: 'transparent', borderInlineEnd: 'none' }}
           />
         </nav>
 
         <div className="ledger-sidebar-footer">
-          {mode === 'online' && session ? (
-            <>
-              <div
-                className="ledger-user-chip is-clickable"
-                onClick={() => navigate('/user-center')}
-              >
-                <div className="ledger-user-avatar is-online">
-                  {(session.user.email ?? '?')[0].toUpperCase()}
-                </div>
-                <div>
-                  <div className="ledger-user-name is-truncated">
-                    {session.user.email ?? '在线用户'}
-                  </div>
-                  <div className="ledger-user-tier is-online">在线 · 已同步</div>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="ledger-help-link is-logout"
-                onClick={() => { void logout() }}
-              >
-                退出登录
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                className="ledger-upgrade-button"
-                onClick={() => navigate('/user-center')}
-              >
-                登录 / 注册
-              </button>
-              <button type="button" className="ledger-help-link">
-                帮助中心
-              </button>
-              <div
-                className="ledger-user-chip is-clickable"
-                onClick={() => navigate('/user-center')}
-              >
-                <div className="ledger-user-avatar" />
-                <div>
-                  <div className="ledger-user-name">离线模式</div>
-                  <div className="ledger-user-tier is-offline">数据仅存于本机</div>
-                </div>
-              </div>
-            </>
-          )}
+          {renderSidebarFooter()}
         </div>
       </aside>
 
       <div className="ledger-main">
         <header className="ledger-topbar">
           <div className="ledger-topbar-row">
+            {isMobile ? (
+              <button
+                type="button"
+                className="ledger-mobile-nav-toggle"
+                aria-label="打开导航菜单"
+                onClick={() => setNavOpen(true)}
+              >
+                <span className="ledger-mobile-nav-toggle-bar" />
+                <span className="ledger-mobile-nav-toggle-bar" />
+                <span className="ledger-mobile-nav-toggle-bar" />
+              </button>
+            ) : null}
             <div className="ledger-topbar-search-wrap">
               <span className="ledger-search-icon">
                 <AppShellIcon name="search" className="ledger-icon-svg" />
@@ -471,6 +508,41 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
         <main className="ledger-canvas">{children}</main>
       </div>
+
+      <Drawer
+        placement="left"
+        width={264}
+        open={navOpen}
+        onClose={() => setNavOpen(false)}
+        title={
+          <div className="ledger-sidebar-brand">
+            <div className="ledger-sidebar-mark">息</div>
+            <div>
+              <div className="ledger-sidebar-title">收息佬</div>
+              <div className="ledger-sidebar-subtitle">财富简报</div>
+            </div>
+          </div>
+        }
+        styles={{
+          body: {
+            padding: '12px 8px',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }
+        }}
+      >
+        <nav className="ledger-sidebar-nav" style={{ flex: 1, overflowY: 'auto' }}>
+          <Menu
+            mode="inline"
+            items={menuItems}
+            selectedKeys={[selectedKey]}
+            onClick={handleMenuClick}
+            style={{ background: 'transparent', borderInlineEnd: 'none' }}
+          />
+        </nav>
+        <div className="ledger-sidebar-footer">{renderSidebarFooter()}</div>
+      </Drawer>
     </div>
   )
 }
