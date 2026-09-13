@@ -95,7 +95,13 @@ describe('Eastmoney housing price index API (integration)', () => {
     const history = await dataSource.getCityHistory('北京')
 
     expect(history.length).toBeGreaterThan(170)
-    expect(history[0].reportDate).toBe('2026-06')
+
+    // 最新报告月随数据源发布节奏前移（硬编码月份会被数据更新漂移穿越），
+    // 断言其落在当前时间 3 个月内
+    const now = new Date()
+    const earliestAcceptable = new Date(now.getFullYear(), now.getMonth() - 3, 1)
+    const earliestKey = `${earliestAcceptable.getFullYear()}-${String(earliestAcceptable.getMonth() + 1).padStart(2, '0')}`
+    expect(history[0].reportDate.localeCompare(earliestKey)).toBeGreaterThanOrEqual(0)
 
     const oldest = history[history.length - 1]
     expect(oldest.reportDate.localeCompare('2011-06')).toBeLessThanOrEqual(0)
