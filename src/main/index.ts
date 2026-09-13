@@ -57,6 +57,10 @@ process.on('unhandledRejection', (reason: Error) => {
   console.error('[Process] unhandledRejection:', reason?.message ?? reason)
 })
 
+// 日志管道断裂（如 dev 父进程退出后仍向已关闭的管道写日志）不应击穿主进程
+process.stdout?.on('error', () => undefined)
+process.stderr?.on('error', () => undefined)
+
 app.whenReady().then(() => {
   // Migrate legacy plaintext session file to encrypted storage
   migrateLegacySession()

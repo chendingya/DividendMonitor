@@ -42,6 +42,24 @@ const child = spawn('npx electron-vite dev', {
   }
 })
 
+// 退出时连带杀掉子进程树，防止 Electron 孤儿进程向已关闭的日志管道写入（EPIPE）
+function killChildTree() {
+  if (!child.pid || child.exitCode !== null || child.signalCode !== null) return
+  if (process.platform === 'win32') {
+    spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore', shell: true })
+  } else {
+    child.kill('SIGTERM')
+  }
+}
+
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGBREAK']) {
+  process.on(signal, () => {
+    killChildTree()
+    process.exit(0)
+  })
+}
+process.on('exit', killChildTree)
+
 child.on('exit', (code) => {
   process.exit(code ?? 0)
 })
