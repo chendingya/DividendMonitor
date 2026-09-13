@@ -2255,3 +2255,19 @@ button.ledger-breadcrumb-item:hover {
     display: none;
   }
 }
+
+/* 数据行窄屏横向滚动兜底（保持列结构完整，避免挤压错位） */
+@media (max-width: 720px) {
+  .ledger-data-card {
+    overflow-x: auto;
+  }
+
+  .ledger-data-head,
+  .ledger-data-row {
+    min-width: 640px;
+  }
+
+  .ant-table-content {
+    overflow-x: auto;
+  }
+}
