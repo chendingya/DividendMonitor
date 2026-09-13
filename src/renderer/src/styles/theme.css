@@ -2160,3 +2160,22 @@ button.ledger-breadcrumb-item:hover {
     display: none;
   }
 }
+
+/* ============================================================
+   移动端适配（P0/L1）— 设计见 docs/ANDROID-PORT-ASSESSMENT.md
+   规则全部位于 ≤900px 媒体查询内，桌面宽度不生效；
+   max() 保证无安全区环境下维持最小内边距
+   ============================================================ */
+
+@media (max-width: 900px) {
+  .ledger-topbar-row {
+    padding-left: max(18px, env(safe-area-inset-left));
+    padding-right: max(18px, env(safe-area-inset-right));
+  }
+
+  .ledger-canvas {
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
+    padding-bottom: max(24px, env(safe-area-inset-bottom));
+  }
+}
