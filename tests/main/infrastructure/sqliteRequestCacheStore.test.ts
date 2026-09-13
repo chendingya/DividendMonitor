@@ -48,20 +48,22 @@ describe('SqliteRequestCacheStore', () => {
   it('set 后 get 往返还原响应', () => {
     const store = new SqliteRequestCacheStore()
     const response = makeResponse({ code: '600519', price: 1450 })
+    // cachedAt 必须落在 7 天惰性清理窗口内，否则条目会在 set 时被立即清除
+    const cachedAt = new Date().toISOString()
 
     store.set('cap:{a:1}', {
       response,
-      cachedAt: '2026-08-06T00:00:00.000Z'
+      cachedAt
     })
 
     const entry = store.get('cap:{a:1}')
     expect(entry?.response).toEqual(response)
-    expect(entry?.cachedAt).toBe('2026-08-06T00:00:00.000Z')
+    expect(entry?.cachedAt).toBe(cachedAt)
   })
 
   it('delete 移除条目', () => {
     const store = new SqliteRequestCacheStore()
-    store.set('cap:{a:1}', { response: makeResponse(1), cachedAt: '2026-08-06T00:00:00.000Z' })
+    store.set('cap:{a:1}', { response: makeResponse(1), cachedAt: new Date().toISOString() })
 
     store.delete('cap:{a:1}')
 
@@ -70,8 +72,8 @@ describe('SqliteRequestCacheStore', () => {
 
   it('clear 清空全部条目', () => {
     const store = new SqliteRequestCacheStore()
-    store.set('cap:{a:1}', { response: makeResponse(1), cachedAt: '2026-08-06T00:00:00.000Z' })
-    store.set('cap:{a:2}', { response: makeResponse(2), cachedAt: '2026-08-06T00:00:00.000Z' })
+    store.set('cap:{a:1}', { response: makeResponse(1), cachedAt: new Date().toISOString() })
+    store.set('cap:{a:2}', { response: makeResponse(2), cachedAt: new Date().toISOString() })
 
     store.clear()
 
