@@ -12,6 +12,11 @@ vi.mock('electron', () => ({
 }))
 
 const sqlite = await import('@main/infrastructure/db/sqlite')
+const { getDatabaseFilePath, installElectronSqliteProvider } = await import(
+  '@main/infrastructure/db/electronSqliteProvider'
+)
+
+installElectronSqliteProvider()
 
 describe('sqlite close/reopen', () => {
   beforeEach(() => {
@@ -26,7 +31,7 @@ describe('sqlite close/reopen', () => {
   it('getDatabase creates a file and closeDatabase releases it', () => {
     const db = sqlite.getDatabase()
     db.prepare('CREATE TABLE IF NOT EXISTS t (id INTEGER PRIMARY KEY)').run()
-    const filePath = sqlite.getDatabaseFilePath()
+    const filePath = getDatabaseFilePath()
     expect(filePath).toContain('dividend-monitor.sqlite')
 
     sqlite.closeDatabase()

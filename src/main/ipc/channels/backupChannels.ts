@@ -1,7 +1,8 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 import { statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { closeDatabase, getDatabaseFilePath } from '@main/infrastructure/db/sqlite'
+import { closeDatabase } from '@main/infrastructure/db/sqlite'
+import { getDatabaseFilePath } from '@main/infrastructure/db/electronSqliteProvider'
 import { buildBackupFileName, buildPreRestoreFileName, copySqliteFile, isValidSqliteFile } from '@main/backup/backupFileService'
 
 const SQLITE_FILTER = [{ name: 'SQLite 数据库', extensions: ['sqlite'] }]

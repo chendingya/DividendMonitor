@@ -1,7 +1,4 @@
-import { app } from 'electron'
-import { DatabaseSync } from 'node:sqlite'
-import { mkdirSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import type { DatabaseSync } from 'node:sqlite'
 import { migrateWatchlistGroupAssetsForeignKey } from '@main/infrastructure/db/migrations/watchlistGroupAssetsMigration'
 import { migratePortfolioRiskLevelColumn } from '@main/infrastructure/db/migrations/portfolioRiskLevelMigration'
 import { migrateCorporateActionsCursorReset } from '@main/infrastructure/db/migrations/corporateActionsCursorResetMigration'
@@ -9,10 +6,20 @@ import { migrateCorporateActionsCursorResetV2 } from '@main/infrastructure/db/mi
 import { migrateDividendEventStatus } from '@main/infrastructure/db/migrations/dividendEventStatusMigration'
 import { migrateHousingTables } from '@main/infrastructure/db/migrations/housingTablesMigration'
 
-let database: DatabaseSync | null = null
+// 数据库连接通过可注入 resolver 获取：默认未安装时抛错，
+// Electron 桌面端由 electronSqliteProvider 在启动时安装（避免本模块依赖 electron，
+// 使其可安全进入浏览器/测试 bundle）。
+let resolveDatabase: (() => DatabaseSync) | null = null
+let cached: DatabaseSync | null = null
 
-export function getDatabaseFilePath() {
-  return join(app.getPath('userData'), 'db', 'dividend-monitor.sqlite')
+export function setDatabaseResolver(resolve: () => DatabaseSync): void {
+  resolveDatabase = resolve
+  cached = null
+}
+
+export function resetDatabaseResolver(): void {
+  resolveDatabase = null
+  cached = null
 }
 
 function createBaseSchema(db: DatabaseSync) {
@@ -235,7 +242,7 @@ function migrateWatchlistAssetTypes(db: DatabaseSync) {
   }
 }
 
-function initializeSchema(db: DatabaseSync) {
+export function initializeSchema(db: DatabaseSync) {
   createBaseSchema(db)
   migrateLegacyWatchlistTable(db)
   migrateWatchlistAssetTypes(db)
@@ -273,28 +280,31 @@ function initializeSchema(db: DatabaseSync) {
   `)
 }
 
-export function getDatabase() {
-  if (database) {
-    return database
+export function getDatabase(): DatabaseSync {
+  if (cached) {
+    return cached
   }
 
-  const filePath = getDatabaseFilePath()
-  mkdirSync(dirname(filePath), { recursive: true })
+  if (!resolveDatabase) {
+    throw new Error('数据库未初始化：当前运行时未安装数据库 provider（浏览器运行时请使用在线模式仓储）')
+  }
 
-  // 先初始化成功再赋值缓存：若初始化抛错，下次调用可重试，
-  // 避免留下半初始化的数据库连接。
-  const db = new DatabaseSync(filePath)
-  initializeSchema(db)
-  database = db
-  return database
+  const db = resolveDatabase()
+
+  // 先解析成功再赋值缓存：若 resolver 抛错（含建库/schema 初始化失败），
+  // 下次调用可重试，避免留下半初始化的数据库连接。
+  // schema 初始化由 provider 的 resolver 负责（electronSqliteProvider），
+  // 本模块不感知建库细节，注入的测试实例（marker）也无需支持 schema 操作。
+  cached = db
+  return cached
 }
 
 export function closeDatabase(): void {
-  if (!database) {
+  if (!cached) {
     return
   }
-  database.close()
-  database = null
+  cached.close()
+  cached = null
 }
 
 function migratePortfolioCorporateActionColumn(db: DatabaseSync) {
@@ -401,10 +411,6 @@ function migrateDividendFiscalYearNotNull(db: DatabaseSync) {
       // 无活跃事务时忽略
     }
   }
-}
-
-export function getDatabaseFilePathForDebug() {
-  return getDatabaseFilePath()
 }
 
 export function migrateYieldMapSnapshots(db: DatabaseSync) {

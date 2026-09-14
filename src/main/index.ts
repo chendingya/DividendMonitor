@@ -7,6 +7,7 @@ import { AssetCacheSyncService } from '@main/application/services/assetCacheSync
 import { syncAllDividendEvents } from '@main/application/services/dividendSyncService'
 import { authService } from '@main/infrastructure/supabase/authService'
 import { migrateLegacySession } from '@main/infrastructure/supabase/sessionStorage'
+import { installElectronSqliteProvider } from '@main/infrastructure/db/electronSqliteProvider'
 import { getCspHeader } from '@main/security/contentSecurityPolicy'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -19,6 +20,9 @@ if (isDevelopment) {
   // permission issues from sandboxed roaming-profile writes.
   app.setPath('userData', join(process.cwd(), '.runtime-data'))
 }
+
+// 在任何 DB 使用之前安装 Electron SQLite provider（幂等；路径在首次 getDatabase 时惰性解析）
+installElectronSqliteProvider()
 
 function createWindow() {
   const mainWindow = new BrowserWindow({

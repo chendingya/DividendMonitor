@@ -9,8 +9,11 @@ import {
   HousingWatchlistRepository
 } from '@main/repositories/housingRepository'
 import { closeDatabase, getDatabase } from '@main/infrastructure/db/sqlite'
+import { installElectronSqliteProvider } from '@main/infrastructure/db/electronSqliteProvider'
 import { getHousingCityDetail } from '@main/application/useCases/getHousingCityDetail'
 import { calculateMortgageUseCase } from '@main/application/useCases/calculateMortgage'
+
+installElectronSqliteProvider()
 
 const tempDir = mkdtempSync(join(tmpdir(), 'housing-module-'))
 vi.mock('electron', () => ({
