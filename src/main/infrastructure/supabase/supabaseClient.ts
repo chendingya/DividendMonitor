@@ -1,7 +1,29 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { sessionFileStorage } from '@main/infrastructure/supabase/sessionStorage'
+import {
+  browserSessionStorage,
+  type SupabaseSyncStorage
+} from '@main/infrastructure/supabase/browserSessionStorage'
 
 let client: SupabaseClient | null = null
+
+/**
+ * 按运行时选择 Supabase 会话存储：
+ * - Electron main（`process.versions.electron` 存在）→ 加密文件存储 `sessionFileStorage`
+ * - 浏览器/in-process 环境 → localStorage 适配器 `browserSessionStorage`
+ *
+ * 浏览器 bundle 中 `sessionFileStorage` 的 node/electron 依赖由 Vite 垫片承载，
+ * 仅在其方法被实际访问时才会抛错；本选择逻辑保证浏览器分支永远不会触碰它。
+ */
+export function resolveSessionStorage(): SupabaseSyncStorage {
+  if (
+    typeof process !== 'undefined' &&
+    !!(process as { versions?: { electron?: string } }).versions?.electron
+  ) {
+    return sessionFileStorage
+  }
+  return browserSessionStorage
+}
 
 /**
  * 网络不可达时静默降级的 fetch。
@@ -69,7 +91,7 @@ export function getSupabaseClient(): SupabaseClient | null {
       fetch: quietSupabaseFetch
     },
     auth: {
-      storage: sessionFileStorage,
+      storage: resolveSessionStorage(),
       autoRefreshToken: true,
       detectSessionInUrl: false
     }
