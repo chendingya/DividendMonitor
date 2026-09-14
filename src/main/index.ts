@@ -8,6 +8,7 @@ import { syncAllDividendEvents } from '@main/application/services/dividendSyncSe
 import { authService } from '@main/infrastructure/supabase/authService'
 import { migrateLegacySession } from '@main/infrastructure/supabase/sessionStorage'
 import { installElectronSqliteProvider } from '@main/infrastructure/db/electronSqliteProvider'
+import { installElectronBroadcasters } from '@main/infrastructure/supabase/electronBroadcasters'
 import { getCspHeader } from '@main/security/contentSecurityPolicy'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -23,6 +24,9 @@ if (isDevelopment) {
 
 // 在任何 DB 使用之前安装 Electron SQLite provider（幂等；路径在首次 getDatabase 时惰性解析）
 installElectronSqliteProvider()
+
+// 安装 Electron 桌面端的 auth/sync 广播器（幂等；在 authService/syncStatusNotifier 首次广播前）
+installElectronBroadcasters()
 
 function createWindow() {
   const mainWindow = new BrowserWindow({

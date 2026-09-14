@@ -1,6 +1,5 @@
 import { getSupabaseClient, resetSupabaseClient } from '@main/infrastructure/supabase/supabaseClient'
 import { setRuntimeMode } from '@main/infrastructure/supabase/runtimeMode'
-import { BrowserWindow } from 'electron'
 import type { Session, User } from '@supabase/supabase-js'
 
 /** Supabase User type does not expose `identities` in its TS definition,
@@ -38,10 +37,16 @@ function getAuthCallbackUrl(): string {
   return 'http://127.0.0.1:3210/auth/callback'
 }
 
+/** 登录态广播器（默认 no-op）：桌面端由 electronBroadcasters 注入 BrowserWindow 推送实现 */
+let authStateBroadcaster: (session: AuthSession | null) => void = () => undefined
+
+/** 注入登录态广播器（幂等覆盖）。 */
+export function setAuthStateBroadcaster(fn: (session: AuthSession | null) => void): void {
+  authStateBroadcaster = fn
+}
+
 function broadcastAuthChange(session: AuthSession | null): void {
-  for (const win of BrowserWindow.getAllWindows()) {
-    win.webContents.send('auth:state-changed', session)
-  }
+  authStateBroadcaster(session)
 }
 
 export function startAuthListener(): void {
