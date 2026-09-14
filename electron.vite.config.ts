@@ -53,7 +53,8 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@renderer': resolve('src/renderer/src'),
-        '@shared': resolve('shared')
+        '@shared': resolve('shared'),
+        '@main': resolve('src/main')
       }
     },
     plugins: [react()]
