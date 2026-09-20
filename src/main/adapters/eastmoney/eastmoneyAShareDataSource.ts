@@ -260,8 +260,8 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
     // Check local price cache first — historical data is immutable,
     // only the last few trading days need refreshing.
     const priceCache = getPriceCacheRepository()
-    const cachedPrices = priceCache.getPriceHistory(symbol)
-    const cachedLatest = priceCache.getLatestDate(symbol)
+    const cachedPrices = (await priceCache.getPriceHistory(symbol))
+    const cachedLatest = (await priceCache.getLatestDate(symbol))
 
     const yesterday = new Date()
     yesterday.setDate(yesterday.getDate() - 1)
@@ -308,8 +308,8 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
     // When cache is fresh, fetchedKlines === cachedPrices — skip to avoid redundant writes + Supabase pushes.
     let sinaKlines = cachedPrices
     if (!cacheIsFresh && fetchedKlines.length > 0) {
-      priceCache.savePriceHistory(symbol, fetchedKlines)
-      sinaKlines = priceCache.getPriceHistory(symbol)
+      await priceCache.savePriceHistory(symbol, fetchedKlines)
+      sinaKlines = (await priceCache.getPriceHistory(symbol))
     }
 
     const dividendRecords = dividendResult.status === 'fulfilled' ? dividendResult.value : []

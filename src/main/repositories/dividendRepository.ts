@@ -45,13 +45,14 @@ function toEventWithAsset(row: DividendEventRow): DividendEventWithAsset {
 }
 
 export class DividendRepository {
-  upsertMany(assetKey: string, events: DividendEvent[]): void {
+  async upsertMany(assetKey: string, events: DividendEvent[]): Promise<void> {
     if (events.length === 0) {
       return
     }
     const db = getDatabase()
     const fetchedAt = new Date().toISOString()
-    const stmt = db.prepare(`
+    await db.transaction(async (db) => {
+      const stmt = db.prepare(`
       INSERT INTO dividend_events (
         asset_key, year, fiscal_year, announce_date, record_date, ex_date, pay_date,
         dividend_per_share, total_dividend_amount, payout_ratio, reference_close_price,
@@ -74,14 +75,13 @@ export class DividendRepository {
         status = excluded.status,
         announcement_progress = excluded.announcement_progress
     `)
-    db.exec('BEGIN')
-    try {
+
       for (const event of events) {
         const announceDate = event.announceDate ?? event.exDate
         if (!announceDate) {
           throw new Error(`DividendEvent upsert: missing announce_date and ex_date for asset ${assetKey}`)
         }
-        stmt.run(
+        await stmt.run(
           assetKey,
           event.year,
           event.fiscalYear ?? event.year,
@@ -101,42 +101,39 @@ export class DividendRepository {
           event.announcementProgress ?? null
         )
       }
-      db.exec('COMMIT')
-    } catch (err) {
-      db.exec('ROLLBACK')
-      throw err
-    }
+
+    })
   }
 
-  listByAsset(assetKey: string): DividendEvent[] {
+  async listByAsset(assetKey: string): Promise<DividendEvent[]> {
     const db = getDatabase()
-    const rows = db
+    const rows = (await db
       .prepare('SELECT * FROM dividend_events WHERE asset_key = ? ORDER BY ex_date ASC, announce_date ASC')
-      .all(assetKey) as DividendEventRow[]
+      .all(assetKey)) as DividendEventRow[]
     return rows.map(toEvent)
   }
 
-  listPendingCorporateActions(assetKey: string, sinceExDate?: string): DividendEvent[] {
+  async listPendingCorporateActions(assetKey: string, sinceExDate?: string): Promise<DividendEvent[]> {
     const db = getDatabase()
     const rows = sinceExDate
-      ? (db
-          .prepare('SELECT * FROM dividend_events WHERE asset_key = ? AND ex_date > ? AND status = \'IMPLEMENTED\' ORDER BY ex_date ASC')
-          .all(assetKey, sinceExDate) as DividendEventRow[])
-      : (db
-          .prepare('SELECT * FROM dividend_events WHERE asset_key = ? AND status = \'IMPLEMENTED\' ORDER BY ex_date ASC')
-          .all(assetKey) as DividendEventRow[])
+      ? ((await db
+        .prepare('SELECT * FROM dividend_events WHERE asset_key = ? AND ex_date > ? AND status = \'IMPLEMENTED\' ORDER BY ex_date ASC')
+        .all(assetKey, sinceExDate)) as DividendEventRow[])
+      : ((await db
+        .prepare('SELECT * FROM dividend_events WHERE asset_key = ? AND status = \'IMPLEMENTED\' ORDER BY ex_date ASC')
+        .all(assetKey)) as DividendEventRow[])
     return rows.map(toEvent)
   }
 
-  listAssetKeysWithEvents(): string[] {
+  async listAssetKeysWithEvents(): Promise<string[]> {
     const db = getDatabase()
-    const rows = db
+    const rows = (await db
       .prepare('SELECT DISTINCT asset_key FROM dividend_events')
-      .all() as Array<{ asset_key: string }>
+      .all()) as Array<{ asset_key: string }>
     return rows.map((row) => row.asset_key)
   }
 
-  listAll(options?: { fromDate?: string; toDate?: string; assetKeys?: string[] }): DividendEventWithAsset[] {
+  async listAll(options?: { fromDate?: string; toDate?: string; assetKeys?: string[] }): Promise<DividendEventWithAsset[]> {
     const db = getDatabase()
     const conditions: string[] = ["status = 'IMPLEMENTED'"]
     const params: string[] = []
@@ -155,13 +152,13 @@ export class DividendRepository {
     }
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
-    const rows = db
+    const rows = (await db
       .prepare(`SELECT * FROM dividend_events ${whereClause} ORDER BY ex_date DESC`)
-      .all(...params) as DividendEventRow[]
+      .all(...params)) as DividendEventRow[]
     return rows.map(toEventWithAsset)
   }
 
-  listUpcomingByAssetKeys(assetKeys: string[], sinceYear?: number): DividendEventWithAsset[] {
+  async listUpcomingByAssetKeys(assetKeys: string[], sinceYear?: number): Promise<DividendEventWithAsset[]> {
     if (assetKeys.length === 0) return []
     const db = getDatabase()
     const placeholders = assetKeys.map(() => '?').join(',')
@@ -177,7 +174,7 @@ export class DividendRepository {
       params.push(sinceYear)
     }
     sql += ` ORDER BY announce_date DESC`
-    const rows = db.prepare(sql).all(...params) as DividendEventRow[]
+    const rows = (await db.prepare(sql).all(...params)) as DividendEventRow[]
     return rows.map(toEventWithAsset)
   }
 }

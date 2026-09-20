@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { getDatabase } from '@main/infrastructure/db/sqlite'
 import type { AssetKey, WatchlistGroupDto, WatchlistGroupUpsertDto } from '@shared/contracts/api'
 import type { IWatchlistGroupRepository, WatchlistAssetRecord } from '@main/repositories/interfaces'
@@ -6,7 +5,7 @@ import type { IWatchlistGroupRepository, WatchlistAssetRecord } from '@main/repo
 export class WatchlistGroupRepository implements IWatchlistGroupRepository {
   async listGroups(): Promise<WatchlistGroupDto[]> {
     const db = getDatabase()
-    const groups = db
+    const groups = (await db
       .prepare(
         `SELECT g.id, g.name, g.color, g.sort_order, g.created_at, g.updated_at,
                 (SELECT COUNT(*) FROM watchlist_group_assets ga
@@ -15,7 +14,7 @@ export class WatchlistGroupRepository implements IWatchlistGroupRepository {
          FROM watchlist_groups g
          ORDER BY g.sort_order ASC, g.name ASC`
       )
-      .all() as Array<{
+      .all()) as Array<{
       id: string
       name: string
       color: string | null
@@ -36,10 +35,10 @@ export class WatchlistGroupRepository implements IWatchlistGroupRepository {
 
   async createGroup(request: WatchlistGroupUpsertDto): Promise<WatchlistGroupDto> {
     const db = getDatabase()
-    const id = randomUUID()
+    const id = globalThis.crypto.randomUUID()
     const now = new Date().toISOString()
 
-    db.prepare(
+    await db.prepare(
       `INSERT INTO watchlist_groups (id, name, color, sort_order, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?)`
     ).run(id, request.name.trim(), request.color || null, request.sortOrder ?? 0, now, now)
@@ -51,27 +50,27 @@ export class WatchlistGroupRepository implements IWatchlistGroupRepository {
     const db = getDatabase()
     const now = new Date().toISOString()
 
-    const info = db.prepare(
+    const info = (await db.prepare(
       `UPDATE watchlist_groups
        SET name = COALESCE(?, name),
            color = ?,
            sort_order = COALESCE(?, sort_order),
            updated_at = ?
        WHERE id = ?`
-    ).run(request.name.trim(), request.color ?? null, request.sortOrder ?? null, now, id)
+    ).run(request.name.trim(), request.color ?? null, request.sortOrder ?? null, now, id))
 
     if (info.changes === 0) {
       throw new Error(`分组不存在: ${id}`)
     }
 
-    const row = db.prepare(
+    const row = (await db.prepare(
       `SELECT g.id, g.name, g.color, g.sort_order,
               COUNT(ga.asset_key) AS asset_count
        FROM watchlist_groups g
        LEFT JOIN watchlist_group_assets ga ON g.id = ga.group_id
        WHERE g.id = ?
        GROUP BY g.id`
-    ).get(id) as {
+    ).get(id)) as {
       id: string
       name: string
       color: string | null
@@ -88,14 +87,14 @@ export class WatchlistGroupRepository implements IWatchlistGroupRepository {
 
   async deleteGroup(id: string): Promise<void> {
     const db = getDatabase()
-    db.prepare('DELETE FROM watchlist_groups WHERE id = ?').run(id)
+    await db.prepare('DELETE FROM watchlist_groups WHERE id = ?').run(id)
   }
 
   async addToGroup(groupId: string, assetKey: AssetKey): Promise<void> {
     const db = getDatabase()
     const now = new Date().toISOString()
 
-    db.prepare(
+    await db.prepare(
       `INSERT OR IGNORE INTO watchlist_group_assets (group_id, asset_key, added_at)
        VALUES (?, ?, ?)`
     ).run(groupId, assetKey.trim(), now)
@@ -103,14 +102,14 @@ export class WatchlistGroupRepository implements IWatchlistGroupRepository {
 
   async removeFromGroup(groupId: string, assetKey: AssetKey): Promise<void> {
     const db = getDatabase()
-    db.prepare(
+    await db.prepare(
       'DELETE FROM watchlist_group_assets WHERE group_id = ? AND asset_key = ?'
     ).run(groupId, assetKey.trim())
   }
 
   async listGroupAssets(groupId: string): Promise<WatchlistAssetRecord[]> {
     const db = getDatabase()
-    const rows = db
+    const rows = (await db
       .prepare(
         `SELECT wi.asset_key, wi.asset_type, wi.market, wi.code, wi.name
          FROM watchlist_group_assets ga
@@ -118,7 +117,7 @@ export class WatchlistGroupRepository implements IWatchlistGroupRepository {
          WHERE ga.group_id = ?
          ORDER BY ga.added_at DESC`
       )
-      .all(groupId) as Array<{
+      .all(groupId)) as Array<{
       asset_key: string
       asset_type: string
       market: string
@@ -137,10 +136,33 @@ export class WatchlistGroupRepository implements IWatchlistGroupRepository {
 
   async getAssetGroupIds(assetKey: AssetKey): Promise<string[]> {
     const db = getDatabase()
-    const rows = db
+    const rows = (await db
       .prepare('SELECT group_id FROM watchlist_group_assets WHERE asset_key = ?')
-      .all(assetKey.trim()) as Array<{ group_id: string }>
+      .all(assetKey.trim())) as Array<{ group_id: string }>
 
     return rows.map((row) => row.group_id)
   }
+  /** Persist cloud identity before local edits or foreign-key constrained membership writes. */
+  async cacheGroups(groups: WatchlistGroupDto[], memberships: Array<{ groupId: string; assetKey: string }>): Promise<void> {
+    const now = new Date().toISOString()
+    await getDatabase().transaction(async (tx) => {
+      for (const group of groups) {
+        await tx.prepare(`INSERT INTO watchlist_groups (id, name, color, sort_order, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?)
+          ON CONFLICT(id) DO UPDATE SET name = excluded.name, color = excluded.color,
+            sort_order = excluded.sort_order, updated_at = excluded.updated_at`)
+          .run(group.id, group.name, group.color ?? null, group.sortOrder, now, now)
+      }
+      for (const group of groups) {
+        await tx.prepare('DELETE FROM watchlist_group_assets WHERE group_id = ?').run(group.id)
+      }
+      const groupIds = new Set(groups.map((group) => group.id))
+      for (const membership of memberships) {
+        if (!groupIds.has(membership.groupId)) continue
+        await tx.prepare('INSERT OR IGNORE INTO watchlist_group_assets (group_id, asset_key, added_at) VALUES (?, ?, ?)')
+          .run(membership.groupId, membership.assetKey, now)
+      }
+    })
+  }
+
 }

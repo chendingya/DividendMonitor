@@ -23,8 +23,8 @@ export class SupabasePriceCacheRepository implements IPriceCacheRepository {
   private readonly lastPushedAt = new Map<string, number>()
   private readonly PUSH_COOLDOWN_MS = 60_000
 
-  getPriceHistory(code: string): HistoricalPricePoint[] {
-    const local = this.sqlite.getPriceHistory(code)
+  async getPriceHistory(code: string): Promise<HistoricalPricePoint[]> {
+    const local = (await this.sqlite.getPriceHistory(code))
     if (local.length > 0) return local
 
     // Local is empty — pull from Supabase cross-device shared cache.
@@ -37,17 +37,17 @@ export class SupabasePriceCacheRepository implements IPriceCacheRepository {
     return local
   }
 
-  getLatestDate(code: string): string | undefined {
+  async getLatestDate(code: string): Promise<string | undefined> {
     return this.sqlite.getLatestDate(code)
   }
 
-  mergeAndReturn(code: string, newPrices: HistoricalPricePoint[]): HistoricalPricePoint[] {
+  async mergeAndReturn(code: string, newPrices: HistoricalPricePoint[]): Promise<HistoricalPricePoint[]> {
     return this.sqlite.mergeAndReturn(code, newPrices)
   }
 
-  savePriceHistory(code: string, prices: HistoricalPricePoint[]): void {
+  async savePriceHistory(code: string, prices: HistoricalPricePoint[]): Promise<void> {
     // Always persist to local SQLite immediately — never drop new data.
-    this.sqlite.savePriceHistory(code, prices)
+    await this.sqlite.savePriceHistory(code, prices)
 
     // Throttle Supabase pushes:
     // 1. Skip if a push for this code is already in flight.
@@ -66,7 +66,7 @@ export class SupabasePriceCacheRepository implements IPriceCacheRepository {
     // This ensures that when switching from offline to online, the full
     // history accumulated locally is synced in one shot. upsert with
     // ignoreDuplicates handles dedup — existing rows are skipped.
-    const allRows = this.sqlite.getPriceHistory(code)
+    const allRows = (await this.sqlite.getPriceHistory(code))
     this.pushToSupabase(code, allRows)
       .then((count) => {
         if (count > 0) {
@@ -126,7 +126,7 @@ export class SupabasePriceCacheRepository implements IPriceCacheRepository {
     if (error || !data || data.length === 0) return
 
     const rows = data as Array<{ date: string; close: number }>
-    this.sqlite.savePriceHistory(code, rows)
+    await this.sqlite.savePriceHistory(code, rows)
     console.log(`[PriceCache] Pulled ${rows.length} rows from Supabase for ${code}`)
   }
 }

@@ -39,8 +39,8 @@ export class SupabaseDividendRepository implements IDividendRepository {
   private readonly lastPushedAt = new Map<string, number>()
   private readonly PUSH_COOLDOWN_MS = 60_000
 
-  upsertMany(assetKey: string, events: DividendEvent[]): void {
-    this.localRepo.upsertMany(assetKey, events)
+  async upsertMany(assetKey: string, events: DividendEvent[]): Promise<void> {
+    await this.localRepo.upsertMany(assetKey, events)
 
     if (events.length === 0) return
     if (this.pushingAssets.has(assetKey)) return
@@ -54,7 +54,7 @@ export class SupabaseDividendRepository implements IDividendRepository {
     // Push ALL local rows for this asset, not just the new batch. This ensures
     // that when switching from offline to online, the full history accumulated
     // locally is synced in one shot.
-    const allRows = this.localRepo.listByAsset(assetKey)
+    const allRows = (await this.localRepo.listByAsset(assetKey))
     void this.pushToSupabase(assetKey, allRows)
       .then(() => {
         this.lastPushedAt.set(assetKey, Date.now())
@@ -104,23 +104,23 @@ export class SupabaseDividendRepository implements IDividendRepository {
     notifySyncStatus({ status: 'synced' })
   }
 
-  listByAsset(assetKey: string) {
+  async listByAsset(assetKey: string) {
     return this.localRepo.listByAsset(assetKey)
   }
 
-  listPendingCorporateActions(assetKey: string, sinceExDate?: string) {
+  async listPendingCorporateActions(assetKey: string, sinceExDate?: string) {
     return this.localRepo.listPendingCorporateActions(assetKey, sinceExDate)
   }
 
-  listAssetKeysWithEvents(): string[] {
+  async listAssetKeysWithEvents(): Promise<string[]> {
     return this.localRepo.listAssetKeysWithEvents()
   }
 
-  listAll(options?: { fromDate?: string; toDate?: string; assetKeys?: string[] }): DividendEventWithAsset[] {
+  async listAll(options?: { fromDate?: string; toDate?: string; assetKeys?: string[] }): Promise<DividendEventWithAsset[]> {
     return this.localRepo.listAll(options)
   }
 
-  listUpcomingByAssetKeys(assetKeys: string[], sinceYear?: number): DividendEventWithAsset[] {
+  async listUpcomingByAssetKeys(assetKeys: string[], sinceYear?: number): Promise<DividendEventWithAsset[]> {
     return this.localRepo.listUpcomingByAssetKeys(assetKeys, sinceYear)
   }
 }

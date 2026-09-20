@@ -49,7 +49,7 @@ export class SourceGateway {
     const dedupeKey = this.buildDedupeKey(request, providers)
     const cacheKey = this.cache.buildKey(request as SourceRequest<unknown>)
 
-    const freshCache = this.cache.getFresh<TOutput>(cacheKey, policy.cacheTtlMs)
+    const freshCache = (await this.cache.getFresh<TOutput>(cacheKey, policy.cacheTtlMs))
     if (freshCache) {
       return freshCache
     }
@@ -132,7 +132,7 @@ export class SourceGateway {
             fetchedAt: new Date().toISOString()
           }
 
-          this.cache.set(cacheKey, response)
+          await this.cache.set(cacheKey, response)
           this.healthRegistry.recordSuccess(provider, endpoint.id)
           if (policy.useCircuitBreaker) {
             this.circuitBreaker.recordSuccess(provider)
@@ -154,7 +154,7 @@ export class SourceGateway {
         }
 
         if (policy.degradeMode === 'stale-while-error') {
-          const staleCache = this.cache.getStale<TOutput>(cacheKey, policy.staleTtlMs)
+          const staleCache = (await this.cache.getStale<TOutput>(cacheKey, policy.staleTtlMs))
           if (staleCache) {
             return staleCache
           }
@@ -163,7 +163,7 @@ export class SourceGateway {
     }
 
     if (policy.degradeMode === 'fallback' && policy.staleTtlMs) {
-      const staleCache = this.cache.getStale<TOutput>(cacheKey, policy.staleTtlMs)
+      const staleCache = (await this.cache.getStale<TOutput>(cacheKey, policy.staleTtlMs))
       if (staleCache) {
         return staleCache
       }

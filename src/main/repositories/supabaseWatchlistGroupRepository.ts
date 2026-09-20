@@ -9,6 +9,12 @@ import type { IWatchlistGroupRepository, WatchlistAssetRecord } from '@main/repo
 export class SupabaseWatchlistGroupRepository implements IWatchlistGroupRepository {
   private readonly localRepo = new WatchlistGroupRepository()
 
+  private async ensureLocalGroup(id: string): Promise<void> {
+    if (!(await this.localRepo.listGroups()).some((group) => group.id === id)) {
+      await this.listGroups()
+    }
+  }
+
   private async getUserId(): Promise<string> {
     const session = await authService.getSession()
     if (!session?.user.id) throw new Error('未登录，无法访问云端分组数据')
@@ -55,118 +61,117 @@ export class SupabaseWatchlistGroupRepository implements IWatchlistGroupReposito
         }
       }
 
-      return (groupsData ?? []).map((row: Record<string, unknown>) => ({
+      const groups = (groupsData ?? []).map((row: Record<string, unknown>) => ({
         id: String(row['id']),
         name: String(row['name']),
         color: row['color'] ? String(row['color']) : undefined,
         sortOrder: Number(row['sort_order'] ?? 0),
         assetCount: countMap.get(String(row['id'])) ?? 0
       }))
+      await this.localRepo.cacheGroups(groups, (countsData ?? []).map((row: Record<string, unknown>) => ({
+        groupId: String(row['group_id']), assetKey: String(row['asset_key'])
+      })))
+      return groups
     } catch {
       notifySyncStatus({ status: 'offline-fallback', message: '无法读取云端分组数据，使用本地缓存' })
       return this.localRepo.listGroups()
     }
   }
 
-  async createGroup(request: WatchlistGroupUpsertDto): Promise<WatchlistGroupDto> {
-    const local = await this.localRepo.createGroup(request)
-    const supabase = getSupabaseClient()
-    if (!supabase) return local
+  private failWrite(error: unknown): never {
+    const message = error instanceof Error ? error.message
+      : typeof error === 'object' && error !== null && 'message' in error ? String(error.message)
+      : String(error)
+    notifySyncStatus({ status: 'error', message: `分组操作失败：${message}` })
+    throw error instanceof Error ? error : new Error(message)
+  }
 
+  async createGroup(request: WatchlistGroupUpsertDto): Promise<WatchlistGroupDto> {
+    const supabase = getSupabaseClient()
+    if (!supabase) return this.localRepo.createGroup(request)
+    // Use-case validation runs before this boundary; generate identity without mutating the mirror.
+    const group: WatchlistGroupDto = {
+      id: globalThis.crypto.randomUUID(), name: request.name.trim(), color: request.color,
+      sortOrder: request.sortOrder ?? 0, assetCount: 0
+    }
     try {
       const userId = await this.getUserId()
       const now = new Date().toISOString()
-
-      await supabase.from('watchlist_groups').insert({
-        id: local.id,
-        user_id: userId,
-        name: local.name,
-        color: local.color ?? null,
-        sort_order: local.sortOrder,
-        created_at: now,
-        updated_at: now
+      const { error } = await supabase.from('watchlist_groups').insert({
+        id: group.id, user_id: userId, name: group.name, color: group.color ?? null,
+        sort_order: group.sortOrder, created_at: now, updated_at: now
       })
-
+      if (error) throw error
+      await this.localRepo.cacheGroups([group], [])
       notifySyncStatus({ status: 'synced' })
-    } catch {
-      notifySyncStatus({ status: 'offline-fallback', message: '分组已保存在本地，云端同步失败' })
+      return group
+    } catch (error) {
+      return this.failWrite(error)
     }
-
-    return local
   }
 
   async updateGroup(id: string, request: WatchlistGroupUpsertDto): Promise<WatchlistGroupDto> {
-    const local = await this.localRepo.updateGroup(id, request)
     const supabase = getSupabaseClient()
-    if (!supabase) return local
-
+    if (!supabase) return this.localRepo.updateGroup(id, request)
     try {
       const userId = await this.getUserId()
-      const now = new Date().toISOString()
-
-      await supabase.from('watchlist_groups')
-        .update({ name: local.name, color: local.color ?? null, sort_order: local.sortOrder, updated_at: now })
-        .eq('id', id)
-        .eq('user_id', userId)
-
+      const { error } = await supabase.from('watchlist_groups')
+        .update({ name: request.name.trim(), color: request.color ?? null,
+          ...(request.sortOrder === undefined ? {} : { sort_order: request.sortOrder }), updated_at: new Date().toISOString() })
+        .eq('id', id).eq('user_id', userId)
+      if (error) throw error
+      await this.ensureLocalGroup(id)
+      const local = await this.localRepo.updateGroup(id, request)
       notifySyncStatus({ status: 'synced' })
-    } catch {
-      notifySyncStatus({ status: 'offline-fallback', message: '分组更新已保存在本地，云端同步失败' })
+      return local
+    } catch (error) {
+      return this.failWrite(error)
     }
-
-    return local
   }
 
   async deleteGroup(id: string): Promise<void> {
-    await this.localRepo.deleteGroup(id)
     const supabase = getSupabaseClient()
-    if (!supabase) return
-
+    if (!supabase) return this.localRepo.deleteGroup(id)
     try {
       const userId = await this.getUserId()
-      await supabase.from('watchlist_groups').delete().eq('id', id).eq('user_id', userId)
+      const { error } = await supabase.from('watchlist_groups').delete().eq('id', id).eq('user_id', userId)
+      if (error) throw error
+      await this.localRepo.deleteGroup(id)
       notifySyncStatus({ status: 'synced' })
-    } catch {
-      notifySyncStatus({ status: 'offline-fallback', message: '分组已从本地删除，云端同步失败' })
+    } catch (error) {
+      this.failWrite(error)
     }
   }
 
   async addToGroup(groupId: string, assetKey: AssetKey): Promise<void> {
-    await this.localRepo.addToGroup(groupId, assetKey)
     const supabase = getSupabaseClient()
-    if (!supabase) return
-
+    if (!supabase) return this.localRepo.addToGroup(groupId, assetKey)
     try {
       const userId = await this.getUserId()
-      const now = new Date().toISOString()
-
-      await supabase.from('watchlist_group_assets').upsert({
-        group_id: groupId,
-        user_id: userId,
-        asset_key: assetKey.trim(),
-        added_at: now
+      const { error } = await supabase.from('watchlist_group_assets').upsert({
+        group_id: groupId, user_id: userId, asset_key: assetKey.trim(), added_at: new Date().toISOString()
       }, { onConflict: 'group_id,asset_key' })
-
+      if (error) throw error
+      await this.ensureLocalGroup(groupId)
+      await this.localRepo.addToGroup(groupId, assetKey)
       notifySyncStatus({ status: 'synced' })
-    } catch {
-      notifySyncStatus({ status: 'offline-fallback', message: '资产已加入本地分组，云端同步失败' })
+    } catch (error) {
+      this.failWrite(error)
     }
   }
 
   async removeFromGroup(groupId: string, assetKey: AssetKey): Promise<void> {
-    await this.localRepo.removeFromGroup(groupId, assetKey)
     const supabase = getSupabaseClient()
-    if (!supabase) return
-
+    if (!supabase) return this.localRepo.removeFromGroup(groupId, assetKey)
     try {
       const userId = await this.getUserId()
-      await supabase.from('watchlist_group_assets').delete()
-        .eq('group_id', groupId)
-        .eq('user_id', userId)
-        .eq('asset_key', assetKey.trim())
+      const { error } = await supabase.from('watchlist_group_assets').delete()
+        .eq('group_id', groupId).eq('user_id', userId).eq('asset_key', assetKey.trim())
+      if (error) throw error
+      await this.localRepo.removeFromGroup(groupId, assetKey)
       notifySyncStatus({ status: 'synced' })
-    } catch {
-      notifySyncStatus({ status: 'offline-fallback', message: '资产已从本地分组移除，云端同步失败' })
+    } catch (error) {
+      this.failWrite(error)
     }
   }
 
@@ -224,8 +229,7 @@ export class SupabaseWatchlistGroupRepository implements IWatchlistGroupReposito
   }
 
   async getAssetGroupIds(assetKey: AssetKey): Promise<string[]> {
-    // 本地库是分组-资产关联的可靠写入源（addToGroup/removeFromGroup 始终先写本地），
-    // 优先以本地为准，保证本端操作立即可见；云端数据作为补充合并，兼顾跨端同步。
+    // 在线读取以云端为准；网络不可用时使用上次成功保存的本地镜像。
     const localIds = await this.localRepo.getAssetGroupIds(assetKey)
     const supabase = getSupabaseClient()
     if (!supabase) return localIds
@@ -241,7 +245,7 @@ export class SupabaseWatchlistGroupRepository implements IWatchlistGroupReposito
       if (error) throw error
 
       const supabaseIds = (data ?? []).map((row: Record<string, unknown>) => String(row['group_id']))
-      return Array.from(new Set([...localIds, ...supabaseIds]))
+      return Array.from(new Set(supabaseIds))
     } catch {
       return localIds
     }

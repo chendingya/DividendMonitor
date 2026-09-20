@@ -47,7 +47,7 @@ export async function handleCalculationRoute({ pathname, method, body, response 
 
   // Backtest history
   if (pathname === '/api/backtest/history' && method === 'GET') {
-    const result = listBacktestHistory()
+    const result = (await listBacktestHistory())
     sendJson(response, 200, result)
     return true
   }
@@ -57,7 +57,7 @@ export async function handleCalculationRoute({ pathname, method, body, response 
       throw new HttpError('回测保存请求体无效。', 400)
     }
     const { result, name, dcaConfig } = body as { result: BacktestResultDto; name?: string; dcaConfig?: string }
-    const saved = saveBacktestHistory(result, name, dcaConfig)
+    const saved = (await saveBacktestHistory(result, name, dcaConfig))
     sendJson(response, 200, saved)
     return true
   }
@@ -67,7 +67,7 @@ export async function handleCalculationRoute({ pathname, method, body, response 
       throw new HttpError('删除请求体无效。', 400)
     }
     const { id } = body as { id: string }
-    const deleted = deleteBacktestHistory(id)
+    const deleted = (await deleteBacktestHistory(id))
     sendJson(response, 200, { deleted })
     return true
   }

@@ -14,7 +14,7 @@ describe('数据库 resolver 注入', () => {
   })
 
   it('安装 resolver 后 getDatabase 返回 resolver 提供的实例并缓存', () => {
-    const marker = { __marker: true } as unknown as import('node:sqlite').DatabaseSync
+    const marker = { __marker: true } as unknown as import('@main/infrastructure/db/databaseTypes').SqliteDatabase
     let calls = 0
     setDatabaseResolver(() => {
       calls += 1

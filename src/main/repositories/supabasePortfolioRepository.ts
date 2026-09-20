@@ -125,7 +125,8 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
 
     try {
       const userId = await this.getUserId()
-      await supabase.from('portfolio_positions').delete().eq('user_id', userId).eq('id', id)
+      const { error } = await supabase.from('portfolio_positions').delete().eq('user_id', userId).eq('id', id)
+      if (error) throw error
       notifySyncStatus({ status: 'synced' })
     } catch {
       notifySyncStatus({ status: 'offline-fallback', message: '云端持仓删除失败' })
@@ -142,7 +143,8 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
     if (supabase) {
       try {
         const userId = await this.getUserId()
-        await supabase.from('portfolio_positions').delete().eq('user_id', userId).eq('asset_key', assetKey)
+        const { error } = await supabase.from('portfolio_positions').delete().eq('user_id', userId).eq('asset_key', assetKey)
+      if (error) throw error
         notifySyncStatus({ status: 'synced' })
       } catch {
         notifySyncStatus({ status: 'offline-fallback', message: '云端持仓删除失败' })
@@ -214,7 +216,7 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
     if (supabase) {
       try {
         const userId = await this.getUserId()
-        await supabase
+        const { error } = await supabase
           .from('portfolio_positions')
           .update({
             shares,
@@ -224,6 +226,7 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
           })
           .eq('id', id)
           .eq('user_id', userId)
+      if (error) throw error
         notifySyncStatus({ status: 'synced' })
       } catch {
         notifySyncStatus({ status: 'offline-fallback', message: '除权除息同步失败，数据仅保存在本地' })

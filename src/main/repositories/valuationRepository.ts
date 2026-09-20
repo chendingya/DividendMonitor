@@ -41,7 +41,7 @@ export class ValuationRepository {
       return memoryHit.value
     }
 
-    const diskHit = this.diskCache.findFreshByKey<StockValuationSource>(symbol, VALUATION_CACHE_TTL_MS)
+    const diskHit = (await this.diskCache.findFreshByKey<StockValuationSource>(symbol, VALUATION_CACHE_TTL_MS))
     if (diskHit) {
       this.memoryCache.set(symbol, diskHit)
       return diskHit
@@ -62,7 +62,7 @@ export class ValuationRepository {
     if (valuation) {
       this.memoryCache.set(symbol, valuation)
       try {
-        this.diskCache.upsert(symbol, JSON.stringify(valuation))
+        await this.diskCache.upsert(symbol, JSON.stringify(valuation))
       } catch {
         // 磁盘缓存写失败不阻断主流程
       }

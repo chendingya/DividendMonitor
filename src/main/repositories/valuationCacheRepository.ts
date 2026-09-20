@@ -7,19 +7,19 @@ export type ValuationCacheRow = {
 }
 
 export class ValuationCacheRepository {
-  upsert(cacheKey: string, dataJson: string): void {
+  async upsert(cacheKey: string, dataJson: string): Promise<void> {
     const db = getDatabase()
-    db.prepare(
+    await db.prepare(
       `INSERT OR REPLACE INTO valuation_cache (cache_key, data_json, fetched_at)
        VALUES (?, ?, ?)`
     ).run(cacheKey, dataJson, new Date().toISOString())
   }
 
-  findByKey(cacheKey: string): ValuationCacheRow | undefined {
+  async findByKey(cacheKey: string): Promise<ValuationCacheRow | undefined> {
     const db = getDatabase()
-    const row = db
+    const row = (await db
       .prepare('SELECT cache_key, data_json, fetched_at FROM valuation_cache WHERE cache_key = ?')
-      .get(cacheKey) as Record<string, string> | undefined
+      .get(cacheKey)) as Record<string, string> | undefined
     if (!row) return undefined
     return {
       cacheKey: row.cache_key,
@@ -28,9 +28,9 @@ export class ValuationCacheRepository {
     }
   }
 
-  findFreshByKey<T>(cacheKey: string, ttlMs: number): T | undefined {
+  async findFreshByKey<T>(cacheKey: string, ttlMs: number): Promise<T | undefined> {
     try {
-      const row = this.findByKey(cacheKey)
+      const row = (await this.findByKey(cacheKey))
       if (!row) return undefined
       const fetchedAtMs = new Date(row.fetchedAt).getTime()
       // 与 TimedCache 语义一致：恰好 TTL 边界仍视为新鲜（严格小于才算过期）

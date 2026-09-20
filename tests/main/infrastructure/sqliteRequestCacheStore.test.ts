@@ -1,3 +1,5 @@
+import { createNodeSqliteDatabase } from '@main/infrastructure/db/nodeSqliteDatabase'
+import type { SqliteDatabase } from '@main/infrastructure/db/databaseTypes'
 import { DatabaseSync } from 'node:sqlite'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { RequestCache } from '@main/infrastructure/dataSources/cache/requestCache'
@@ -11,7 +13,7 @@ const createRequestCacheTable = `
   );
 `
 
-let memoryDb: DatabaseSync
+let memoryDb: SqliteDatabase
 
 vi.mock('@main/infrastructure/db/sqlite', () => ({
   getDatabase: () => memoryDb
@@ -35,70 +37,89 @@ function makeResponse(payload: unknown): SourceResponse<unknown> {
 const DAY_MS = 24 * 60 * 60 * 1000
 
 describe('SqliteRequestCacheStore', () => {
-  beforeEach(() => {
-    memoryDb = new DatabaseSync(':memory:')
-    memoryDb.exec(createRequestCacheTable)
+  beforeEach(async () => {
+    memoryDb = createNodeSqliteDatabase(new DatabaseSync(':memory:'))
+    await memoryDb.exec(createRequestCacheTable)
   })
 
-  it('空表 get 返回 null', () => {
+  it('concurrent writes to the same cache key complete without duplicate-key failures', async () => {
     const store = new SqliteRequestCacheStore()
-    expect(store.get('missing:key')).toBeNull()
+    const cachedAt = new Date().toISOString()
+    await Promise.all([
+      store.set('same', { response: makeResponse('first'), cachedAt }),
+      store.set('same', { response: makeResponse('second'), cachedAt })
+    ])
+    expect((await store.get('same'))?.response.data).toBe('second')
   })
 
-  it('set 后 get 往返还原响应', () => {
+  it('a replaced provider connection is used after backup closes the old database', async () => {
+    const store = new SqliteRequestCacheStore()
+    await store.set('old', { response: makeResponse('old'), cachedAt: new Date().toISOString() })
+    await memoryDb.close()
+    memoryDb = createNodeSqliteDatabase(new DatabaseSync(':memory:'))
+    await memoryDb.exec(createRequestCacheTable)
+    expect(await store.get('old')).toBeNull()
+  })
+
+  it('空表 get 返回 null', async () => {
+    const store = new SqliteRequestCacheStore()
+    expect((await store.get('missing:key'))).toBeNull()
+  })
+
+  it('set 后 get 往返还原响应', async () => {
     const store = new SqliteRequestCacheStore()
     const response = makeResponse({ code: '600519', price: 1450 })
     // cachedAt 必须落在 7 天惰性清理窗口内，否则条目会在 set 时被立即清除
     const cachedAt = new Date().toISOString()
 
-    store.set('cap:{a:1}', {
+    await store.set('cap:{a:1}', {
       response,
       cachedAt
     })
 
-    const entry = store.get('cap:{a:1}')
+    const entry = (await store.get('cap:{a:1}'))
     expect(entry?.response).toEqual(response)
     expect(entry?.cachedAt).toBe(cachedAt)
   })
 
-  it('delete 移除条目', () => {
+  it('delete 移除条目', async () => {
     const store = new SqliteRequestCacheStore()
-    store.set('cap:{a:1}', { response: makeResponse(1), cachedAt: new Date().toISOString() })
+    await store.set('cap:{a:1}', { response: makeResponse(1), cachedAt: new Date().toISOString() })
 
-    store.delete('cap:{a:1}')
+    await store.delete('cap:{a:1}')
 
-    expect(store.get('cap:{a:1}')).toBeNull()
+    expect((await store.get('cap:{a:1}'))).toBeNull()
   })
 
-  it('clear 清空全部条目', () => {
+  it('clear 清空全部条目', async () => {
     const store = new SqliteRequestCacheStore()
-    store.set('cap:{a:1}', { response: makeResponse(1), cachedAt: new Date().toISOString() })
-    store.set('cap:{a:2}', { response: makeResponse(2), cachedAt: new Date().toISOString() })
+    await store.set('cap:{a:1}', { response: makeResponse(1), cachedAt: new Date().toISOString() })
+    await store.set('cap:{a:2}', { response: makeResponse(2), cachedAt: new Date().toISOString() })
 
-    store.clear()
+    await store.clear()
 
-    expect(store.get('cap:{a:1}')).toBeNull()
-    expect(store.get('cap:{a:2}')).toBeNull()
+    expect((await store.get('cap:{a:1}'))).toBeNull()
+    expect((await store.get('cap:{a:2}'))).toBeNull()
   })
 
-  it('set 时惰性清理 7 天前的过期条目', () => {
+  it('set 时惰性清理 7 天前的过期条目', async () => {
     const store = new SqliteRequestCacheStore()
     const oldTs = new Date(Date.now() - 8 * DAY_MS).toISOString()
-    store.set('cap:{old}', { response: makeResponse('old'), cachedAt: oldTs })
+    await store.set('cap:{old}', { response: makeResponse('old'), cachedAt: oldTs })
 
-    store.set('cap:{new}', { response: makeResponse('new'), cachedAt: new Date().toISOString() })
+    await store.set('cap:{new}', { response: makeResponse('new'), cachedAt: new Date().toISOString() })
 
-    expect(store.get('cap:{old}')).toBeNull()
-    expect(store.get('cap:{new}')).not.toBeNull()
+    expect((await store.get('cap:{old}'))).toBeNull()
+    expect((await store.get('cap:{new}'))).not.toBeNull()
   })
 
-  it('损坏的 JSON 条目返回 null 而不抛错', () => {
+  it('损坏的 JSON 条目返回 null 而不抛错', async () => {
     const store = new SqliteRequestCacheStore()
-    memoryDb
+    await memoryDb
       .prepare("INSERT INTO request_cache (cache_key, data_json, cached_at) VALUES ('cap:{bad}', 'not-json', '2026-08-06T00:00:00.000Z')")
       .run()
 
-    expect(store.get('cap:{bad}')).toBeNull()
+    expect((await store.get('cap:{bad}'))).toBeNull()
   })
 })
 
@@ -116,89 +137,89 @@ describe('SqliteRequestCacheStore 降级', () => {
     )
     const store = new DegradedStore()
 
-    expect(() => store.set('cap:{a:1}', { response: makeResponse(1), cachedAt: '2026-08-06T00:00:00.000Z' })).not.toThrow()
-    expect(store.get('cap:{a:1}')).toBeNull()
-    expect(() => store.delete('cap:{a:1}')).not.toThrow()
-    expect(() => store.clear()).not.toThrow()
+    await expect(store.set('cap:{a:1}', { response: makeResponse(1), cachedAt: '2026-08-06T00:00:00.000Z' })).resolves.toBeUndefined()
+    expect((await store.get('cap:{a:1}'))).toBeNull()
+    await expect(store.delete('cap:{a:1}')).resolves.toBeUndefined()
+    await expect(store.clear()).resolves.toBeUndefined()
   })
 })
 
 describe('RequestCache + SqliteRequestCacheStore 集成', () => {
-  beforeEach(() => {
-    memoryDb = new DatabaseSync(':memory:')
-    memoryDb.exec(createRequestCacheTable)
+  beforeEach(async () => {
+    memoryDb = createNodeSqliteDatabase(new DatabaseSync(':memory:'))
+    await memoryDb.exec(createRequestCacheTable)
   })
 
-  it('写入后新实例可从磁盘读回（进程重启持久化）', () => {
+  it('写入后新实例可从磁盘读回（进程重启持久化）', async () => {
     const store = new SqliteRequestCacheStore()
     const first = new RequestCache(store)
-    first.set('cap:{a:1}', makeResponse({ price: 1450 }))
+    await first.set('cap:{a:1}', makeResponse({ price: 1450 }))
 
     const second = new RequestCache(store)
-    const cached = second.getFresh<{ price: number }>('cap:{a:1}', 60_000)
+    const cached = (await second.getFresh<{ price: number }>('cap:{a:1}', 60_000))
 
     expect(cached?.data).toEqual({ price: 1450 })
     expect(cached?.isStale).toBe(false)
   })
 
-  it('磁盘条目过期时 getFresh 返回 null', () => {
+  it('磁盘条目过期时 getFresh 返回 null', async () => {
     const store = new SqliteRequestCacheStore()
-    store.set('cap:{a:1}', {
+    await store.set('cap:{a:1}', {
       response: makeResponse(1),
       cachedAt: new Date(Date.now() - 2 * 60_000).toISOString()
     })
 
     const cache = new RequestCache(store)
-    expect(cache.getFresh<number>('cap:{a:1}', 1000)).toBeNull()
+    expect((await cache.getFresh<number>('cap:{a:1}', 1000))).toBeNull()
   })
 
-  it('getStale 可从磁盘命中并标记 isStale', () => {
+  it('getStale 可从磁盘命中并标记 isStale', async () => {
     const store = new SqliteRequestCacheStore()
-    store.set('cap:{a:1}', {
+    await store.set('cap:{a:1}', {
       response: makeResponse(1),
       cachedAt: new Date(Date.now() - 60_000).toISOString()
     })
 
     const cache = new RequestCache(store)
-    const cached = cache.getStale<number>('cap:{a:1}', 24 * 60 * 60 * 1000)
+    const cached = (await cache.getStale<number>('cap:{a:1}', 24 * 60 * 60 * 1000))
 
     expect(cached?.data).toBe(1)
     expect(cached?.isStale).toBe(true)
   })
 
-  it('磁盘条目超过 staleTtl 时删除磁盘与内存并返回 null', () => {
+  it('磁盘条目超过 staleTtl 时删除磁盘与内存并返回 null', async () => {
     const store = new SqliteRequestCacheStore()
-    store.set('cap:{a:1}', {
+    await store.set('cap:{a:1}', {
       response: makeResponse(1),
       cachedAt: new Date(Date.now() - 2 * DAY_MS).toISOString()
     })
 
     const cache = new RequestCache(store)
-    expect(cache.getStale<number>('cap:{a:1}', DAY_MS)).toBeNull()
-    expect(store.get('cap:{a:1}')).toBeNull()
+    expect((await cache.getStale<number>('cap:{a:1}', DAY_MS))).toBeNull()
+    expect((await store.get('cap:{a:1}'))).toBeNull()
   })
 
-  it('磁盘命中后回填内存，后续不再查询磁盘', () => {
+  it('磁盘命中后回填内存，后续不再查询磁盘', async () => {
     const store = new SqliteRequestCacheStore()
     const diskGet = vi.spyOn(store, 'get')
-    store.set('cap:{a:1}', { response: makeResponse(1), cachedAt: new Date().toISOString() })
+    await store.set('cap:{a:1}', { response: makeResponse(1), cachedAt: new Date().toISOString() })
 
     const cache = new RequestCache(store)
-    cache.getFresh<number>('cap:{a:1}', 60_000)
+    await cache.getFresh<number>('cap:{a:1}', 60_000)
     expect(diskGet).toHaveBeenCalledTimes(1)
 
-    cache.getFresh<number>('cap:{a:1}', 60_000)
+    await cache.getFresh<number>('cap:{a:1}', 60_000)
     expect(diskGet).toHaveBeenCalledTimes(1)
   })
 
-  it('clear 同时清空磁盘与内存', () => {
+  it('clear 同时清空磁盘与内存', async () => {
     const store = new SqliteRequestCacheStore()
-    store.set('cap:{a:1}', { response: makeResponse(1), cachedAt: new Date().toISOString() })
+    await store.set('cap:{a:1}', { response: makeResponse(1), cachedAt: new Date().toISOString() })
     const cache = new RequestCache(store)
 
-    cache.clear()
+    await cache.clear()
 
-    expect(cache.getFresh<number>('cap:{a:1}', 60_000)).toBeNull()
-    expect(store.get('cap:{a:1}')).toBeNull()
+    expect((await cache.getFresh<number>('cap:{a:1}', 60_000))).toBeNull()
+    expect((await store.get('cap:{a:1}'))).toBeNull()
   })
 })

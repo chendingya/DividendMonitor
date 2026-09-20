@@ -1,5 +1,4 @@
-import axios from 'axios'
-import { getJson, getText } from '@main/infrastructure/http/httpClient'
+import { getArrayBuffer, getJson, getText } from '@main/infrastructure/http/httpClient'
 import type { EndpointDefinition } from '@main/infrastructure/dataSources/types/sourceTypes'
 
 const BACKOFF_BASE_MS = 1500
@@ -26,12 +25,9 @@ export class HttpTransport {
 
     const attemptSend = async (): Promise<TRaw> => {
       if (endpoint.parser === 'gbk') {
-        const response = await axios.get<ArrayBuffer>(url, {
-          responseType: 'arraybuffer',
-          ...config
-        })
+        const response = await getArrayBuffer(url, config)
         const decoder = new TextDecoder('gbk')
-        return decoder.decode(response.data) as TRaw
+        return decoder.decode(response) as TRaw
       }
 
       if (endpoint.parser === 'text') {

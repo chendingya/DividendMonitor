@@ -38,6 +38,10 @@ export default defineConfig(({ mode }) => {
     }
   },
   renderer: {
+    define: {
+      'process.env.SUPABASE_URL': JSON.stringify(env.SUPABASE_URL || ''),
+      'process.env.SUPABASE_ANON_KEY': JSON.stringify(env.SUPABASE_ANON_KEY || '')
+    },
     server: {
       host: '127.0.0.1',
       port: Number(process.env.PREVIEW_PORT) || 8192,

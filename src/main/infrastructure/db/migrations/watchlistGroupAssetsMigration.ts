@@ -1,15 +1,15 @@
-import type { DatabaseSync } from 'node:sqlite'
+import type { SqliteDatabase } from '@main/infrastructure/db/databaseTypes'
 
-export function migrateWatchlistGroupAssetsForeignKey(db: DatabaseSync): void {
-  const tableInfo = db
+export async function migrateWatchlistGroupAssetsForeignKey(db: SqliteDatabase): Promise<void> {
+  const tableInfo = (await db
     .prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='watchlist_group_assets'")
-    .get() as { sql: string } | undefined
+    .get()) as { sql: string } | undefined
   if (!tableInfo) return
 
   if (!tableInfo.sql.includes('REFERENCES watchlist_items')) return
 
-  db.exec(`
-    BEGIN;
+  await db.transaction(async (tx) => {
+    await tx.exec(`
 
     CREATE TABLE IF NOT EXISTS watchlist_group_assets_v2 (
       group_id TEXT NOT NULL REFERENCES watchlist_groups(id) ON DELETE CASCADE,
@@ -27,6 +27,6 @@ export function migrateWatchlistGroupAssetsForeignKey(db: DatabaseSync): void {
     CREATE INDEX IF NOT EXISTS idx_watchlist_group_assets_group
       ON watchlist_group_assets(group_id, added_at DESC);
 
-    COMMIT;
   `)
+  })
 }

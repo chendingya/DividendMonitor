@@ -151,7 +151,7 @@ describe('refreshMarketYieldMap 云端上传', () => {
     ])
     mockRepo.getFetchedAt.mockReturnValue(new Date().toISOString())
 
-    const refreshPromise = refreshMarketYieldMap()
+    const refreshPromise = (await refreshMarketYieldMap())
     const result = await Promise.race([
       refreshPromise,
       new Promise((resolve) => setTimeout(() => resolve('TIMEOUT'), 200))

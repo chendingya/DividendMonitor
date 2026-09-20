@@ -137,7 +137,7 @@ export class HousingService {
           secondHandYoY: record.secondHandYoY
         }))
 
-    const cached = this.indexCacheRepo.findByCity(city)
+    const cached = (await this.indexCacheRepo.findByCity(city))
     if (cached) {
       return toDto(cached)
     }
@@ -145,11 +145,11 @@ export class HousingService {
     try {
       const records: HousingIndexRecord[] = await this.eastmoney.getCityHistory(city)
       if (records.length > 0) {
-        this.indexCacheRepo.upsertMany(city, records)
+        await this.indexCacheRepo.upsertMany(city, records)
       }
       return toDto(records)
     } catch {
-      const stale = this.indexCacheRepo.findByCity(city, { allowStale: true })
+      const stale = (await this.indexCacheRepo.findByCity(city, { allowStale: true }))
       return stale ? toDto(stale) : []
     }
   }
@@ -188,16 +188,16 @@ export class HousingService {
       }))
   }
 
-  watchCity(city: string): void {
-    this.watchlistRepo.add(city, city)
+  async watchCity(city: string): Promise<void> {
+    await this.watchlistRepo.add(city, city)
   }
 
-  unwatchCity(city: string): void {
-    this.watchlistRepo.remove(city)
+  async unwatchCity(city: string): Promise<void> {
+    await this.watchlistRepo.remove(city)
   }
 
-  updateUserData(request: UserHousingDataUpsertDto): void {
-    this.userDataRepo.upsert({
+  async updateUserData(request: UserHousingDataUpsertDto): Promise<void> {
+    await this.userDataRepo.upsert({
       cityCode: request.city,
       district: request.district,
       community: request.community,
@@ -207,7 +207,7 @@ export class HousingService {
     })
   }
 
-  removeUserData(city: string): void {
-    this.userDataRepo.remove(city)
+  async removeUserData(city: string): Promise<void> {
+    await this.userDataRepo.remove(city)
   }
 }

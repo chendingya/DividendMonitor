@@ -36,19 +36,19 @@ function buildCacheKey(items: Array<{ assetKey: string; marketValue: number }>):
   return `risk_${hash}`
 }
 
-function readRiskCache(cacheKey: string): PortfolioRiskMetricsResult | null {
+async function readRiskCache(cacheKey: string): Promise<PortfolioRiskMetricsResult | null> {
   try {
     const db = getDatabase()
-    const row = db
+    const row = (await db
       .prepare(
         'SELECT data_json, fetched_at FROM portfolio_risk_snapshots WHERE cache_key = ?'
       )
-      .get(cacheKey) as Record<string, string> | undefined
+      .get(cacheKey)) as Record<string, string> | undefined
     if (!row) return null
 
     const fetchedAt = new Date(row.fetched_at).getTime()
     if (Date.now() - fetchedAt > RISK_CACHE_TTL_MS) {
-      db.prepare('DELETE FROM portfolio_risk_snapshots WHERE cache_key = ?').run(cacheKey)
+      await db.prepare('DELETE FROM portfolio_risk_snapshots WHERE cache_key = ?').run(cacheKey)
       return null
     }
 
@@ -58,11 +58,11 @@ function readRiskCache(cacheKey: string): PortfolioRiskMetricsResult | null {
   }
 }
 
-function writeRiskCache(cacheKey: string, data: PortfolioRiskMetricsResult): void {
+async function writeRiskCache(cacheKey: string, data: PortfolioRiskMetricsResult): Promise<void> {
   try {
     const db = getDatabase()
     const now = new Date().toISOString()
-    db.prepare(
+    await db.prepare(
       'INSERT OR REPLACE INTO portfolio_risk_snapshots (cache_key, data_json, fetched_at) VALUES (?, ?, ?)'
     ).run(cacheKey, JSON.stringify(data), now)
   } catch {
@@ -78,7 +78,7 @@ export async function getPortfolioRiskMetrics(
   }
 
   const cacheKey = buildCacheKey(request.items)
-  const cached = readRiskCache(cacheKey)
+  const cached = (await readRiskCache(cacheKey))
   if (cached) return cached
 
   const totalValue = request.items.reduce((sum, item) => sum + item.marketValue, 0)
@@ -122,6 +122,6 @@ export async function getPortfolioRiskMetrics(
   const result = calculatePortfolioRisk(holdings)
   if (!result) return {}
 
-  writeRiskCache(cacheKey, result)
+  await writeRiskCache(cacheKey, result)
   return result
 }

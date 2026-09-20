@@ -116,3 +116,65 @@ describe('syncStatus broadcaster 注入', () => {
     expect(syncStatusNotifier.getLastSyncStatus()).toEqual({ status: 'offline-fallback', message: '降级' })
   })
 })
+
+describe('进程内订阅面（subscribe 与广播器并行，Task 5）', () => {
+  const callbacks: AuthStateCallback[] = []
+
+  beforeEach(() => {
+    callbacks.length = 0
+  })
+
+  afterEach(() => {
+    vi.doUnmock('@main/infrastructure/supabase/supabaseClient')
+    vi.resetModules()
+  })
+
+  it('subscribeAuthState 与广播器并行收到 session；取消订阅只停止订阅者，不影响广播器', async () => {
+    const { authService } = await loadModules(createFakeSupabase({ onAuthStateChange: callbacks }))
+    const listenerSessions: unknown[] = []
+    const broadcasterSessions: unknown[] = []
+    authService.setAuthStateBroadcaster((session) => {
+      broadcasterSessions.push(session)
+    })
+    const unsubscribe = authService.subscribeAuthState((session) => {
+      listenerSessions.push(session)
+    })
+
+    authService.startAuthListener()
+    callbacks[0]!('SIGNED_IN', FAKE_SESSION)
+
+    // 订阅者与桌面广播器收到同一映射 session（广播器不被订阅面替换）
+    expect(listenerSessions).toEqual([
+      { user: { id: 'user-1', email: 'user@example.com' }, expiresAt: 4102444800 }
+    ])
+    expect(broadcasterSessions).toEqual(listenerSessions)
+
+    unsubscribe()
+    callbacks[0]!('SIGNED_OUT', null)
+    expect(listenerSessions).toHaveLength(1)
+    expect(broadcasterSessions).toHaveLength(2)
+    expect(broadcasterSessions[1]).toBeNull()
+  })
+
+  it('subscribeSyncStatus 与广播器并行收到事件；取消订阅只停止订阅者，不影响广播器', async () => {
+    const { syncStatusNotifier } = await loadModules(null)
+    const listenerEvents: unknown[] = []
+    const broadcasterEvents: unknown[] = []
+    syncStatusNotifier.setSyncStatusBroadcaster((event) => {
+      broadcasterEvents.push(event)
+    })
+    const unsubscribe = syncStatusNotifier.subscribeSyncStatus((event) => {
+      listenerEvents.push(event)
+    })
+
+    syncStatusNotifier.notifySyncStatus({ status: 'error', message: '同步失败' })
+    expect(listenerEvents).toEqual([{ status: 'error', message: '同步失败', timestamp: expect.any(Number) }])
+    expect(broadcasterEvents).toEqual(listenerEvents)
+
+    unsubscribe()
+    syncStatusNotifier.notifySyncStatus({ status: 'synced' })
+    expect(listenerEvents).toHaveLength(1)
+    expect(broadcasterEvents).toHaveLength(2)
+    expect(broadcasterEvents[1]).toMatchObject({ status: 'synced' })
+  })
+})

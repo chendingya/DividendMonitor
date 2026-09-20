@@ -4,7 +4,7 @@ import {
   browserSessionStorage,
   type SupabaseSyncStorage
 } from '@main/infrastructure/supabase/browserSessionStorage'
-import { resolveSessionStorage } from '@main/infrastructure/supabase/supabaseClient'
+import { resolveSessionStorage, setSessionStorage } from '@main/infrastructure/supabase/supabaseClient'
 
 // sessionFileStorage 顶层依赖 electron（app/safeStorage），纯 node 测试环境 mock 掉；
 // 本测试不触发其文件读写，mock 仅保证模块可导入。
@@ -115,12 +115,12 @@ describe('resolveSessionStorage', () => {
     expect(resolveSessionStorage()).toBe(browserSessionStorage)
   })
 
-  it('Electron main（process.versions.electron 存在）返回 sessionFileStorage', () => {
-    ;(process.versions as { electron?: string }).electron = '35.0.0'
+  it('Electron main 入口注入后返回加密文件存储', () => {
+    setSessionStorage(sessionFileStorage)
     try {
       expect(resolveSessionStorage()).toBe(sessionFileStorage)
     } finally {
-      delete (process.versions as { electron?: string }).electron
+      setSessionStorage(browserSessionStorage)
     }
   })
 

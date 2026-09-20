@@ -1,3 +1,5 @@
+import { createNodeSqliteDatabase } from '@main/infrastructure/db/nodeSqliteDatabase'
+import type { SqliteDatabase } from '@main/infrastructure/db/databaseTypes'
 import { DatabaseSync } from 'node:sqlite'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -17,15 +19,15 @@ const { migrateDividendEventStatus } = await import(
 )
 
 describe('db migrations', () => {
-  let db: DatabaseSync
+  let db: SqliteDatabase
 
   beforeEach(() => {
-    db = new DatabaseSync(':memory:')
+    db = createNodeSqliteDatabase(new DatabaseSync(':memory:'))
   })
 
-  it('watchlist_group_assets 迁移后无对 watchlist_items 的外键', () => {
-    db.exec('PRAGMA foreign_keys = ON')
-    db.exec(`
+  it('watchlist_group_assets 迁移后无对 watchlist_items 的外键', async () => {
+    await db.exec('PRAGMA foreign_keys = ON')
+    await db.exec(`
       CREATE TABLE watchlist_items (
         asset_key TEXT PRIMARY KEY,
         asset_type TEXT NOT NULL,
@@ -54,25 +56,25 @@ describe('db migrations', () => {
       INSERT INTO watchlist_group_assets VALUES ('g1','STOCK:A_SHARE:600519','2026-01-01');
     `)
 
-    migrateWatchlistGroupAssetsForeignKey(db)
+    await migrateWatchlistGroupAssetsForeignKey(db)
 
-    db.prepare('DELETE FROM watchlist_items WHERE asset_key = ?').run('STOCK:A_SHARE:600519')
-    db.prepare('INSERT OR IGNORE INTO watchlist_group_assets VALUES (?,?,?)').run(
+    await db.prepare('DELETE FROM watchlist_items WHERE asset_key = ?').run('STOCK:A_SHARE:600519')
+    await db.prepare('INSERT OR IGNORE INTO watchlist_group_assets VALUES (?,?,?)').run(
       'g1',
       'STOCK:A_SHARE:600519',
       '2026-01-02'
     )
-    const row = db
+    const row = (await db
       .prepare('SELECT asset_key FROM watchlist_group_assets WHERE group_id=? AND asset_key=?')
-      .get('g1', 'STOCK:A_SHARE:600519')
+      .get('g1', 'STOCK:A_SHARE:600519'))
     expect(row).toBeTruthy()
 
-    const allRows = db.prepare('SELECT * FROM watchlist_group_assets').all()
+    const allRows = (await db.prepare('SELECT * FROM watchlist_group_assets').all())
     expect(allRows.length).toBe(1)
   })
 
-  it('portfolio_positions 加 risk_level 列', () => {
-    db.exec(`
+  it('portfolio_positions 加 risk_level 列', async () => {
+    await db.exec(`
       CREATE TABLE portfolio_positions (
         id TEXT PRIMARY KEY,
         asset_key TEXT NOT NULL,
@@ -88,9 +90,9 @@ describe('db migrations', () => {
       );
     `)
 
-    migratePortfolioRiskLevelColumn(db)
+    await migratePortfolioRiskLevelColumn(db)
 
-    db.prepare(
+    await db.prepare(
       'INSERT INTO portfolio_positions (id, asset_key, asset_type, market, code, name, direction, shares, avg_cost, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)'
     ).run(
       'p1',
@@ -105,20 +107,20 @@ describe('db migrations', () => {
       '2026-01-01',
       '2026-01-01'
     )
-    const row = db.prepare('SELECT risk_level FROM portfolio_positions WHERE id=?').get('p1') as {
+    const row = (await db.prepare('SELECT risk_level FROM portfolio_positions WHERE id=?').get('p1')) as {
       risk_level: string | null
     }
     expect(row.risk_level).toBeNull()
 
-    db.prepare('UPDATE portfolio_positions SET risk_level=? WHERE id=?').run('LOW', 'p1')
-    const updated = db.prepare('SELECT risk_level FROM portfolio_positions WHERE id=?').get('p1') as {
+    await db.prepare('UPDATE portfolio_positions SET risk_level=? WHERE id=?').run('LOW', 'p1')
+    const updated = (await db.prepare('SELECT risk_level FROM portfolio_positions WHERE id=?').get('p1')) as {
       risk_level: string
     }
     expect(updated.risk_level).toBe('LOW')
   })
 
-  it('dividend_events 含 status 列且默认 IMPLEMENTED', () => {
-    db.exec(`
+  it('dividend_events 含 status 列且默认 IMPLEMENTED', async () => {
+    await db.exec(`
       CREATE TABLE dividend_events (
         asset_key TEXT NOT NULL,
         year INTEGER NOT NULL,
@@ -138,12 +140,12 @@ describe('db migrations', () => {
         PRIMARY KEY (asset_key, ex_date)
       );
     `)
-    db.prepare(`INSERT INTO dividend_events (asset_key, year, announce_date, ex_date, dividend_per_share, reference_close_price, source, fetched_at) VALUES (?,?,?,?,?,?,?,?)`)
+    await db.prepare(`INSERT INTO dividend_events (asset_key, year, announce_date, ex_date, dividend_per_share, reference_close_price, source, fetched_at) VALUES (?,?,?,?,?,?,?,?)`)
       .run('STOCK:A_SHARE:600519', 2024, '2024-07-01', '2024-07-15', 0.5, 1500, 'eastmoney', '2024-08-01T00:00:00Z')
 
-    migrateDividendEventStatus(db)
+    await migrateDividendEventStatus(db)
 
-    const cols = db.prepare('PRAGMA table_info(dividend_events)').all() as Array<{ name: string; dflt_value: string | null }>
+    const cols = (await db.prepare('PRAGMA table_info(dividend_events)').all()) as Array<{ name: string; dflt_value: string | null }>
     const s = cols.find((c) => c.name === 'status')
     expect(s).toBeDefined()
     expect(s?.dflt_value).toBe("'IMPLEMENTED'")
@@ -151,19 +153,19 @@ describe('db migrations', () => {
 })
 
 describe('yield_map_snapshots migration', () => {
-  let db: DatabaseSync
+  let db: SqliteDatabase
 
   beforeEach(() => {
-    db = new DatabaseSync(':memory:')
+    db = createNodeSqliteDatabase(new DatabaseSync(':memory:'))
   })
 
-  it('创建 yield_map_snapshots 表并支持读写', () => {
-    migrateYieldMapSnapshots(db)
-    db.prepare(`
+  it('创建 yield_map_snapshots 表并支持读写', async () => {
+    await migrateYieldMapSnapshots(db)
+    await db.prepare(`
       INSERT INTO yield_map_snapshots (asset_key, symbol, name, industry, price, yield_ttm, total_dps_12m, fetched_at)
       VALUES ('STOCK:A_SHARE:600519', '600519', '贵州茅台', '白酒', 1450, 0.0207, 30, '2026-08-03T00:00:00.000Z')
     `).run()
-    const row = db.prepare('SELECT * FROM yield_map_snapshots WHERE asset_key = ?').get('STOCK:A_SHARE:600519')
+    const row = (await db.prepare('SELECT * FROM yield_map_snapshots WHERE asset_key = ?').get('STOCK:A_SHARE:600519'))
     expect(row).toMatchObject({
       symbol: '600519',
       industry: '白酒',

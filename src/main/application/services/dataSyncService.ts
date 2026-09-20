@@ -192,28 +192,29 @@ async function pullCloudToLocal(): Promise<{ watchlist: number; portfolio: numbe
       errors.push(`自选拉取失败: ${error.message}`)
     } else {
       const cloudRows = data ?? []
-      const localWatchlist = new WatchlistRepository()
 
       const db = getDatabase()
-      db.exec('BEGIN')
       try {
-        const localAssets = await localWatchlist.listAssets()
-        for (const asset of localAssets) {
-          const assetKey = buildAssetKey(asset.assetType, asset.market, normalizeAssetCode(asset.code))
-          await localWatchlist.removeAsset(assetKey)
-        }
-        for (const row of cloudRows) {
-          await localWatchlist.addAsset({
-            assetType: String(row['asset_type'] ?? 'STOCK') as 'STOCK' | 'ETF' | 'FUND',
-            market: String(row['market'] ?? 'A_SHARE') as 'A_SHARE',
-            code: normalizeAssetCode(String(row['code'] ?? '')),
-            name: row['name'] ? String(row['name']) : undefined
-          })
-          watchlistCount++
-        }
-        db.exec('COMMIT')
+        await db.transaction(async (tx) => {
+          const localWatchlist = new WatchlistRepository(tx)
+
+          const localAssets = await localWatchlist.listAssets()
+          for (const asset of localAssets) {
+            const assetKey = buildAssetKey(asset.assetType, asset.market, normalizeAssetCode(asset.code))
+            await localWatchlist.removeAsset(assetKey)
+          }
+          for (const row of cloudRows) {
+            await localWatchlist.addAsset({
+              assetType: String(row['asset_type'] ?? 'STOCK') as 'STOCK' | 'ETF' | 'FUND',
+              market: String(row['market'] ?? 'A_SHARE') as 'A_SHARE',
+              code: normalizeAssetCode(String(row['code'] ?? '')),
+              name: row['name'] ? String(row['name']) : undefined
+            })
+            watchlistCount++
+          }
+
+        })
       } catch (innerErr) {
-        db.exec('ROLLBACK')
         throw innerErr
       }
     }
@@ -233,33 +234,34 @@ async function pullCloudToLocal(): Promise<{ watchlist: number; portfolio: numbe
       errors.push(`持仓拉取失败: ${error.message}`)
     } else {
       const cloudRows = data ?? []
-      const localPortfolio = new PortfolioRepository()
 
       const db = getDatabase()
-      db.exec('BEGIN')
       try {
-        const localPositions = await localPortfolio.list()
-        for (const pos of localPositions) {
-          await localPortfolio.remove(pos.id)
-        }
-        for (const row of cloudRows) {
-          await localPortfolio.upsert({
-            id: String(row['id'] ?? ''),
-            assetKey: String(row['asset_key'] ?? ''),
-            assetType: String(row['asset_type'] ?? 'STOCK') as 'STOCK' | 'ETF' | 'FUND',
-            market: String(row['market'] ?? 'A_SHARE') as 'A_SHARE',
-            code: String(row['code'] ?? ''),
-            symbol: String(row['asset_type'] ?? '') === 'STOCK' ? String(row['code'] ?? '') : undefined,
-            name: String(row['name'] ?? ''),
-            direction: String(row['direction'] ?? 'BUY') as 'BUY' | 'SELL',
-            shares: Number(row['shares'] ?? 0),
-            avgCost: Number(row['avg_cost'] ?? 0)
-          })
-          portfolioCount++
-        }
-        db.exec('COMMIT')
+        await db.transaction(async (tx) => {
+          const localPortfolio = new PortfolioRepository(tx)
+
+          const localPositions = await localPortfolio.list()
+          for (const pos of localPositions) {
+            await localPortfolio.remove(pos.id)
+          }
+          for (const row of cloudRows) {
+            await localPortfolio.upsert({
+              id: String(row['id'] ?? ''),
+              assetKey: String(row['asset_key'] ?? ''),
+              assetType: String(row['asset_type'] ?? 'STOCK') as 'STOCK' | 'ETF' | 'FUND',
+              market: String(row['market'] ?? 'A_SHARE') as 'A_SHARE',
+              code: String(row['code'] ?? ''),
+              symbol: String(row['asset_type'] ?? '') === 'STOCK' ? String(row['code'] ?? '') : undefined,
+              name: String(row['name'] ?? ''),
+              direction: String(row['direction'] ?? 'BUY') as 'BUY' | 'SELL',
+              shares: Number(row['shares'] ?? 0),
+              avgCost: Number(row['avg_cost'] ?? 0)
+            })
+            portfolioCount++
+          }
+
+        })
       } catch (innerErr) {
-        db.exec('ROLLBACK')
         throw innerErr
       }
     }

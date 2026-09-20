@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">收息佬</string>
+    <string name="title_activity_main">收息佬</string>
+    <string name="package_name">com.chendingya.dividendmonitor</string>
+    <string name="custom_url_scheme">com.chendingya.dividendmonitor</string>
+</resources>

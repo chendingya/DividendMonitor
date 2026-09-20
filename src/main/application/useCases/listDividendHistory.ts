@@ -56,11 +56,11 @@ export async function listDividendHistory(request?: DividendHistoryRequest): Pro
     return { items: [], yearlySummary: [], monthlyTrend: [], assetSummary: [], totalAmount: 0 }
   }
 
-  const events = dividendRepo.listAll({
+  const events = (await dividendRepo.listAll({
     fromDate: request?.fromDate,
     toDate: request?.toDate,
     assetKeys
-  })
+  }))
 
   // 只保留各资产买入日之后的分红事件
   const items: DividendHistoryItem[] = []

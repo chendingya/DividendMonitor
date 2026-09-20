@@ -5,7 +5,7 @@ import { updateSettings, resetSettings } from '@main/application/useCases/update
 export function registerSettingsChannels() {
   ipcMain.handle('settings:get', () => getSettings())
 
-  ipcMain.handle('settings:update', (_event, payload: Record<string, unknown>) => {
+  ipcMain.handle('settings:update', async (_event, payload: Record<string, unknown>) => {
     return updateSettings(payload)
   })
 

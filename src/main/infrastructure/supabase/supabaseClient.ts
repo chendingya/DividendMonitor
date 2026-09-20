@@ -1,5 +1,4 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
-import { sessionFileStorage } from '@main/infrastructure/supabase/sessionStorage'
 import {
   browserSessionStorage,
   type SupabaseSyncStorage
@@ -7,22 +6,15 @@ import {
 
 let client: SupabaseClient | null = null
 
-/**
- * 按运行时选择 Supabase 会话存储：
- * - Electron main（`process.versions.electron` 存在）→ 加密文件存储 `sessionFileStorage`
- * - 浏览器/in-process 环境 → localStorage 适配器 `browserSessionStorage`
- *
- * 浏览器 bundle 中 `sessionFileStorage` 的 node/electron 依赖由 Vite 垫片承载，
- * 仅在其方法被实际访问时才会抛错；本选择逻辑保证浏览器分支永远不会触碰它。
- */
+let sessionStorage: SupabaseSyncStorage = browserSessionStorage
+
+/** 在创建客户端前注入平台存储；Electron 入口负责安装加密文件存储。 */
+export function setSessionStorage(storage: SupabaseSyncStorage): void {
+  sessionStorage = storage
+}
+
 export function resolveSessionStorage(): SupabaseSyncStorage {
-  if (
-    typeof process !== 'undefined' &&
-    !!(process as { versions?: { electron?: string } }).versions?.electron
-  ) {
-    return sessionFileStorage
-  }
-  return browserSessionStorage
+  return sessionStorage
 }
 
 /**
@@ -70,8 +62,9 @@ const quietSupabaseFetch: typeof fetch = async (input, init) => {
 }
 
 function getSupabaseConfig() {
-  const url = process.env['SUPABASE_URL']
-  const key = process.env['SUPABASE_ANON_KEY']
+  // 使用点访问，使 Vite define 能在浏览器构建时替换为公开配置常量。
+  const url = process.env.SUPABASE_URL
+  const key = process.env.SUPABASE_ANON_KEY
 
   if (url && key) {
     return { url, key }

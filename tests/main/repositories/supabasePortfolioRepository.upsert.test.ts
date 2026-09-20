@@ -1,3 +1,5 @@
+import { createNodeSqliteDatabase } from '@main/infrastructure/db/nodeSqliteDatabase'
+import type { SqliteDatabase } from '@main/infrastructure/db/databaseTypes'
 import { DatabaseSync } from 'node:sqlite'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -130,13 +132,13 @@ function createSupabaseMock() {
 describe('SupabasePortfolioRepository upsert — 无 id 多笔同 assetKey', () => {
   let rows: UpsertRow[]
   let repo: InstanceType<typeof import('@main/repositories/supabasePortfolioRepository')['SupabasePortfolioRepository']>
-  let memoryDb: DatabaseSync
+  let memoryDb: SqliteDatabase
 
   beforeEach(async () => {
     vi.resetModules()
 
-    memoryDb = new DatabaseSync(':memory:')
-    memoryDb.exec(`
+    memoryDb = createNodeSqliteDatabase(new DatabaseSync(':memory:'))
+    await memoryDb.exec(`
       CREATE TABLE IF NOT EXISTS portfolio_positions (
         id TEXT PRIMARY KEY,
         asset_key TEXT NOT NULL,

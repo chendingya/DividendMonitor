@@ -1,4 +1,4 @@
-import type { DatabaseSync } from 'node:sqlite'
+import type { SqliteDatabase } from '@main/infrastructure/db/databaseTypes'
 import { migrateWatchlistGroupAssetsForeignKey } from '@main/infrastructure/db/migrations/watchlistGroupAssetsMigration'
 import { migratePortfolioRiskLevelColumn } from '@main/infrastructure/db/migrations/portfolioRiskLevelMigration'
 import { migrateCorporateActionsCursorReset } from '@main/infrastructure/db/migrations/corporateActionsCursorResetMigration'
@@ -9,10 +9,10 @@ import { migrateHousingTables } from '@main/infrastructure/db/migrations/housing
 // 数据库连接通过可注入 resolver 获取：默认未安装时抛错，
 // Electron 桌面端由 electronSqliteProvider 在启动时安装（避免本模块依赖 electron，
 // 使其可安全进入浏览器/测试 bundle）。
-let resolveDatabase: (() => DatabaseSync) | null = null
-let cached: DatabaseSync | null = null
+let resolveDatabase: (() => SqliteDatabase) | null = null
+let cached: SqliteDatabase | null = null
 
-export function setDatabaseResolver(resolve: () => DatabaseSync): void {
+export function setDatabaseResolver(resolve: () => SqliteDatabase): void {
   resolveDatabase = resolve
   cached = null
 }
@@ -22,8 +22,8 @@ export function resetDatabaseResolver(): void {
   cached = null
 }
 
-function createBaseSchema(db: DatabaseSync) {
-  db.exec(`
+async function createBaseSchema(db: SqliteDatabase) {
+  await db.exec(`
     CREATE TABLE IF NOT EXISTS watchlist_items (
       asset_key TEXT PRIMARY KEY,
       asset_type TEXT NOT NULL,
@@ -135,7 +135,6 @@ function createBaseSchema(db: DatabaseSync) {
       UNIQUE(asset_key, announce_date, fiscal_year)
     );
 
-
     CREATE TABLE IF NOT EXISTS backtest_results (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL DEFAULT '',
@@ -173,20 +172,20 @@ function createBaseSchema(db: DatabaseSync) {
   `)
 }
 
-function getWatchlistColumns(db: DatabaseSync) {
-  return db
+async function getWatchlistColumns(db: SqliteDatabase) {
+  return (await db
     .prepare('PRAGMA table_info(watchlist_items)')
-    .all() as Array<{ name: string }>
+    .all()) as Array<{ name: string }>
 }
 
-function migrateLegacyWatchlistTable(db: DatabaseSync) {
-  const columns = getWatchlistColumns(db).map((column) => column.name)
+async function migrateLegacyWatchlistTable(db: SqliteDatabase) {
+  const columns = (await getWatchlistColumns(db)).map((column) => column.name)
   if (columns.includes('asset_key')) {
     return
   }
 
-  db.exec(`
-    BEGIN;
+  await db.transaction(async (tx) => {
+    await tx.exec(`
 
     CREATE TABLE IF NOT EXISTS watchlist_items_v2 (
       asset_key TEXT PRIMARY KEY,
@@ -218,22 +217,22 @@ function migrateLegacyWatchlistTable(db: DatabaseSync) {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_watchlist_items_asset_identity
       ON watchlist_items(asset_type, market, code);
 
-    COMMIT;
   `)
+  })
 }
 
-function migrateWatchlistAssetTypes(db: DatabaseSync) {
+async function migrateWatchlistAssetTypes(db: SqliteDatabase) {
   const isEtfCode = (code: string) => /^(5\d{5}|1[15]\d{4})$/.test(code)
 
-  const rows = db
+  const rows = (await db
     .prepare("SELECT asset_key, asset_type, code FROM watchlist_items WHERE asset_type IN ('ETF', 'FUND')")
-    .all() as Array<{ asset_key: string; asset_type: string; code: string }>
+    .all()) as Array<{ asset_key: string; asset_type: string; code: string }>
 
   for (const row of rows) {
     const expectedType = isEtfCode(row.code) ? 'ETF' : 'FUND'
     if (row.asset_type !== expectedType) {
       const newKey = `${expectedType}:A_SHARE:${row.code}`
-      db.prepare('UPDATE watchlist_items SET asset_type = ?, asset_key = ? WHERE asset_key = ?').run(
+      await db.prepare('UPDATE watchlist_items SET asset_type = ?, asset_key = ? WHERE asset_key = ?').run(
         expectedType,
         newKey,
         row.asset_key
@@ -242,30 +241,30 @@ function migrateWatchlistAssetTypes(db: DatabaseSync) {
   }
 }
 
-export function initializeSchema(db: DatabaseSync) {
-  createBaseSchema(db)
-  migrateLegacyWatchlistTable(db)
-  migrateWatchlistAssetTypes(db)
-  migrateWatchlistGroupAssetsForeignKey(db)
-  migratePortfolioRiskLevelColumn(db)
-  migratePortfolioCorporateActionColumn(db)
-  migratePortfolioOpenedAtColumn(db)
-  migratePortfolioTradePriceColumn(db)
-  migrateCorporateActionsCursorReset(db)
-  migrateCorporateActionsCursorResetV2(db)
-  migrateDividendEventStatus(db)
-  migrateDividendFiscalYearNotNull(db)
-  migrateYieldMapSnapshots(db)
-  migrateHousingTables(db)
+export async function initializeSchema(db: SqliteDatabase) {
+  await createBaseSchema(db)
+  await migrateLegacyWatchlistTable(db)
+  await migrateWatchlistAssetTypes(db)
+  await migrateWatchlistGroupAssetsForeignKey(db)
+  await migratePortfolioRiskLevelColumn(db)
+  await migratePortfolioCorporateActionColumn(db)
+  await migratePortfolioOpenedAtColumn(db)
+  await migratePortfolioTradePriceColumn(db)
+  await migrateCorporateActionsCursorReset(db)
+  await migrateCorporateActionsCursorResetV2(db)
+  await migrateDividendEventStatus(db)
+  await migrateDividendFiscalYearNotNull(db)
+  await migrateYieldMapSnapshots(db)
+  await migrateHousingTables(db)
   // dividend_events 索引必须在迁移之后创建：旧库（无 status 列）在迁移前建
   // status 索引会因 "no such column" 抛错，且 CREATE INDEX IF NOT EXISTS
   // 只跳过已存在的索引、不会校验列是否存在。
-  db.exec(`
+  await db.exec(`
     CREATE INDEX IF NOT EXISTS idx_dividend_events_asset_key ON dividend_events(asset_key);
     CREATE INDEX IF NOT EXISTS idx_dividend_events_ex_date ON dividend_events(ex_date);
     CREATE INDEX IF NOT EXISTS idx_dividend_events_status ON dividend_events(status);
   `)
-  db.exec(`
+  await db.exec(`
     CREATE INDEX IF NOT EXISTS idx_watchlist_items_updated_at
       ON watchlist_items(updated_at DESC);
 
@@ -280,58 +279,58 @@ export function initializeSchema(db: DatabaseSync) {
   `)
 }
 
-export function getDatabase(): DatabaseSync {
+export function getDatabase(): SqliteDatabase {
   if (cached) {
     return cached
   }
 
   if (!resolveDatabase) {
-    throw new Error('数据库未初始化：当前运行时未安装数据库 provider（浏览器运行时请使用在线模式仓储）')
+    throw new Error('数据库未初始化：当前运行时未安装数据库 provider')
   }
 
   const db = resolveDatabase()
 
   // 先解析成功再赋值缓存：若 resolver 抛错（含建库/schema 初始化失败），
   // 下次调用可重试，避免留下半初始化的数据库连接。
-  // schema 初始化由 provider 的 resolver 负责（electronSqliteProvider），
+  // provider 完成异步 schema 初始化后才安装 resolver，
   // 本模块不感知建库细节，注入的测试实例（marker）也无需支持 schema 操作。
   cached = db
   return cached
 }
 
-export function closeDatabase(): void {
+export async function closeDatabase(): Promise<void> {
   if (!cached) {
     return
   }
-  cached.close()
+  await cached.close()
   cached = null
 }
 
-function migratePortfolioCorporateActionColumn(db: DatabaseSync) {
-  const columns = db.prepare('PRAGMA table_info(portfolio_positions)').all() as Array<{ name: string }>
+async function migratePortfolioCorporateActionColumn(db: SqliteDatabase) {
+  const columns = (await db.prepare('PRAGMA table_info(portfolio_positions)').all()) as Array<{ name: string }>
   if (columns.some((col) => col.name === 'corporate_actions_applied_until')) {
     return
   }
 
-  db.exec('ALTER TABLE portfolio_positions ADD COLUMN corporate_actions_applied_until TEXT;')
+  await db.exec('ALTER TABLE portfolio_positions ADD COLUMN corporate_actions_applied_until TEXT;')
 }
 
-function migratePortfolioOpenedAtColumn(db: DatabaseSync) {
-  const columns = db.prepare('PRAGMA table_info(portfolio_positions)').all() as Array<{ name: string }>
+async function migratePortfolioOpenedAtColumn(db: SqliteDatabase) {
+  const columns = (await db.prepare('PRAGMA table_info(portfolio_positions)').all()) as Array<{ name: string }>
   if (columns.some((col) => col.name === 'opened_at')) {
     return
   }
 
-  db.exec('ALTER TABLE portfolio_positions ADD COLUMN opened_at TEXT;')
+  await db.exec('ALTER TABLE portfolio_positions ADD COLUMN opened_at TEXT;')
 }
 
-function migratePortfolioTradePriceColumn(db: DatabaseSync) {
-  const columns = db.prepare('PRAGMA table_info(portfolio_positions)').all() as Array<{ name: string }>
+async function migratePortfolioTradePriceColumn(db: SqliteDatabase) {
+  const columns = (await db.prepare('PRAGMA table_info(portfolio_positions)').all()) as Array<{ name: string }>
   if (columns.some((col) => col.name === 'trade_price')) {
     return
   }
 
-  db.exec('ALTER TABLE portfolio_positions ADD COLUMN trade_price REAL;')
+  await db.exec('ALTER TABLE portfolio_positions ADD COLUMN trade_price REAL;')
 }
 
 /**
@@ -339,19 +338,19 @@ function migratePortfolioTradePriceColumn(db: DatabaseSync) {
  * NULL 在唯一索引中互不相同会导致重复行且云端 NOT NULL 约束拒绝写入，
  * 因此回填为 year、按新唯一键去重后重建为 NOT NULL 列。
  */
-function migrateDividendFiscalYearNotNull(db: DatabaseSync) {
+async function migrateDividendFiscalYearNotNull(db: SqliteDatabase) {
   try {
-    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='dividend_events'").all() as Array<{ name: string }>
+    const tables = (await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='dividend_events'").all()) as Array<{ name: string }>
     if (tables.length === 0) return
 
-    const cols = db.prepare('PRAGMA table_info(dividend_events)').all() as Array<{ name: string; notnull: number }>
+    const cols = (await db.prepare('PRAGMA table_info(dividend_events)').all()) as Array<{ name: string; notnull: number }>
     const fiscalYearCol = cols.find((c) => c.name === 'fiscal_year')
     if (!fiscalYearCol || Number(fiscalYearCol.notnull) === 1) {
       return
     }
 
-    db.exec(`
-      BEGIN;
+    await db.transaction(async (tx) => {
+      await tx.exec(`
 
       UPDATE dividend_events SET fiscal_year = year WHERE fiscal_year IS NULL;
 
@@ -401,20 +400,16 @@ function migrateDividendFiscalYearNotNull(db: DatabaseSync) {
       CREATE INDEX IF NOT EXISTS idx_dividend_events_asset_key ON dividend_events(asset_key);
       CREATE INDEX IF NOT EXISTS idx_dividend_events_ex_date ON dividend_events(ex_date);
       CREATE INDEX IF NOT EXISTS idx_dividend_events_status ON dividend_events(status);
-      COMMIT;
+
     `)
+    })
   } catch (err) {
     console.warn('[DividendMigration] fiscal_year 归一化迁移失败，跳过:', err)
-    try {
-      db.exec('ROLLBACK')
-    } catch {
-      // 无活跃事务时忽略
-    }
   }
 }
 
-export function migrateYieldMapSnapshots(db: DatabaseSync) {
-  db.exec(`
+export async function migrateYieldMapSnapshots(db: SqliteDatabase) {
+  await db.exec(`
     CREATE TABLE IF NOT EXISTS yield_map_snapshots (
       asset_key     TEXT PRIMARY KEY,
       symbol        TEXT NOT NULL,

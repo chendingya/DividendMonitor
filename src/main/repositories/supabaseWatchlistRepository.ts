@@ -58,7 +58,7 @@ export class SupabaseWatchlistRepository implements IWatchlistRepository {
       const assetKey = buildAssetKey(asset.assetType, asset.market, normalizedCode)
       const now = new Date().toISOString()
 
-      await supabase.from('watchlist_items').upsert({
+      const { error } = await supabase.from('watchlist_items').upsert({
         user_id: userId,
         asset_key: assetKey,
         asset_type: asset.assetType,
@@ -67,6 +67,7 @@ export class SupabaseWatchlistRepository implements IWatchlistRepository {
         name: asset.name?.trim() || null,
         updated_at: now
       }, { onConflict: 'user_id,asset_key' })
+      if (error) throw error
 
       notifySyncStatus({ status: 'synced' })
     } catch {
@@ -83,7 +84,8 @@ export class SupabaseWatchlistRepository implements IWatchlistRepository {
 
     try {
       const userId = await this.getUserId()
-      await supabase.from('watchlist_items').delete().eq('user_id', userId).eq('asset_key', assetKey)
+      const { error } = await supabase.from('watchlist_items').delete().eq('user_id', userId).eq('asset_key', assetKey)
+      if (error) throw error
       notifySyncStatus({ status: 'synced' })
     } catch {
       notifySyncStatus({ status: 'offline-fallback', message: '云端删除失败' })

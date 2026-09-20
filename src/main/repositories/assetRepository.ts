@@ -24,9 +24,9 @@ export class AssetRepository {
     const assetKey = buildAssetKey(identifier.assetType, identifier.market, identifier.code)
 
     if (!skipCache) {
-      const cached = this.snapshotRepo.findFreshByKey<AssetDetailSource>(assetKey, identifier.assetType)
+      const cached = (await this.snapshotRepo.findFreshByKey<AssetDetailSource>(assetKey, identifier.assetType))
       if (cached) {
-        this.persistDividendEvents(assetKey, (cached as { dividendEvents?: DividendEvent[] }).dividendEvents)
+        await this.persistDividendEvents(assetKey, (cached as { dividendEvents?: DividendEvent[] }).dividendEvents)
         return cached
       }
     }
@@ -41,10 +41,10 @@ export class AssetRepository {
       const qfq = computeQfqCloses(withPrices.priceHistory, events)
       enhanced = { ...source, priceHistory: computeHfqCloses(qfq, events) } as AssetDetailSource
     }
-    this.persistDividendEvents(assetKey, (enhanced as { dividendEvents?: DividendEvent[] }).dividendEvents)
+    await this.persistDividendEvents(assetKey, (enhanced as { dividendEvents?: DividendEvent[] }).dividendEvents)
 
     try {
-      this.snapshotRepo.upsert(assetKey, identifier.assetType, JSON.stringify(enhanced))
+      await this.snapshotRepo.upsert(assetKey, identifier.assetType, JSON.stringify(enhanced))
     } catch (err) {
       console.warn(`[AssetRepository] Failed to cache ${assetKey}:`, err)
     }
@@ -52,12 +52,12 @@ export class AssetRepository {
     return enhanced
   }
 
-  private persistDividendEvents(assetKey: string, events?: DividendEvent[]): void {
+  private async persistDividendEvents(assetKey: string, events?: DividendEvent[]): Promise<void> {
     if (!events || events.length === 0) {
       return
     }
     try {
-      getDividendRepository().upsertMany(assetKey, events)
+      await getDividendRepository().upsertMany(assetKey, events)
     } catch (err) {
       console.warn(`[AssetRepository] Failed to persist dividend events for ${assetKey}:`, err)
     }

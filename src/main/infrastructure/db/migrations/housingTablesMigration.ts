@@ -1,13 +1,13 @@
-import type { DatabaseSync } from 'node:sqlite'
+import type { SqliteDatabase } from '@main/infrastructure/db/databaseTypes'
 
-export function migrateHousingTables(db: DatabaseSync): void {
-  const tables = db
+export async function migrateHousingTables(db: SqliteDatabase): Promise<void> {
+  const tables = (await db
     .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name IN ('housing_index_cache', 'user_housing_data', 'housing_watchlist')")
-    .all() as Array<{ name: string }>
+    .all()) as Array<{ name: string }>
   const existing = new Set(tables.map((row) => row.name))
 
   if (!existing.has('housing_index_cache')) {
-    db.exec(`
+    await db.exec(`
       CREATE TABLE IF NOT EXISTS housing_index_cache (
         city_code TEXT NOT NULL,
         period TEXT NOT NULL,
@@ -22,7 +22,7 @@ export function migrateHousingTables(db: DatabaseSync): void {
   }
 
   if (!existing.has('user_housing_data')) {
-    db.exec(`
+    await db.exec(`
       CREATE TABLE IF NOT EXISTS user_housing_data (
         id TEXT PRIMARY KEY,
         city_code TEXT NOT NULL,
@@ -38,30 +38,30 @@ export function migrateHousingTables(db: DatabaseSync): void {
   } else {
     // 旧版单价口径（price_per_sqm/rent_per_sqm）→ 新版总价口径（price_total_yuan/rent_total_month_yuan）。
     // 单价无法可靠换算为总价（缺面积信息），旧数据直接清空。
-    const columns = db
+    const columns = (await db
       .prepare("SELECT name FROM pragma_table_info('user_housing_data')")
-      .all() as Array<{ name: string }>
+      .all()) as Array<{ name: string }>
     const columnNames = new Set(columns.map((row) => row.name))
 
     if (!columnNames.has('price_total_yuan')) {
-      db.exec('ALTER TABLE user_housing_data ADD COLUMN price_total_yuan REAL')
+      await db.exec('ALTER TABLE user_housing_data ADD COLUMN price_total_yuan REAL')
     }
     if (!columnNames.has('rent_total_month_yuan')) {
-      db.exec('ALTER TABLE user_housing_data ADD COLUMN rent_total_month_yuan REAL')
+      await db.exec('ALTER TABLE user_housing_data ADD COLUMN rent_total_month_yuan REAL')
     }
     if (columnNames.has('price_per_sqm') || columnNames.has('rent_per_sqm')) {
-      db.exec('UPDATE user_housing_data SET price_total_yuan = NULL, rent_total_month_yuan = NULL')
+      await db.exec('UPDATE user_housing_data SET price_total_yuan = NULL, rent_total_month_yuan = NULL')
       if (columnNames.has('price_per_sqm')) {
-        db.exec('ALTER TABLE user_housing_data DROP COLUMN price_per_sqm')
+        await db.exec('ALTER TABLE user_housing_data DROP COLUMN price_per_sqm')
       }
       if (columnNames.has('rent_per_sqm')) {
-        db.exec('ALTER TABLE user_housing_data DROP COLUMN rent_per_sqm')
+        await db.exec('ALTER TABLE user_housing_data DROP COLUMN rent_per_sqm')
       }
     }
   }
 
   if (!existing.has('housing_watchlist')) {
-    db.exec(`
+    await db.exec(`
       CREATE TABLE IF NOT EXISTS housing_watchlist (
         city_code TEXT PRIMARY KEY,
         city_name TEXT NOT NULL,

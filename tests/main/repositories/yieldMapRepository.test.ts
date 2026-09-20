@@ -1,3 +1,5 @@
+import { createNodeSqliteDatabase } from '@main/infrastructure/db/nodeSqliteDatabase'
+import type { SqliteDatabase } from '@main/infrastructure/db/databaseTypes'
 import { mkdtempSync, mkdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -10,7 +12,7 @@ vi.mock('@main/infrastructure/db/sqlite', () => ({
   migrateYieldMapSnapshots: () => {}
 }))
 
-let db: DatabaseSync
+let db: SqliteDatabase
 const { YieldMapRepository } = await import('@main/repositories/yieldMapRepository')
 
 const SAMPLE = [
@@ -35,10 +37,10 @@ const SAMPLE = [
 ]
 
 describe('YieldMapRepository', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     mkdirSync(tempDir, { recursive: true })
-    db = new DatabaseSync(join(tempDir, `db-${Date.now()}.sqlite`))
-    db.exec(`
+    db = createNodeSqliteDatabase(new DatabaseSync(join(tempDir, `db-${Date.now()}.sqlite`)))
+    await db.exec(`
       CREATE TABLE IF NOT EXISTS yield_map_snapshots (
         asset_key     TEXT PRIMARY KEY,
         symbol        TEXT NOT NULL,
@@ -52,30 +54,30 @@ describe('YieldMapRepository', () => {
     `)
   })
 
-  afterEach(() => {
-    db.close()
+  afterEach(async () => {
+    await db.close()
     rmSync(tempDir, { recursive: true, force: true })
   })
 
-  it('replaceAll 全量覆盖并记录 fetched_at', () => {
+  it('replaceAll 全量覆盖并记录 fetched_at', async () => {
     const repo = new YieldMapRepository()
-    repo.replaceAll(SAMPLE)
-    const rows = repo.getAll()
+    await repo.replaceAll(SAMPLE)
+    const rows = (await repo.getAll())
     expect(rows).toHaveLength(2)
     expect(rows[0].symbol).toBe('600519')
-    expect(repo.getFetchedAt()).toBeTruthy()
+    expect((await repo.getFetchedAt())).toBeTruthy()
   })
 
-  it('replaceAll 再次调用清空旧数据', () => {
+  it('replaceAll 再次调用清空旧数据', async () => {
     const repo = new YieldMapRepository()
-    repo.replaceAll(SAMPLE)
-    repo.replaceAll([SAMPLE[0]])
-    expect(repo.getAll()).toHaveLength(1)
+    await repo.replaceAll(SAMPLE)
+    await repo.replaceAll([SAMPLE[0]])
+    expect((await repo.getAll())).toHaveLength(1)
   })
 
-  it('空库 getAll 返回空数组、getFetchedAt 返回 null', () => {
+  it('空库 getAll 返回空数组、getFetchedAt 返回 null', async () => {
     const repo = new YieldMapRepository()
-    expect(repo.getAll()).toEqual([])
-    expect(repo.getFetchedAt()).toBeNull()
+    expect((await repo.getAll())).toEqual([])
+    expect((await repo.getFetchedAt())).toBeNull()
   })
 })

@@ -1,6 +1,6 @@
 # Android 移植技术评估（Assessment）
 
-> 状态：评估完成，P0 计划已产出（见 `docs/superpowers/plans/2026-09-04-android-mobile-responsive-foundation.md`）
+> 状态更新（2026-09-20）：P0 已合并；P1 与原生驱动阶段合并实现，Android 工程使用 Capacitor SQLite/HTTP。构建方法及当前限制以 `ANDROID-BUILD.md` 为准。以下保留 2026-09-04 的评估事实与路线历史，不代表当前文件数量或验收结果。
 > 日期：2026-09-04
 > 范围：将收息佬（DividendMonitor）从 Electron 桌面单端扩展为 Android 移动端的技术路线评估
 

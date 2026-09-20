@@ -8,6 +8,9 @@
 npm run dev                  # 启动 Electron 桌面开发环境
 npm run dev:browser-preview  # 浏览器预览模式（无头主进程 + 前端 dev server，端口自动退避）
 npm run build                # 生产构建
+npm run build:mobile         # Android WebView 资源构建
+npm run android:debug        # 构建/同步资源并生成 Android 调试 APK（JDK 21 + SDK 35）
+npm run android:test         # 已连接测试设备上的原生运行时测试
 npm run dist:dir             # 构建目录产物（electron-builder --dir）
 npm run dist:win             # 构建 Windows NSIS 安装包
 npm run preview              # electron-vite 预览
@@ -108,19 +111,22 @@ src/renderer/src/
 └── styles/           # 全局样式 + Ant Design token 定制
 ```
 
-## 双运行时设计
+## 多运行时设计
 
-项目支持三种运行模式，通过 `src/renderer/src/services/desktopApi.ts` 的运行时检测透明切换：
+项目支持四种运行模式，通过 `src/renderer/src/services/desktopApi.ts` 的运行时检测透明切换：
 
 | 模式 | 触发条件 | 通信方式 | 数据持久化 |
 |------|----------|----------|-----------|
 | Electron 桌面 | 默认 | IPC (contextBridge) | SQLite |
+| Android App | Capacitor 原生环境 | 进程内用例 + 原生 HTTP | Capacitor 原生 SQLite |
 | 浏览器预览 | `?runtime=mock` | Mock 本地数据 | localStorage |
 | 浏览器预览 | 默认 fallback | HTTP → 无头主进程 | SQLite (通过主进程) |
 
 浏览器预览通过 `npm run dev:browser-preview` 启动，设置 `DIVIDEND_MONITOR_HEADLESS=1` 环境变量，主进程以无头模式运行 HTTP API（`http://127.0.0.1:3210`），前端 dev server 默认在 `http://127.0.0.1:8192`。dev 模式端口自动退避：8192/3210 被占用时依次退避到空闲端口，vite `/api` 同源代理跟随实际端口（生产打包版固定白名单，不退避）。
 
 dev 模式下 SQLite 位于 `.runtime-data/db/dividend-monitor.sqlite`；安装版位于 `%APPDATA%\shou-xi-lao\db\`。
+
+Android 不依赖本机 HTTP 服务；启动 React 前先完成原生数据库初始化。共享 SQL 边界是异步的，所有读写必须 await；`transaction` 回调内只使用传入的执行器（不要重入全局排队连接）。构建及限制见 `docs/ANDROID-BUILD.md`。
 
 ## 在线模式（Supabase）
 

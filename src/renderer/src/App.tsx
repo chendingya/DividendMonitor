@@ -3,6 +3,7 @@ import { HashRouter, useLocation } from 'react-router-dom'
 import { AuthProvider } from '@renderer/contexts/AuthContext'
 import { AppShell } from '@renderer/layouts/AppShell'
 import { AppRouter } from '@renderer/router/AppRouter'
+import { NativeAppLifecycle } from '@renderer/components/app/NativeAppLifecycle'
 
 function AppLayout() {
   const location = useLocation()
@@ -48,6 +49,7 @@ export default function App() {
       }}
     >
       <HashRouter>
+        <NativeAppLifecycle />
         <AuthProvider>
           <AppLayout />
         </AuthProvider>
@@ -55,4 +57,3 @@ export default function App() {
     </ConfigProvider>
   )
 }
-

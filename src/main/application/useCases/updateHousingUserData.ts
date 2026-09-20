@@ -3,6 +3,6 @@ import type { UserHousingDataUpsertDto } from '@shared/contracts/api'
 
 const service = new HousingService()
 
-export function updateHousingUserData(request: UserHousingDataUpsertDto): void {
-  service.updateUserData(request)
+export async function updateHousingUserData(request: UserHousingDataUpsertDto): Promise<void> {
+  await service.updateUserData(request)
 }

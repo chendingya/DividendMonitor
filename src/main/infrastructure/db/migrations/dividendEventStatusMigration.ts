@@ -1,26 +1,26 @@
-import type { DatabaseSync } from 'node:sqlite'
+import type { SqliteDatabase } from '@main/infrastructure/db/databaseTypes'
 
-export function migrateDividendEventStatus(db: DatabaseSync): void {
+export async function migrateDividendEventStatus(db: SqliteDatabase): Promise<void> {
   try {
-    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='dividend_events'").all() as Array<{ name: string }>
+    const tables = (await db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='dividend_events'").all()) as Array<{ name: string }>
     if (tables.length === 0) return
 
-    const cols = db.prepare('PRAGMA table_info(dividend_events)').all() as Array<{ name: string }>
+    const cols = (await db.prepare('PRAGMA table_info(dividend_events)').all()) as Array<{ name: string }>
     const hasStatus = cols.some((c) => c.name === 'status')
 
     if (!hasStatus) {
       // 预去重：旧主键 (asset_key, ex_date) 下允许同一公告日存在多行（不同 ex_date），
       // 迁移到新唯一键 (asset_key, announce_date, fiscal_year) 会冲突，这里按新键保留最早一行。
-      db.exec(`
+      await db.exec(`
         DELETE FROM dividend_events
         WHERE rowid NOT IN (
           SELECT MIN(rowid) FROM dividend_events
           GROUP BY asset_key, COALESCE(announce_date, ex_date, '1970-01-01'), COALESCE(fiscal_year, year)
         );
       `)
+      await db.transaction(async (tx) => {
+        await tx.exec(`
 
-      db.exec(`
-        BEGIN;
         CREATE TABLE dividend_events_new (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           asset_key TEXT NOT NULL,
@@ -64,16 +64,12 @@ export function migrateDividendEventStatus(db: DatabaseSync): void {
         CREATE INDEX IF NOT EXISTS idx_dividend_events_asset_key ON dividend_events(asset_key);
         CREATE INDEX IF NOT EXISTS idx_dividend_events_ex_date ON dividend_events(ex_date);
         CREATE INDEX IF NOT EXISTS idx_dividend_events_status ON dividend_events(status);
-        COMMIT;
+
       `)
+      })
     }
   } catch (err) {
     // 迁移失败时降级跳过，避免应用启动崩溃；数据会在下次抓取时重新落库。
     console.warn('[DividendEventMigration] 迁移失败，跳过（分红数据将在下次抓取时重新落库）:', err)
-    try {
-      db.exec('ROLLBACK')
-    } catch {
-      // 无活跃事务时忽略
-    }
   }
 }

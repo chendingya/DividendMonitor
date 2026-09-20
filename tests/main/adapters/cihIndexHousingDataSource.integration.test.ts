@@ -61,8 +61,8 @@ describe('Cih Index housing market data (integration via gateway)', () => {
 
   it('rental yield derivable: Beijing rent / price ≈ 2%', async () => {
     const [priceSnap, rentSnap] = await Promise.all([
-      dataSource.getNewHouseSnapshot(),
-      dataSource.getRentSnapshot()
+      (await dataSource.getNewHouseSnapshot()),
+      (await dataSource.getRentSnapshot())
     ])
 
     const price = priceSnap.cities.find((item) => item.city === '北京')?.pricePerSqm

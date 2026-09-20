@@ -33,11 +33,11 @@ function cloudRepository(): SupabaseYieldMapRepository | null {
 }
 
 export async function getMarketYieldMap(): Promise<MarketYieldMapDto> {
-  const fetchedAt = repository.getFetchedAt()
+  const fetchedAt = (await repository.getFetchedAt())
   if (fetchedAt) {
     const age = Date.now() - new Date(fetchedAt).getTime()
     if (age >= 0 && age < SNAPSHOT_TTL_MS) {
-      const entries = repository.getAll()
+      const entries = (await repository.getAll())
       if (entries.length > 0) {
         return toDto(entries, fetchedAt)
       }
@@ -65,8 +65,8 @@ export async function refreshMarketYieldMap(): Promise<MarketYieldMapDto> {
     dataSource.fetchAllDividendEvents()
   ])
   const entries = buildYieldMap(quotes, events)
-  repository.replaceAll(entries)
-  const fetchedAt = repository.getFetchedAt()
+  await repository.replaceAll(entries)
+  const fetchedAt = (await repository.getFetchedAt())
   const dto = toDto(entries, fetchedAt)
 
   // 在线模式额外上传行业级快照到云端（失败不阻断本地结果；不 await，避免拖慢刷新响应）

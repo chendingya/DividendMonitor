@@ -86,7 +86,7 @@ export class AssetCacheSyncService {
         return
       }
 
-      const existingRows = this.snapshotRepository.findByKeys([...allKeys])
+      const existingRows = (await this.snapshotRepository.findByKeys([...allKeys]))
       const staleKeys: string[] = []
 
       for (const assetKey of allKeys) {
@@ -112,8 +112,8 @@ export class AssetCacheSyncService {
 
       console.log(`[AssetCacheSync] Refreshing ${staleKeys.length} stale entries...`)
       const results = await runWithConcurrency(
-        staleKeys.map((assetKey) => () =>
-          retryNetworkOp(() => this.assetRepository.getDetail({ assetKey }), assetKey)
+        staleKeys.map((assetKey) => async () =>
+          (await retryNetworkOp(() => this.assetRepository.getDetail({ assetKey }), assetKey))
         ),
         MAX_CONCURRENCY,
         INTER_ASSET_DELAY_MS
@@ -136,7 +136,7 @@ export class AssetCacheSyncService {
       console.log(`[AssetCacheSync] Done: ${succeeded} refreshed, ${failed} failed, ${elapsed}ms`)
 
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-      this.snapshotRepository.removeOlderThan(sevenDaysAgo)
+      await this.snapshotRepository.removeOlderThan(sevenDaysAgo)
     } catch (err) {
       console.error('[AssetCacheSync] Sync failed:', err)
     }

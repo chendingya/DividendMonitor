@@ -21,9 +21,9 @@ function deserializeValue(_key: string, raw: string): unknown {
   return raw
 }
 
-export function getAllSettings(): SettingsEntity {
+export async function getAllSettings(): Promise<SettingsEntity> {
   const db = getDatabase()
-  const rows = db.prepare('SELECT key, value FROM app_settings').all() as Array<{ key: string; value: string }>
+  const rows = (await db.prepare('SELECT key, value FROM app_settings').all()) as Array<{ key: string; value: string }>
 
   const stored: Record<string, unknown> = {}
   for (const row of rows) {
@@ -67,34 +67,30 @@ export function getAllSettings(): SettingsEntity {
   }
 }
 
-export function updateSetting(key: string, value: unknown): void {
+export async function updateSetting(key: string, value: unknown): Promise<void> {
   const db = getDatabase()
   const now = new Date().toISOString()
-  db.prepare(
+  await db.prepare(
     `INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)
      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
   ).run(key, serializeValue(value), now)
 }
 
-export function updateSettingsBatch(partial: Record<string, unknown>): SettingsEntity {
+export async function updateSettingsBatch(partial: Record<string, unknown>): Promise<SettingsEntity> {
   for (const [key, value] of Object.entries(partial)) {
-    updateSetting(key, value)
+    await updateSetting(key, value)
   }
   return getAllSettings()
 }
 
-export function resetAllSettings(): SettingsEntity {
+export async function resetAllSettings(): Promise<SettingsEntity> {
   const db = getDatabase()
-  try {
-    db.exec('BEGIN')
-    db.prepare('DELETE FROM app_settings').run()
+  await db.transaction(async (tx) => {
+    await tx.prepare('DELETE FROM app_settings').run()
+    const now = new Date().toISOString()
     for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
-      updateSetting(key, value)
+      await tx.prepare('INSERT INTO app_settings (key, value, updated_at) VALUES (?, ?, ?)').run(key, serializeValue(value), now)
     }
-    db.exec('COMMIT')
-  } catch {
-    db.exec('ROLLBACK')
-    throw new Error('Failed to reset settings')
-  }
+  })
   return getAllSettings()
 }

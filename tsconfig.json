@@ -23,5 +23,5 @@
     },
     "types": ["node"]
   },
-  "include": ["electron.vite.config.ts", "src", "shared"]
+  "include": ["electron.vite.config.ts", "vite.config.mobile.ts", "capacitor.config.ts", "src", "shared"]
 }

@@ -25,19 +25,19 @@ function toEntry(row: YieldMapRow): YieldMapStockEntry {
 }
 
 export class YieldMapRepository {
-  replaceAll(entries: YieldMapStockEntry[]): void {
+  async replaceAll(entries: YieldMapStockEntry[]): Promise<void> {
     const db = getDatabase()
     const now = new Date().toISOString()
-    db.exec('BEGIN')
-    try {
-      db.prepare('DELETE FROM yield_map_snapshots').run()
+    await db.transaction(async (db) => {
+
+      await db.prepare('DELETE FROM yield_map_snapshots').run()
       const insert = db.prepare(`
         INSERT INTO yield_map_snapshots
           (asset_key, symbol, name, industry, price, yield_ttm, total_dps_12m, fetched_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `)
       for (const entry of entries) {
-        insert.run(
+        await insert.run(
           entry.assetKey,
           entry.symbol,
           entry.name,
@@ -48,24 +48,21 @@ export class YieldMapRepository {
           now
         )
       }
-      db.exec('COMMIT')
-    } catch (error) {
-      db.exec('ROLLBACK')
-      throw error
-    }
+
+    })
   }
 
-  getAll(): YieldMapStockEntry[] {
-    const rows = getDatabase()
+  async getAll(): Promise<YieldMapStockEntry[]> {
+    const rows = (await getDatabase()
       .prepare('SELECT * FROM yield_map_snapshots')
-      .all() as unknown as YieldMapRow[]
+      .all()) as unknown as YieldMapRow[]
     return rows.map(toEntry)
   }
 
-  getFetchedAt(): string | null {
-    const row = getDatabase()
+  async getFetchedAt(): Promise<string | null> {
+    const row = (await getDatabase()
       .prepare('SELECT MAX(fetched_at) AS latest FROM yield_map_snapshots')
-      .get() as { latest: string | null }
+      .get()) as { latest: string | null }
     return row.latest ?? null
   }
 }

@@ -119,7 +119,7 @@ describe('SourceGateway', () => {
       input: { keyword: '红利' }
     }
 
-    const [left, right] = await Promise.all([gateway.request(request), gateway.request(request)])
+    const [left, right] = await Promise.all([(await gateway.request(request)), (await gateway.request(request))])
 
     expect(left.data).toBe('shared-result')
     expect(right.data).toBe('shared-result')

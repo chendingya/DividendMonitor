@@ -34,7 +34,7 @@ export async function listUpcomingDividends(): Promise<UpcomingDividendDto[]> {
 
   const dividendRepo = getDividendRepository()
   const currentYear = new Date().getFullYear()
-  const events = dividendRepo.listUpcomingByAssetKeys(heldAssetKeys, currentYear)
+  const events = (await dividendRepo.listUpcomingByAssetKeys(heldAssetKeys, currentYear))
 
   return events
     .filter((e) => (assetInfo.get(e.assetKey)?.shares ?? 0) > 0)

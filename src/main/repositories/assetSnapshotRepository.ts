@@ -10,20 +10,20 @@ export type AssetSnapshotRow = {
 }
 
 export class AssetSnapshotRepository {
-  upsert(assetKey: string, assetType: string, dataJson: string): void {
+  async upsert(assetKey: string, assetType: string, dataJson: string): Promise<void> {
     const db = getDatabase()
     const now = new Date().toISOString()
-    db.prepare(
+    await db.prepare(
       `INSERT OR REPLACE INTO asset_snapshots (asset_key, asset_type, data_json, fetched_at)
        VALUES (?, ?, ?, ?)`
     ).run(assetKey, assetType, dataJson, now)
   }
 
-  findByKey(assetKey: string): AssetSnapshotRow | undefined {
+  async findByKey(assetKey: string): Promise<AssetSnapshotRow | undefined> {
     const db = getDatabase()
-    const row = db
+    const row = (await db
       .prepare('SELECT asset_key, asset_type, data_json, fetched_at FROM asset_snapshots WHERE asset_key = ?')
-      .get(assetKey) as Record<string, string> | undefined
+      .get(assetKey)) as Record<string, string> | undefined
     if (!row) return undefined
     return {
       assetKey: row.asset_key,
@@ -33,9 +33,9 @@ export class AssetSnapshotRepository {
     }
   }
 
-  findFreshByKey<T>(assetKey: string, assetType: AssetType): T | undefined {
+  async findFreshByKey<T>(assetKey: string, assetType: AssetType): Promise<T | undefined> {
     try {
-      const row = this.findByKey(assetKey)
+      const row = (await this.findByKey(assetKey))
       if (!row) return undefined
       if (!isSnapshotFresh(row.fetchedAt, assetType)) return undefined
       return JSON.parse(row.dataJson) as T
@@ -44,16 +44,16 @@ export class AssetSnapshotRepository {
     }
   }
 
-  findByKeys(assetKeys: string[]): Map<string, AssetSnapshotRow> {
+  async findByKeys(assetKeys: string[]): Promise<Map<string, AssetSnapshotRow>> {
     if (assetKeys.length === 0) return new Map()
     const db = getDatabase()
     const placeholders = assetKeys.map(() => '?').join(',')
-    const rows = db
+    const rows = (await db
       .prepare(
         `SELECT asset_key, asset_type, data_json, fetched_at
          FROM asset_snapshots WHERE asset_key IN (${placeholders})`
       )
-      .all(...assetKeys) as Array<Record<string, string>>
+      .all(...assetKeys)) as Array<Record<string, string>>
 
     const result = new Map<string, AssetSnapshotRow>()
     for (const row of rows) {
@@ -67,13 +67,13 @@ export class AssetSnapshotRepository {
     return result
   }
 
-  remove(assetKey: string): void {
+  async remove(assetKey: string): Promise<void> {
     const db = getDatabase()
-    db.prepare('DELETE FROM asset_snapshots WHERE asset_key = ?').run(assetKey)
+    await db.prepare('DELETE FROM asset_snapshots WHERE asset_key = ?').run(assetKey)
   }
 
-  removeOlderThan(olderThanIso: string): void {
+  async removeOlderThan(olderThanIso: string): Promise<void> {
     const db = getDatabase()
-    db.prepare('DELETE FROM asset_snapshots WHERE fetched_at < ?').run(olderThanIso)
+    await db.prepare('DELETE FROM asset_snapshots WHERE fetched_at < ?').run(olderThanIso)
   }
 }

@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { getDatabase } from '@main/infrastructure/db/sqlite'
 import type { BacktestResultDto } from '@shared/contracts/api'
 
@@ -24,11 +23,11 @@ function rowToDto(row: SavedBacktestResult): (SavedBacktestResult & { result: Ba
   }
 }
 
-export function listBacktestResults(): Array<SavedBacktestResult & { result: BacktestResultDto }> {
+export async function listBacktestResults(): Promise<Array<SavedBacktestResult & { result: BacktestResultDto }>> {
   const db = getDatabase()
-  const rows = db.prepare(
+  const rows = (await db.prepare(
     'SELECT id, name, asset_key, buy_date, dca_config, result_json, created_at FROM backtest_results ORDER BY created_at DESC'
-  ).all() as Array<{
+  ).all()) as Array<{
     id: string
     name: string
     asset_key: string
@@ -51,18 +50,18 @@ export function listBacktestResults(): Array<SavedBacktestResult & { result: Bac
     .filter((dto): dto is NonNullable<typeof dto> => dto != null)
 }
 
-export function saveBacktestResult(
+export async function saveBacktestResult(
   result: BacktestResultDto,
   name?: string,
   dcaConfig?: string
-): SavedBacktestResult & { result: BacktestResultDto } {
+): Promise<SavedBacktestResult & { result: BacktestResultDto }> {
   const db = getDatabase()
-  const id = randomUUID()
+  const id = globalThis.crypto.randomUUID()
   const now = new Date().toISOString()
   const assetKey = result.assetKey ?? ''
   const resultJson = JSON.stringify(result)
 
-  db.prepare(
+  await db.prepare(
     'INSERT INTO backtest_results (id, name, asset_key, buy_date, dca_config, result_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
   ).run(id, name ?? '', assetKey, result.buyDate, dcaConfig ?? null, resultJson, now)
 
@@ -77,8 +76,8 @@ export function saveBacktestResult(
   })!
 }
 
-export function deleteBacktestResult(id: string): boolean {
+export async function deleteBacktestResult(id: string): Promise<boolean> {
   const db = getDatabase()
-  const result = db.prepare('DELETE FROM backtest_results WHERE id = ?').run(id)
+  const result = (await db.prepare('DELETE FROM backtest_results WHERE id = ?').run(id))
   return result.changes > 0
 }

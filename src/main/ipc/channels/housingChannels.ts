@@ -17,19 +17,19 @@ export function registerHousingChannels() {
   })
 
   ipcMain.handle('housing:watch-city', async (_event, city: string) => {
-    watchHousingCity(city)
+    await watchHousingCity(city)
   })
 
   ipcMain.handle('housing:unwatch-city', async (_event, city: string) => {
-    unwatchHousingCity(city)
+    await unwatchHousingCity(city)
   })
 
   ipcMain.handle('housing:update-user-data', async (_event, request: UserHousingDataUpsertDto) => {
-    updateHousingUserData(request)
+    await updateHousingUserData(request)
   })
 
   ipcMain.handle('housing:remove-user-data', async (_event, city: string) => {
-    removeHousingUserData(city)
+    await removeHousingUserData(city)
   })
 
   ipcMain.handle('housing:calculate-mortgage', async (_event, request: MortgageRequestDto) => {

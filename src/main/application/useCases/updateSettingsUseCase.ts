@@ -1,10 +1,10 @@
 import type { SettingsEntity } from '@main/domain/entities/Settings'
 import { updateSettingsBatch, resetAllSettings } from '@main/repositories/settingsRepository'
 
-export function updateSettings(partial: Record<string, unknown>): SettingsEntity {
+export async function updateSettings(partial: Record<string, unknown>): Promise<SettingsEntity> {
   return updateSettingsBatch(partial)
 }
 
-export function resetSettings(): SettingsEntity {
+export async function resetSettings(): Promise<SettingsEntity> {
   return resetAllSettings()
 }

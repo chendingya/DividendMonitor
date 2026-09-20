@@ -1,7 +1,9 @@
+import { createNodeSqliteDatabase } from '@main/infrastructure/db/nodeSqliteDatabase'
+import type { SqliteDatabase } from '@main/infrastructure/db/databaseTypes'
 import { DatabaseSync } from 'node:sqlite'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-let memoryDb: DatabaseSync
+let memoryDb: SqliteDatabase
 
 vi.mock('@main/infrastructure/db/sqlite', () => ({
   getDatabase: () => memoryDb,
@@ -10,9 +12,9 @@ vi.mock('@main/infrastructure/db/sqlite', () => ({
 
 const { DividendRepository } = await import('@main/repositories/dividendRepository')
 
-function newSchema(): DatabaseSync {
-  const db = new DatabaseSync(':memory:')
-  db.exec(`
+async function newSchema(): Promise<SqliteDatabase> {
+  const db = createNodeSqliteDatabase(new DatabaseSync(':memory:'))
+  await db.exec(`
     CREATE TABLE dividend_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       asset_key TEXT NOT NULL,
@@ -44,13 +46,13 @@ function newSchema(): DatabaseSync {
 describe('DividendRepository — 预案/实施 schema', () => {
   let repo: InstanceType<typeof DividendRepository>
 
-  beforeEach(() => {
-    memoryDb = newSchema()
+  beforeEach(async () => {
+    memoryDb = (await newSchema())
     repo = new DividendRepository()
   })
 
-  it('upsertMany 预案事件能写入（status=PLANNED, ex_date=null）', () => {
-    repo.upsertMany('STOCK:A_SHARE:600519', [
+  it('upsertMany 预案事件能写入（status=PLANNED, ex_date=null）', async () => {
+    await repo.upsertMany('STOCK:A_SHARE:600519', [
       {
         year: 2026,
         fiscalYear: 2025,
@@ -62,7 +64,7 @@ describe('DividendRepository — 预案/实施 schema', () => {
         announcementProgress: '预案'
       }
     ])
-    const row = memoryDb.prepare('SELECT status, announcement_progress, ex_date FROM dividend_events WHERE asset_key = ?').get('STOCK:A_SHARE:600519') as {
+    const row = (await memoryDb.prepare('SELECT status, announcement_progress, ex_date FROM dividend_events WHERE asset_key = ?').get('STOCK:A_SHARE:600519')) as {
       status: string
       announcement_progress: string | null
       ex_date: string | null
@@ -72,9 +74,8 @@ describe('DividendRepository — 预案/实施 schema', () => {
     expect(row.ex_date).toBeNull()
   })
 
-  it('upsertMany 缺 announce_date 与 ex_date 时抛错', () => {
-    expect(() =>
-      repo.upsertMany('STOCK:A_SHARE:600519', [
+  it('upsertMany 缺 announce_date 与 ex_date 时抛错', async () => {
+    await expect(repo.upsertMany('STOCK:A_SHARE:600519', [
         {
           year: 2026,
           dividendPerShare: 0.5,
@@ -82,12 +83,11 @@ describe('DividendRepository — 预案/实施 schema', () => {
           source: 'eastmoney',
           status: 'PLANNED'
         }
-      ])
-    ).toThrowError(/missing announce_date/)
+      ])).rejects.toThrowError(/missing announce_date/)
   })
 
-  it('upsertMany 同 announce_date + fiscal_year 重复写入会 UPDATE 不重复插入', () => {
-    repo.upsertMany('STOCK:A_SHARE:600519', [
+  it('upsertMany 同 announce_date + fiscal_year 重复写入会 UPDATE 不重复插入', async () => {
+    await repo.upsertMany('STOCK:A_SHARE:600519', [
       {
         year: 2026,
         fiscalYear: 2025,
@@ -99,7 +99,7 @@ describe('DividendRepository — 预案/实施 schema', () => {
         status: 'PLANNED'
       }
     ])
-    repo.upsertMany('STOCK:A_SHARE:600519', [
+    await repo.upsertMany('STOCK:A_SHARE:600519', [
       {
         year: 2026,
         fiscalYear: 2025,
@@ -112,14 +112,14 @@ describe('DividendRepository — 预案/实施 schema', () => {
         announcementProgress: '实施'
       }
     ])
-    const rows = memoryDb.prepare('SELECT COUNT(*) as n, dividend_per_share, status FROM dividend_events WHERE asset_key = ?').get('STOCK:A_SHARE:600519') as any
+    const rows = (await memoryDb.prepare('SELECT COUNT(*) as n, dividend_per_share, status FROM dividend_events WHERE asset_key = ?').get('STOCK:A_SHARE:600519')) as any
     expect(rows.n).toBe(1)
     expect(rows.dividend_per_share).toBe(0.6)
     expect(rows.status).toBe('IN_PROGRESS')
   })
 
-  it('listByAsset 返回带 status / announcement_progress', () => {
-    repo.upsertMany('STOCK:A_SHARE:600519', [
+  it('listByAsset 返回带 status / announcement_progress', async () => {
+    await repo.upsertMany('STOCK:A_SHARE:600519', [
       {
         year: 2024,
         fiscalYear: 2023,
@@ -131,14 +131,14 @@ describe('DividendRepository — 预案/实施 schema', () => {
         status: 'IMPLEMENTED'
       }
     ])
-    const list = repo.listByAsset('STOCK:A_SHARE:600519')
+    const list = (await repo.listByAsset('STOCK:A_SHARE:600519'))
     expect(list.length).toBe(1)
     expect(list[0].status).toBe('IMPLEMENTED')
     expect(list[0].announcementProgress).toBeUndefined()
   })
 
-  it('listUpcomingByAssetKeys 仅返回 status != IMPLEMENTED 的', () => {
-    repo.upsertMany('STOCK:A_SHARE:600519', [
+  it('listUpcomingByAssetKeys 仅返回 status != IMPLEMENTED 的', async () => {
+    await repo.upsertMany('STOCK:A_SHARE:600519', [
       {
         year: 2024,
         fiscalYear: 2023,
@@ -160,19 +160,19 @@ describe('DividendRepository — 预案/实施 schema', () => {
         announcementProgress: '预案'
       }
     ])
-    const upcoming = repo.listUpcomingByAssetKeys(['STOCK:A_SHARE:600519'])
+    const upcoming = (await repo.listUpcomingByAssetKeys(['STOCK:A_SHARE:600519']))
     expect(upcoming.length).toBe(1)
     expect(upcoming[0].status).toBe('PLANNED')
     expect(upcoming[0].assetKey).toBe('STOCK:A_SHARE:600519')
     expect(upcoming[0].announcementProgress).toBe('预案')
   })
 
-  it('listUpcomingByAssetKeys 空数组返回空', () => {
-    expect(repo.listUpcomingByAssetKeys([])).toEqual([])
+  it('listUpcomingByAssetKeys 空数组返回空', async () => {
+    expect((await repo.listUpcomingByAssetKeys([]))).toEqual([])
   })
 
-  it('listUpcomingByAssetKeys sinceYear 过滤生效', () => {
-    repo.upsertMany('STOCK:A_SHARE:600519', [
+  it('listUpcomingByAssetKeys sinceYear 过滤生效', async () => {
+    await repo.upsertMany('STOCK:A_SHARE:600519', [
       {
         year: 2020,
         fiscalYear: 2019,
@@ -192,12 +192,12 @@ describe('DividendRepository — 预案/实施 schema', () => {
         status: 'PLANNED'
       }
     ])
-    const upcoming = repo.listUpcomingByAssetKeys(['STOCK:A_SHARE:600519'], 2026)
+    const upcoming = (await repo.listUpcomingByAssetKeys(['STOCK:A_SHARE:600519'], 2026))
     expect(upcoming.length).toBe(1)
     expect(upcoming[0].year).toBe(2026)
   })
 
-  it('基金式事件（无 announceDate/fiscalYear）重复 upsert 不产生重复行（fiscal_year 归一化为 year）', () => {
+  it('基金式事件（无 announceDate/fiscalYear）重复 upsert 不产生重复行（fiscal_year 归一化为 year）', async () => {
     const fundEvent = (exDate: string, dividendPerShare: number) => ({
       year: Number(exDate.slice(0, 4)),
       exDate,
@@ -206,16 +206,16 @@ describe('DividendRepository — 预案/实施 schema', () => {
       source: 'eastmoney',
       status: 'IMPLEMENTED'
     })
-    repo.upsertMany('ETF:A_SHARE:510300', [fundEvent('2024-06-20', 0.1)])
-    repo.upsertMany('ETF:A_SHARE:510300', [fundEvent('2024-06-20', 0.12)])
-    const rows = memoryDb.prepare('SELECT COUNT(*) as n, fiscal_year, dividend_per_share FROM dividend_events WHERE asset_key = ?').get('ETF:A_SHARE:510300') as any
+    await repo.upsertMany('ETF:A_SHARE:510300', [fundEvent('2024-06-20', 0.1)])
+    await repo.upsertMany('ETF:A_SHARE:510300', [fundEvent('2024-06-20', 0.12)])
+    const rows = (await memoryDb.prepare('SELECT COUNT(*) as n, fiscal_year, dividend_per_share FROM dividend_events WHERE asset_key = ?').get('ETF:A_SHARE:510300')) as any
     expect(rows.n).toBe(1)
     expect(rows.fiscal_year).toBe(2024)
     expect(rows.dividend_per_share).toBe(0.12)
   })
 
-  it('listAll 仅返回 IMPLEMENTED 事件，预案/进行中事件不混入已到账统计', () => {
-    repo.upsertMany('STOCK:A_SHARE:600519', [
+  it('listAll 仅返回 IMPLEMENTED 事件，预案/进行中事件不混入已到账统计', async () => {
+    await repo.upsertMany('STOCK:A_SHARE:600519', [
       {
         year: 2024,
         fiscalYear: 2023,
@@ -248,17 +248,17 @@ describe('DividendRepository — 预案/实施 schema', () => {
         announcementProgress: '预案'
       }
     ])
-    const all = repo.listAll({ assetKeys: ['STOCK:A_SHARE:600519'] })
+    const all = (await repo.listAll({ assetKeys: ['STOCK:A_SHARE:600519'] }))
     expect(all.length).toBe(1)
     expect(all[0].status).toBe('IMPLEMENTED')
   })
 
-  it('listUpcomingByAssetKeys 去年公告、今年派发的预案不被 sinceYear 误排除', () => {
+  it('listUpcomingByAssetKeys 去年公告、今年派发的预案不被 sinceYear 误排除', async () => {
     const today = new Date()
     const exDate = new Date(today.getTime() + 10 * 24 * 3600 * 1000).toISOString().slice(0, 10)
     const announceDate = new Date(today.getTime() - 30 * 24 * 3600 * 1000).toISOString().slice(0, 10)
     const announceYear = Number(announceDate.slice(0, 4))
-    repo.upsertMany('STOCK:A_SHARE:600519', [
+    await repo.upsertMany('STOCK:A_SHARE:600519', [
       {
         year: announceYear,
         announceDate,
@@ -271,7 +271,7 @@ describe('DividendRepository — 预案/实施 schema', () => {
       }
     ])
     const currentYear = today.getFullYear()
-    const upcoming = repo.listUpcomingByAssetKeys(['STOCK:A_SHARE:600519'], currentYear)
+    const upcoming = (await repo.listUpcomingByAssetKeys(['STOCK:A_SHARE:600519'], currentYear))
     expect(upcoming.length).toBe(1)
     expect(upcoming[0].exDate).toBe(exDate)
   })

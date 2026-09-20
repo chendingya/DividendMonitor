@@ -13,15 +13,14 @@ import { installElectronSqliteProvider } from '@main/infrastructure/db/electronS
 import { getHousingCityDetail } from '@main/application/useCases/getHousingCityDetail'
 import { calculateMortgageUseCase } from '@main/application/useCases/calculateMortgage'
 
-installElectronSqliteProvider()
 
 const tempDir = mkdtempSync(join(tmpdir(), 'housing-module-'))
 vi.mock('electron', () => ({
   app: { getPath: () => join(tempDir, 'userdata') }
 }))
 
-afterAll(() => {
-  closeDatabase()
+afterAll(async () => {
+  await closeDatabase()
   rmSync(tempDir, { recursive: true, force: true })
 })
 
@@ -29,55 +28,57 @@ describe('housingRepository', () => {
   let userRepo: UserHousingDataRepository
   let watchRepo: HousingWatchlistRepository
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await installElectronSqliteProvider()
     userRepo = new UserHousingDataRepository()
     watchRepo = new HousingWatchlistRepository()
   })
 
-  afterEach(() => {
-    closeDatabase()
+  afterEach(async () => {
+    await closeDatabase()
   })
 
-  it('upserts and reads user housing data per city', () => {
-    userRepo.upsert({ cityCode: '北京', district: '朝阳区', priceTotalYuan: 5000000, rentTotalMonthYuan: 8000 })
-    const found = userRepo.findByCity('北京')
+  it('upserts and reads user housing data per city', async () => {
+    await userRepo.upsert({ cityCode: '北京', district: '朝阳区', priceTotalYuan: 5000000, rentTotalMonthYuan: 8000 })
+    const found = (await userRepo.findByCity('北京'))
     expect(found?.cityCode).toBe('北京')
     expect(found?.priceTotalYuan).toBe(5000000)
     expect(found?.rentTotalMonthYuan).toBe(8000)
 
     // 再次 upsert 覆盖（id 为 cityCode）
-    userRepo.upsert({ cityCode: '北京', priceTotalYuan: 6000000 })
-    const updated = userRepo.findByCity('北京')
+    await userRepo.upsert({ cityCode: '北京', priceTotalYuan: 6000000 })
+    const updated = (await userRepo.findByCity('北京'))
     expect(updated?.priceTotalYuan).toBe(6000000)
   })
 
-  it('removes user housing data', () => {
-    userRepo.upsert({ cityCode: '上海', priceTotalYuan: 6000000 })
-    userRepo.remove('上海')
-    expect(userRepo.findByCity('上海')).toBeUndefined()
+  it('removes user housing data', async () => {
+    await userRepo.upsert({ cityCode: '上海', priceTotalYuan: 6000000 })
+    await userRepo.remove('上海')
+    expect((await userRepo.findByCity('上海'))).toBeUndefined()
   })
 
-  it('adds, lists and removes watched cities', () => {
-    watchRepo.add('北京', '北京')
-    watchRepo.add('上海', '上海')
-    expect(watchRepo.list().map((item) => item.cityCode).sort()).toEqual(['上海', '北京'].sort())
-    expect(watchRepo.has('北京')).toBe(true)
+  it('adds, lists and removes watched cities', async () => {
+    await watchRepo.add('北京', '北京')
+    await watchRepo.add('上海', '上海')
+    expect((await watchRepo.list()).map((item) => item.cityCode).sort()).toEqual(['上海', '北京'].sort())
+    expect((await watchRepo.has('北京'))).toBe(true)
 
-    watchRepo.remove('北京')
-    expect(watchRepo.has('北京')).toBe(false)
-    expect(watchRepo.list()).toHaveLength(1)
+    await watchRepo.remove('北京')
+    expect((await watchRepo.has('北京'))).toBe(false)
+    expect((await watchRepo.list())).toHaveLength(1)
   })
 })
 
 describe('housingIndexCacheRepository', () => {
   let cacheRepo: HousingIndexCacheRepository
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    await installElectronSqliteProvider()
     cacheRepo = new HousingIndexCacheRepository()
   })
 
-  afterEach(() => {
-    closeDatabase()
+  afterEach(async () => {
+    await closeDatabase()
   })
 
   const sampleRecords = [
@@ -85,45 +86,54 @@ describe('housingIndexCacheRepository', () => {
     { reportDate: '2026-06', city: '北京', newHomeMoM: 99.7, newHomeYoY: 97.9, secondHandMoM: 100.1, secondHandYoY: 94.5 }
   ]
 
-  it('upsertMany 后 findByCity 返回同一城市数据（升序）', () => {
-    cacheRepo.upsertMany('测试城A', sampleRecords)
-    const cached = cacheRepo.findByCity('测试城A')
+  it('concurrent city cache replacements never merge separate snapshots', async () => {
+    await Promise.all([
+      cacheRepo.upsertMany('并发城市', [sampleRecords[0]]),
+      cacheRepo.upsertMany('并发城市', [sampleRecords[1]])
+    ])
+    expect((await cacheRepo.findByCity('并发城市'))?.map((row) => row.reportDate)).toEqual(['2026-06'])
+  })
+
+  it('upsertMany 后 findByCity 返回同一城市数据（升序）', async () => {
+    await cacheRepo.upsertMany('测试城A', sampleRecords)
+    const cached = (await cacheRepo.findByCity('测试城A'))
     expect(cached).toHaveLength(2)
     expect(cached?.[0].reportDate).toBe('2026-05')
     expect(cached?.[0].newHomeMoM).toBe(99.8)
     expect(cached?.[1].reportDate).toBe('2026-06')
   })
 
-  it('upsertMany 全量覆盖：重复写入不残留旧行', () => {
-    cacheRepo.upsertMany('测试城A', sampleRecords)
-    cacheRepo.upsertMany('测试城A', [sampleRecords[1]])
-    expect(cacheRepo.findByCity('测试城A')).toHaveLength(1)
+  it('upsertMany 全量覆盖：重复写入不残留旧行', async () => {
+    await cacheRepo.upsertMany('测试城A', sampleRecords)
+    await cacheRepo.upsertMany('测试城A', [sampleRecords[1]])
+    expect((await cacheRepo.findByCity('测试城A'))).toHaveLength(1)
   })
 
-  it('无缓存时返回 undefined', () => {
-    expect(cacheRepo.findByCity('不存在城市')).toBeUndefined()
+  it('无缓存时返回 undefined', async () => {
+    expect((await cacheRepo.findByCity('不存在城市'))).toBeUndefined()
   })
 
-  it('allowStale=false 时过期缓存视为未命中；allowStale=true 返回过期数据', () => {
+  it('allowStale=false 时过期缓存视为未命中；allowStale=true 返回过期数据', async () => {
     const past = new Date(Date.now() - HOUSING_INDEX_CACHE_TTL_MS - 60_000).toISOString()
     const db = getDatabase()
-    db.prepare(
+    await db.prepare(
       `INSERT INTO housing_index_cache (city_code, period, new_home_index_mom, fetched_at) VALUES (?, ?, ?, ?)`
     ).run('上海', '2026-06', 99.7, past)
 
-    expect(cacheRepo.findByCity('上海')).toBeUndefined()
-    const stale = cacheRepo.findByCity('上海', { allowStale: true })
+    expect((await cacheRepo.findByCity('上海'))).toBeUndefined()
+    const stale = (await cacheRepo.findByCity('上海', { allowStale: true }))
     expect(stale).toHaveLength(1)
     expect(stale?.[0].newHomeMoM).toBe(99.7)
   })
 
-  it('新鲜缓存（TTL 内）直接命中', () => {
-    cacheRepo.upsertMany('测试城A', sampleRecords)
-    expect(cacheRepo.findByCity('测试城A')).toHaveLength(2)
+  it('新鲜缓存（TTL 内）直接命中', async () => {
+    await cacheRepo.upsertMany('测试城A', sampleRecords)
+    expect((await cacheRepo.findByCity('测试城A'))).toHaveLength(2)
   })
 })
 
 describe('housing use cases', () => {
+  beforeEach(async () => { await installElectronSqliteProvider() })
   it('calculateMortgageUseCase returns structured result', () => {
     const result = calculateMortgageUseCase({
       totalPrice: 300,

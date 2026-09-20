@@ -44,7 +44,7 @@ export async function applyCorporateActionsToPositions(): Promise<CorporateActio
 
     // 若本地尚无该标的的分红方案，先触发一次抓取并落库。
     // 这样打开持仓页即可自动补全，不依赖启动时的批量同步或用户曾打开过个股详情。
-    if (dividendRepo.listByAsset(position.assetKey).length === 0) {
+    if ((await dividendRepo.listByAsset(position.assetKey)).length === 0) {
       try {
         // skipCache=true：强制重新抓取，避免旧快照里被误杀的分红方案覆盖本次落库。
         await new AssetRepository().getDetail({ assetKey: position.assetKey }, true)
@@ -55,8 +55,8 @@ export async function applyCorporateActionsToPositions(): Promise<CorporateActio
 
     // 只应用「持仓买入日之后」且已发生的分红，避免把上市以来累计历史分红一次性扣减。
     const openedAt = position.openedAt
-    const pending = dividendRepo
-      .listPendingCorporateActions(position.assetKey, position.corporateActionsAppliedUntil)
+    const pending = (await dividendRepo
+      .listPendingCorporateActions(position.assetKey, position.corporateActionsAppliedUntil))
       .filter(
         (event) =>
           event.exDate != null &&

@@ -60,10 +60,10 @@ export class IndexValuationRepository {
       return memoryHit.value
     }
 
-    const diskHit = this.diskCache.findFreshByKey<IndexValuationSource>(
+    const diskHit = (await this.diskCache.findFreshByKey<IndexValuationSource>(
       `${VALUATION_DISK_KEY_PREFIX}${indexCode}`,
       INDEX_VALUATION_CACHE_TTL_MS
-    )
+    ))
     if (diskHit) {
       this.memoryCache.set(indexCode, diskHit)
       return diskHit
@@ -71,13 +71,13 @@ export class IndexValuationRepository {
 
     const eastmoneyResult = await this.tryEastmoney(indexCode, resolvedName)
     if (eastmoneyResult) {
-      this.cacheResult(indexCode, eastmoneyResult)
+      await this.cacheResult(indexCode, eastmoneyResult)
       return eastmoneyResult
     }
 
     const danjuanResult = await this.tryDanjuan(indexCode, resolvedName, market)
     if (danjuanResult) {
-      this.cacheResult(indexCode, danjuanResult)
+      await this.cacheResult(indexCode, danjuanResult)
       return danjuanResult
     }
 
@@ -138,10 +138,10 @@ export class IndexValuationRepository {
     return buildMetric(snapshot, history)
   }
 
-  private cacheResult(indexCode: string, value: IndexValuationSource): void {
+  private async cacheResult(indexCode: string, value: IndexValuationSource): Promise<void> {
     this.memoryCache.set(indexCode, value)
     try {
-      this.diskCache.upsert(`${VALUATION_DISK_KEY_PREFIX}${indexCode}`, JSON.stringify(value))
+      await this.diskCache.upsert(`${VALUATION_DISK_KEY_PREFIX}${indexCode}`, JSON.stringify(value))
     } catch {
       // 磁盘缓存写失败不阻塞主流程
     }

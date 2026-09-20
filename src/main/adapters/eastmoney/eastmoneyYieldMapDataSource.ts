@@ -30,13 +30,13 @@ async function fetchPages<TInput, TOutput extends { records: unknown[] }>(
       (_unused, index) => start + index + 2
     )
     const settled = await Promise.allSettled(
-      batch.map((page) =>
-        getDefaultSourceGateway().request<TInput, TOutput>({
+      batch.map(async (page) =>
+        (await getDefaultSourceGateway().request<TInput, TOutput>({
           capability,
           input: inputFor(page),
           cacheKey: keyFor(page),
           cacheTtlMs: PAGE_CACHE_TTL_MS
-        })
+        }))
       )
     )
     for (const result of settled) {

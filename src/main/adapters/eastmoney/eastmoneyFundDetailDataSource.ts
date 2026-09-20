@@ -74,8 +74,8 @@ export class EastmoneyFundDetailDataSource implements FundDetailDataSource {
     let cacheIsFresh = false
 
     if (assetType === 'ETF') {
-      cachedPrices = priceCache.getPriceHistory(normalizedCode)
-      const cachedLatest = priceCache.getLatestDate(normalizedCode)
+      cachedPrices = (await priceCache.getPriceHistory(normalizedCode))
+      const cachedLatest = (await priceCache.getLatestDate(normalizedCode))
       const yesterday = new Date()
       yesterday.setDate(yesterday.getDate() - 1)
       const yesterdayStr = yesterday.toISOString().slice(0, 10)
@@ -106,14 +106,14 @@ export class EastmoneyFundDetailDataSource implements FundDetailDataSource {
       assetType === 'ETF'
         ? (cacheIsFresh
             ? Promise.resolve(cachedPrices)
-            : (() => {
-                const latest = priceCache.getLatestDate(normalizedCode)
+            : (async () => {
+                const latest = (await priceCache.getLatestDate(normalizedCode))
                 const needed = latest
                   ? Math.max(10, Math.ceil(
                       (Date.now() - new Date(latest).getTime()) / (1000 * 60 * 60 * 24) * 5 / 7
                     ) + 10)
                   : 5000
-                return fetchSinaDailyKline(normalizedCode, needed)
+                return (await fetchSinaDailyKline(normalizedCode, needed))
               })())
         : Promise.resolve([] as HistoricalPricePoint[])
     ])
@@ -151,8 +151,8 @@ export class EastmoneyFundDetailDataSource implements FundDetailDataSource {
     // Only merge into cache when we actually fetched new data (cache miss/stale).
     let sinaKlines = cachedPrices
     if (assetType === 'ETF' && !cacheIsFresh && fetchedKlines.length > 0) {
-      priceCache.savePriceHistory(normalizedCode, fetchedKlines)
-      sinaKlines = priceCache.getPriceHistory(normalizedCode)
+      await priceCache.savePriceHistory(normalizedCode, fetchedKlines)
+      sinaKlines = (await priceCache.getPriceHistory(normalizedCode))
     }
 
     const quotePrice = normalizeQuotePrice(quotePayload?.f43)

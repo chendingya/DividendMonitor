@@ -15,6 +15,11 @@
     "dev": "electron-vite dev",
     "dev:browser-preview": "node scripts/dev-browser-preview.mjs",
     "build": "electron-vite build",
+    "build:mobile": "vite build --config vite.config.mobile.ts",
+    "android:sync": "npm run build:mobile && cap sync android",
+    "android:open": "cap open android",
+    "android:debug": "npm run android:sync && node scripts/build-android.mjs",
+    "android:test": "npm run android:sync && node scripts/build-android.mjs :app:connectedDebugAndroidTest",
     "dist:dir": "npm run build && electron-builder --dir",
     "dist:win": "npm run build && electron-builder --win nsis",
     "preview": "electron-vite preview",
@@ -61,6 +66,10 @@
     }
   },
   "dependencies": {
+    "@capacitor-community/sqlite": "7.0.3",
+    "@capacitor/android": "7.6.9",
+    "@capacitor/app": "7.1.2",
+    "@capacitor/core": "7.6.9",
     "@supabase/supabase-js": "^2.105.1",
     "antd": "^5.27.0",
     "axios": "^1.15.1",
@@ -72,6 +81,7 @@
     "zod": "^3.24.4"
   },
   "devDependencies": {
+    "@capacitor/cli": "7.6.9",
     "@types/node": "^22.15.3",
     "@types/react": "^18.3.22",
     "@types/react-dom": "^18.3.7",

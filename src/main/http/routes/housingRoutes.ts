@@ -37,7 +37,7 @@ export async function handleHousingRoute({ pathname, method, body, response }: R
     if (typeof city !== 'string' || !city) {
       throw new HttpError('城市不能为空。', 400)
     }
-    watchHousingCity(city)
+    await watchHousingCity(city)
     sendNoContent(response)
     return true
   }
@@ -47,7 +47,7 @@ export async function handleHousingRoute({ pathname, method, body, response }: R
     if (typeof city !== 'string' || !city) {
       throw new HttpError('城市不能为空。', 400)
     }
-    unwatchHousingCity(city)
+    await unwatchHousingCity(city)
     sendNoContent(response)
     return true
   }
@@ -56,7 +56,7 @@ export async function handleHousingRoute({ pathname, method, body, response }: R
     if (!body || typeof body !== 'object') {
       throw new HttpError('用户数据请求体无效。', 400)
     }
-    updateHousingUserData(body as UserHousingDataUpsertDto)
+    await updateHousingUserData(body as UserHousingDataUpsertDto)
     sendNoContent(response)
     return true
   }
@@ -66,7 +66,7 @@ export async function handleHousingRoute({ pathname, method, body, response }: R
     if (typeof city !== 'string' || !city) {
       throw new HttpError('城市不能为空。', 400)
     }
-    removeHousingUserData(city)
+    await removeHousingUserData(city)
     sendNoContent(response)
     return true
   }

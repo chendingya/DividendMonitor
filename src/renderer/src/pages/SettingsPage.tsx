@@ -7,6 +7,7 @@ import { AppCard } from '@renderer/components/app/AppCard'
 import { backupApi } from '@renderer/services/backupApi'
 import { getSyncDesktopApi } from '@renderer/services/desktopApi'
 import { useAuth } from '@renderer/contexts/AuthContext'
+import { isNativeRuntime } from '@renderer/services/nativeRuntime'
 
 const SORT_METRIC_OPTIONS = [
   { value: 'estimatedFutureYield', label: '估算未来股息率' },
@@ -283,11 +284,13 @@ function SettingsPage() {
 
                   <AppCard title="数据备份">
                     <p style={{ color: '#66707a', fontSize: 13, marginBottom: 12 }}>
-                      备份为本地 SQLite 完整副本（自选、持仓、设置、分红记录与回测历史）。恢复将覆盖全部本地数据；在线模式下界面数据来自云端，恢复后可按提示将数据推送到云端。
+                      {isNativeRuntime()
+                        ? '手机端暂不支持备份文件的导入导出。可在用户中心登录并使用云同步。'
+                        : '备份为本地 SQLite 完整副本（自选、持仓、设置、分红记录与回测历史）。恢复将覆盖全部本地数据；在线模式下界面数据来自云端，恢复后可按提示将数据推送到云端。'}
                     </p>
                     <Space>
-                      <Button onClick={handleBackup}>导出备份</Button>
-                      <Button danger onClick={handleRestore}>恢复备份</Button>
+                      <Button disabled={isNativeRuntime()} onClick={handleBackup}>导出备份</Button>
+                      <Button disabled={isNativeRuntime()} danger onClick={handleRestore}>恢复备份</Button>
                     </Space>
                   </AppCard>
                 </div>

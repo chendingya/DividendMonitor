@@ -6,7 +6,9 @@ import { registerIpcHandlers } from '@main/ipc/channels'
 import { AssetCacheSyncService } from '@main/application/services/assetCacheSyncService'
 import { syncAllDividendEvents } from '@main/application/services/dividendSyncService'
 import { authService } from '@main/infrastructure/supabase/authService'
-import { migrateLegacySession } from '@main/infrastructure/supabase/sessionStorage'
+import { migrateLegacySession, sessionFileStorage } from '@main/infrastructure/supabase/sessionStorage'
+import { setSessionStorage } from '@main/infrastructure/supabase/supabaseClient'
+import { installNodeHttpDefaults } from '@main/infrastructure/http/nodeHttpDefaults'
 import { installElectronSqliteProvider } from '@main/infrastructure/db/electronSqliteProvider'
 import { installElectronBroadcasters } from '@main/infrastructure/supabase/electronBroadcasters'
 import { getCspHeader } from '@main/security/contentSecurityPolicy'
@@ -22,11 +24,12 @@ if (isDevelopment) {
   app.setPath('userData', join(process.cwd(), '.runtime-data'))
 }
 
-// 在任何 DB 使用之前安装 Electron SQLite provider（幂等；路径在首次 getDatabase 时惰性解析）
-installElectronSqliteProvider()
+// SQLite 在 app ready 后完成初始化，再开放 IPC / HTTP。
 
 // 安装 Electron 桌面端的 auth/sync 广播器（幂等；在 authService/syncStatusNotifier 首次广播前）
 installElectronBroadcasters()
+setSessionStorage(sessionFileStorage)
+installNodeHttpDefaults()
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
@@ -69,7 +72,8 @@ process.on('unhandledRejection', (reason: Error) => {
 process.stdout?.on('error', () => undefined)
 process.stderr?.on('error', () => undefined)
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await installElectronSqliteProvider()
   // Migrate legacy plaintext session file to encrypted storage
   migrateLegacySession()
 

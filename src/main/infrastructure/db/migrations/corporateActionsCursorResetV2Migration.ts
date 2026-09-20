@@ -1,4 +1,4 @@
-import type { DatabaseSync } from 'node:sqlite'
+import type { SqliteDatabase } from '@main/infrastructure/db/databaseTypes'
 
 type PositionRow = {
   id: string
@@ -36,20 +36,20 @@ type EventRow = {
  * 因子法只在 reference_close_price > 0 时生效；缺失时旧代码走 fallback（与简单减法同形），
  * 此时反演只需逆序加回 cash 与缩股份。
  */
-export function migrateCorporateActionsCursorResetV2(db: DatabaseSync): void {
-  const meta = db
+export async function migrateCorporateActionsCursorResetV2(db: SqliteDatabase): Promise<void> {
+  const meta = (await db
     .prepare("SELECT value FROM app_settings WHERE key = 'migration:corporate_actions_cursor_reset_v2'")
-    .get() as { value: string } | undefined
+    .get()) as { value: string } | undefined
   if (meta) return
 
-  const positions = db.prepare(`
+  const positions = (await db.prepare(`
     SELECT id, shares, avg_cost, opened_at, corporate_actions_applied_until, asset_key
     FROM portfolio_positions
     WHERE corporate_actions_applied_until IS NOT NULL
       AND corporate_actions_applied_until != ''
       AND opened_at IS NOT NULL
       AND opened_at != ''
-  `).all() as PositionRow[]
+  `).all()) as PositionRow[]
 
   const updateStmt = db.prepare(`
     UPDATE portfolio_positions
@@ -58,14 +58,14 @@ export function migrateCorporateActionsCursorResetV2(db: DatabaseSync): void {
   `)
 
   for (const pos of positions) {
-    const events = db.prepare(`
+    const events = (await db.prepare(`
       SELECT dividend_per_share, bonus_share_per10, transfer_share_per10, ex_date, reference_close_price
       FROM dividend_events
       WHERE asset_key = ?
         AND ex_date >= ?
         AND ex_date <= ?
       ORDER BY ex_date DESC
-    `).all(pos.asset_key, pos.opened_at!, pos.corporate_actions_applied_until!) as EventRow[]
+    `).all(pos.asset_key, pos.opened_at!, pos.corporate_actions_applied_until!)) as EventRow[]
 
     let shares = pos.shares
     let avgCost = pos.avg_cost
@@ -98,18 +98,17 @@ export function migrateCorporateActionsCursorResetV2(db: DatabaseSync): void {
       }
     }
 
-    updateStmt.run(shares, avgCost, pos.id)
+    await updateStmt.run(shares, avgCost, pos.id)
   }
 
   // 对没有 openedAt 但有 cursor 的异常持仓，也重置游标
-  db.exec(`
+  await db.exec(`
     UPDATE portfolio_positions
     SET corporate_actions_applied_until = NULL
     WHERE corporate_actions_applied_until IS NOT NULL
       AND corporate_actions_applied_until != '';
   `)
-
-  db.prepare("INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES (?, '1', ?)").run(
+    await db.prepare("INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES (?, '1', ?)").run(
     'migration:corporate_actions_cursor_reset_v2',
     new Date().toISOString()
   )

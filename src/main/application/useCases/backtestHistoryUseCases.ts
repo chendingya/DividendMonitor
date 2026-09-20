@@ -5,14 +5,14 @@ import {
   deleteBacktestResult
 } from '@main/repositories/backtestResultRepository'
 
-export function listBacktestHistory() {
+export async function listBacktestHistory() {
   return listBacktestResults()
 }
 
-export function saveBacktestHistory(result: BacktestResultDto, name?: string, dcaConfig?: string) {
+export async function saveBacktestHistory(result: BacktestResultDto, name?: string, dcaConfig?: string) {
   return saveBacktestResult(result, name, dcaConfig)
 }
 
-export function deleteBacktestHistory(id: string) {
+export async function deleteBacktestHistory(id: string) {
   return deleteBacktestResult(id)
 }

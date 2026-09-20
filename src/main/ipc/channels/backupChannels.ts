@@ -2,7 +2,7 @@ import { BrowserWindow, dialog, ipcMain } from 'electron'
 import { statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { closeDatabase } from '@main/infrastructure/db/sqlite'
-import { getDatabaseFilePath } from '@main/infrastructure/db/electronSqliteProvider'
+import { getDatabaseFilePath, installElectronSqliteProvider } from '@main/infrastructure/db/electronSqliteProvider'
 import { buildBackupFileName, buildPreRestoreFileName, copySqliteFile, isValidSqliteFile } from '@main/backup/backupFileService'
 
 const SQLITE_FILTER = [{ name: 'SQLite 数据库', extensions: ['sqlite'] }]
@@ -24,9 +24,13 @@ export function registerBackupChannels(): void {
     }
 
     const dbPath = getDatabaseFilePath()
-    // 先关闭数据库再复制，避免复制到写入中间状态（getDatabase 会在下次访问时懒重开）
-    closeDatabase()
-    copySqliteFile(dbPath, result.filePath)
+    // 先关闭数据库再复制，完成后重新初始化连接。
+    await closeDatabase()
+    try {
+      copySqliteFile(dbPath, result.filePath)
+    } finally {
+      await installElectronSqliteProvider()
+    }
     const size = statSync(result.filePath).size
     return { canceled: false, path: result.filePath, size }
   })
@@ -54,10 +58,14 @@ export function registerBackupChannels(): void {
     const dbPath = getDatabaseFilePath()
 
     // 先关闭数据库（保持文件一致），再备份当前库、写入备份文件
-    closeDatabase()
+    await closeDatabase()
     const preRestorePath = join(dirname(dbPath), buildPreRestoreFileName(new Date()))
-    copySqliteFile(dbPath, preRestorePath)
-    copySqliteFile(backupPath, dbPath)
+    try {
+      copySqliteFile(dbPath, preRestorePath)
+      copySqliteFile(backupPath, dbPath)
+    } finally {
+      await installElectronSqliteProvider()
+    }
 
     return { canceled: false, restored: true }
   })

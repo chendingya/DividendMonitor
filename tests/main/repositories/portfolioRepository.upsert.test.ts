@@ -1,3 +1,5 @@
+import { createNodeSqliteDatabase } from '@main/infrastructure/db/nodeSqliteDatabase'
+import type { SqliteDatabase } from '@main/infrastructure/db/databaseTypes'
 import { DatabaseSync } from 'node:sqlite'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -25,7 +27,7 @@ const createPortfolioPositionsTable = `
     ON portfolio_positions(asset_key, updated_at DESC);
 `
 
-let memoryDb: DatabaseSync
+let memoryDb: SqliteDatabase
 
 vi.mock('@main/infrastructure/db/sqlite', () => ({
   getDatabase: () => memoryDb,
@@ -37,9 +39,9 @@ const { PortfolioRepository } = await import('@main/repositories/portfolioReposi
 describe('PortfolioRepository upsert — 同 assetKey 多笔新增', () => {
   let repo: InstanceType<typeof PortfolioRepository>
 
-  beforeEach(() => {
-    memoryDb = new DatabaseSync(':memory:')
-    memoryDb.exec(createPortfolioPositionsTable)
+  beforeEach(async () => {
+    memoryDb = createNodeSqliteDatabase(new DatabaseSync(':memory:'))
+    await memoryDb.exec(createPortfolioPositionsTable)
     repo = new PortfolioRepository()
   })
 
@@ -78,9 +80,9 @@ describe('PortfolioRepository upsert — 同 assetKey 多笔新增', () => {
 describe('PortfolioRepository — risk_level 字段', () => {
   let repo: InstanceType<typeof PortfolioRepository>
 
-  beforeEach(() => {
-    memoryDb = new DatabaseSync(':memory:')
-    memoryDb.exec(`
+  beforeEach(async () => {
+    memoryDb = createNodeSqliteDatabase(new DatabaseSync(':memory:'))
+    await memoryDb.exec(`
       CREATE TABLE portfolio_positions (
         id TEXT PRIMARY KEY,
         asset_key TEXT NOT NULL,

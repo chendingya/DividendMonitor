@@ -59,10 +59,10 @@ export interface IPortfolioRepository {
 }
 
 export interface IDividendRepository {
-  upsertMany(assetKey: string, events: DividendEvent[]): void
-  listByAsset(assetKey: string): DividendEvent[]
-  listPendingCorporateActions(assetKey: string, sinceExDate?: string): DividendEvent[]
-  listAssetKeysWithEvents(): string[]
-  listAll(options?: { fromDate?: string; toDate?: string; assetKeys?: string[] }): DividendEventWithAsset[]
-  listUpcomingByAssetKeys(assetKeys: string[], sinceYear?: number): DividendEventWithAsset[]
+  upsertMany(assetKey: string, events: DividendEvent[]): Promise<void>
+  listByAsset(assetKey: string): Promise<DividendEvent[]>
+  listPendingCorporateActions(assetKey: string, sinceExDate?: string): Promise<DividendEvent[]>
+  listAssetKeysWithEvents(): Promise<string[]>
+  listAll(options?: { fromDate?: string; toDate?: string; assetKeys?: string[] }): Promise<DividendEventWithAsset[]>
+  listUpcomingByAssetKeys(assetKeys: string[], sinceYear?: number): Promise<DividendEventWithAsset[]>
 }

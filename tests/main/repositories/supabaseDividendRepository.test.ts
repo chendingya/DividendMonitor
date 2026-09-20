@@ -1,3 +1,5 @@
+import { createNodeSqliteDatabase } from '@main/infrastructure/db/nodeSqliteDatabase'
+import type { SqliteDatabase } from '@main/infrastructure/db/databaseTypes'
 import { DatabaseSync } from 'node:sqlite'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -53,9 +55,9 @@ function createSupabaseMock() {
 
 type Capture = CapturedUpsert
 
-function setupMemoryDb(): DatabaseSync {
-  const db = new DatabaseSync(':memory:')
-  db.exec(`
+async function setupMemoryDb(): Promise<SqliteDatabase> {
+  const db = createNodeSqliteDatabase(new DatabaseSync(':memory:'))
+  await db.exec(`
     CREATE TABLE dividend_events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       asset_key TEXT NOT NULL,
@@ -83,13 +85,13 @@ function setupMemoryDb(): DatabaseSync {
 
 describe('SupabaseDividendRepository', () => {
   let repo: InstanceType<typeof import('@main/repositories/supabaseDividendRepository')['SupabaseDividendRepository']>
-  let memoryDb: DatabaseSync
+  let memoryDb: SqliteDatabase
   let notifySpy: ReturnType<typeof vi.fn>
   let consoleWarnSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(async () => {
     vi.resetModules()
-    memoryDb = setupMemoryDb()
+    memoryDb = (await setupMemoryDb())
     vi.doMock('@main/infrastructure/db/sqlite', () => ({
       getDatabase: () => memoryDb,
       getDatabaseFilePathForDebug: () => ':memory:'
@@ -111,7 +113,7 @@ describe('SupabaseDividendRepository', () => {
     const { SupabaseDividendRepository } = await import('@main/repositories/supabaseDividendRepository')
     repo = new SupabaseDividendRepository()
 
-    repo.upsertMany('STOCK:A_SHARE:600519', [
+    await repo.upsertMany('STOCK:A_SHARE:600519', [
       {
         year: 2024,
         fiscalYear: 2023,
@@ -157,7 +159,7 @@ describe('SupabaseDividendRepository', () => {
 
     expect(notifySpy).toHaveBeenCalledWith({ status: 'synced' })
 
-    const local = memoryDb.prepare('SELECT COUNT(*) as n FROM dividend_events').get() as { n: number }
+    const local = (await memoryDb.prepare('SELECT COUNT(*) as n FROM dividend_events').get()) as { n: number }
     expect(local.n).toBe(1)
   })
 
@@ -171,7 +173,7 @@ describe('SupabaseDividendRepository', () => {
     const { SupabaseDividendRepository } = await import('@main/repositories/supabaseDividendRepository')
     repo = new SupabaseDividendRepository()
 
-    repo.upsertMany('STOCK:A_SHARE:600519', [
+    await repo.upsertMany('STOCK:A_SHARE:600519', [
       {
         year: 2024,
         exDate: '2024-06-30',
@@ -201,23 +203,23 @@ describe('SupabaseDividendRepository', () => {
     const { SupabaseDividendRepository } = await import('@main/repositories/supabaseDividendRepository')
     repo = new SupabaseDividendRepository()
 
-    memoryDb.prepare(`INSERT INTO dividend_events (asset_key, year, fiscal_year, announce_date, ex_date, dividend_per_share, reference_close_price, source, fetched_at, status) VALUES ('STOCK:A_SHARE:600519', 2024, 2023, '2024-06-28', '2024-06-30', 0.5, 1500, 'eastmoney', '2024-01-01T00:00:00Z', 'IMPLEMENTED')`).run()
+    await memoryDb.prepare(`INSERT INTO dividend_events (asset_key, year, fiscal_year, announce_date, ex_date, dividend_per_share, reference_close_price, source, fetched_at, status) VALUES ('STOCK:A_SHARE:600519', 2024, 2023, '2024-06-28', '2024-06-30', 0.5, 1500, 'eastmoney', '2024-01-01T00:00:00Z', 'IMPLEMENTED')`).run()
 
-    const events = repo.listByAsset('STOCK:A_SHARE:600519')
+    const events = (await repo.listByAsset('STOCK:A_SHARE:600519'))
     expect(events.length).toBe(1)
     expect(events[0].dividendPerShare).toBe(0.5)
 
-    const pending = repo.listPendingCorporateActions('STOCK:A_SHARE:600519', '2024-01-01')
+    const pending = (await repo.listPendingCorporateActions('STOCK:A_SHARE:600519', '2024-01-01'))
     expect(pending.length).toBe(1)
 
-    const keys = repo.listAssetKeysWithEvents()
+    const keys = (await repo.listAssetKeysWithEvents())
     expect(keys).toEqual(['STOCK:A_SHARE:600519'])
 
-    const all = repo.listAll({ assetKeys: ['STOCK:A_SHARE:600519'] })
+    const all = (await repo.listAll({ assetKeys: ['STOCK:A_SHARE:600519'] }))
     expect(all.length).toBe(1)
     expect(all[0].assetKey).toBe('STOCK:A_SHARE:600519')
 
-    const upcoming = repo.listUpcomingByAssetKeys(['STOCK:A_SHARE:600519'])
+    const upcoming = (await repo.listUpcomingByAssetKeys(['STOCK:A_SHARE:600519']))
     expect(upcoming).toEqual([])
 
     expect(supabaseFromSpy).not.toHaveBeenCalled()
@@ -232,8 +234,7 @@ describe('SupabaseDividendRepository', () => {
     const { SupabaseDividendRepository } = await import('@main/repositories/supabaseDividendRepository')
     repo = new SupabaseDividendRepository()
 
-    expect(() =>
-      repo.upsertMany('STOCK:A_SHARE:600519', [
+    await expect(repo.upsertMany('STOCK:A_SHARE:600519', [
         {
           year: 2024,
           announceDate: '2024-06-28',
@@ -242,15 +243,14 @@ describe('SupabaseDividendRepository', () => {
           source: 'eastmoney',
           status: 'IMPLEMENTED'
         }
-      ])
-    ).not.toThrow()
+      ])).resolves.toBeUndefined()
 
     await new Promise((resolve) => setImmediate(resolve))
 
     expect(notifySpy).not.toHaveBeenCalledWith(expect.objectContaining({ status: 'synced' }))
     expect(consoleWarnSpy).not.toHaveBeenCalled()
 
-    const local = memoryDb.prepare('SELECT COUNT(*) as n FROM dividend_events').get() as { n: number }
+    const local = (await memoryDb.prepare('SELECT COUNT(*) as n FROM dividend_events').get()) as { n: number }
     expect(local.n).toBe(1)
   })
 
@@ -272,7 +272,7 @@ describe('SupabaseDividendRepository', () => {
     const { SupabaseDividendRepository } = await import('@main/repositories/supabaseDividendRepository')
     repo = new SupabaseDividendRepository()
 
-    repo.upsertMany('STOCK:A_SHARE:600519', [
+    await repo.upsertMany('STOCK:A_SHARE:600519', [
       {
         year: 2024,
         announceDate: '2024-06-28',
@@ -286,7 +286,7 @@ describe('SupabaseDividendRepository', () => {
     await vi.waitFor(() => expect(notifySpy).toHaveBeenCalledWith(expect.objectContaining({ status: 'offline-fallback' })))
 
     expect(consoleWarnSpy).toHaveBeenCalled()
-    const local = memoryDb.prepare('SELECT COUNT(*) as n FROM dividend_events').get() as { n: number }
+    const local = (await memoryDb.prepare('SELECT COUNT(*) as n FROM dividend_events').get()) as { n: number }
     expect(local.n).toBe(1)
   })
 
@@ -300,7 +300,7 @@ describe('SupabaseDividendRepository', () => {
     const { SupabaseDividendRepository } = await import('@main/repositories/supabaseDividendRepository')
     repo = new SupabaseDividendRepository()
 
-    repo.upsertMany('STOCK:A_SHARE:600519', [])
+    await repo.upsertMany('STOCK:A_SHARE:600519', [])
 
     await new Promise((resolve) => setImmediate(resolve))
     expect(captures.length).toBe(0)
@@ -316,7 +316,7 @@ describe('SupabaseDividendRepository', () => {
     const { SupabaseDividendRepository } = await import('@main/repositories/supabaseDividendRepository')
     repo = new SupabaseDividendRepository()
 
-    repo.upsertMany('ETF:A_SHARE:510300', [
+    await repo.upsertMany('ETF:A_SHARE:510300', [
       {
         year: 2024,
         exDate: '2024-06-20',
@@ -355,17 +355,17 @@ describe('SupabaseDividendRepository', () => {
         status: 'IMPLEMENTED'
       }
 
-      repo.upsertMany('STOCK:A_SHARE:600519', [event])
+      await repo.upsertMany('STOCK:A_SHARE:600519', [event])
       await vi.waitFor(() => expect(captures.length).toBe(1))
 
       // 冷却期内（< 60s）再次 upsert 只落本地，不触发云端推送
-      repo.upsertMany('STOCK:A_SHARE:600519', [event])
+      await repo.upsertMany('STOCK:A_SHARE:600519', [event])
       await new Promise((resolve) => setImmediate(resolve))
       expect(captures.length).toBe(1)
 
       // 超过冷却期后再次 upsert 触发新推送
       vi.setSystemTime(Date.now() + 60_000)
-      repo.upsertMany('STOCK:A_SHARE:600519', [event])
+      await repo.upsertMany('STOCK:A_SHARE:600519', [event])
       await vi.waitFor(() => expect(captures.length).toBe(2))
     } finally {
       vi.useRealTimers()

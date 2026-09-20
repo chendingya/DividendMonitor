@@ -1,3 +1,4 @@
+import type { SqliteExecutor } from '@main/infrastructure/db/databaseTypes'
 import { getDatabase } from '@main/infrastructure/db/sqlite'
 import type {
   AssetIdentifierDto,
@@ -58,9 +59,11 @@ function toDto(row: PortfolioPositionRow): PortfolioPositionDto {
 }
 
 export class PortfolioRepository implements IPortfolioRepository {
+  constructor(private readonly executor?: SqliteExecutor) { }
+
   async list(): Promise<PortfolioPositionDto[]> {
-    const db = getDatabase()
-    const rows = db
+    const db = this.executor ?? getDatabase()
+    const rows = (await db
       .prepare(
         `
           SELECT id, asset_key, asset_type, market, code, name, direction, shares, avg_cost, trade_price, opened_at, risk_level, corporate_actions_applied_until, created_at, updated_at
@@ -68,7 +71,7 @@ export class PortfolioRepository implements IPortfolioRepository {
           ORDER BY updated_at DESC, created_at DESC, id DESC
         `
       )
-      .all() as PortfolioPositionRow[]
+      .all()) as PortfolioPositionRow[]
 
     return rows.map(toDto)
   }
@@ -99,12 +102,12 @@ export class PortfolioRepository implements IPortfolioRepository {
     const riskLevel = request.riskLevel ?? null
     const openedAt = request.openedAt?.trim() || null
     const tradePrice = request.tradePrice != null ? Number(request.tradePrice) : null
-    const db = getDatabase()
-    const existing = db.prepare('SELECT created_at FROM portfolio_positions WHERE id = ?').get(id) as
+    const db = this.executor ?? getDatabase()
+    const existing = (await db.prepare('SELECT created_at FROM portfolio_positions WHERE id = ?').get(id)) as
       | { created_at?: string }
       | undefined
 
-    db.prepare(
+    await db.prepare(
       `
         INSERT INTO portfolio_positions (
           id, asset_key, asset_type, market, code, name, direction, shares, avg_cost, trade_price, opened_at, risk_level, created_at, updated_at
@@ -139,15 +142,15 @@ export class PortfolioRepository implements IPortfolioRepository {
       return
     }
 
-    const db = getDatabase()
-    db.prepare('DELETE FROM portfolio_positions WHERE id = ?').run(normalized)
+    const db = this.executor ?? getDatabase()
+    await db.prepare('DELETE FROM portfolio_positions WHERE id = ?').run(normalized)
   }
 
   async removeByAsset(request: AssetQueryDto): Promise<void> {
     const identity = normalizeIdentity(request)
     const assetKey = buildAssetKey(identity.assetType, identity.market, identity.code)
-    const db = getDatabase()
-    db.prepare('DELETE FROM portfolio_positions WHERE asset_key = ?').run(assetKey)
+    const db = this.executor ?? getDatabase()
+    await db.prepare('DELETE FROM portfolio_positions WHERE asset_key = ?').run(assetKey)
   }
 
   async replaceByAsset(request: PortfolioPositionReplaceByAssetDto): Promise<void> {
@@ -167,10 +170,10 @@ export class PortfolioRepository implements IPortfolioRepository {
     const id = `asset-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const db = getDatabase()
 
-    db.exec('BEGIN')
-    try {
-      db.prepare('DELETE FROM portfolio_positions WHERE asset_key = ?').run(assetKey)
-      db.prepare(
+    await db.transaction(async (db) => {
+
+      await db.prepare('DELETE FROM portfolio_positions WHERE asset_key = ?').run(assetKey)
+      await db.prepare(
         `
           INSERT INTO portfolio_positions (
             id, asset_key, asset_type, market, code, name, direction, shares, avg_cost, opened_at, created_at, updated_at
@@ -178,11 +181,8 @@ export class PortfolioRepository implements IPortfolioRepository {
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `
       ).run(id, assetKey, identity.assetType, identity.market, identity.code, name, 'BUY', shares, avgCost, request.openedAt?.trim() || null, now, now)
-      db.exec('COMMIT')
-    } catch (error) {
-      db.exec('ROLLBACK')
-      throw error
-    }
+
+    })
   }
 
   async applyCorporateActionAdjustment(
@@ -191,8 +191,8 @@ export class PortfolioRepository implements IPortfolioRepository {
     avgCost: number,
     appliedUntil: string
   ): Promise<void> {
-    const db = getDatabase()
-    db.prepare(
+    const db = this.executor ?? getDatabase()
+    await db.prepare(
       `
         UPDATE portfolio_positions
         SET shares = ?, avg_cost = ?, corporate_actions_applied_until = ?, updated_at = ?

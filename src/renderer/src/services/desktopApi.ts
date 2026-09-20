@@ -1,11 +1,33 @@
 import type { DividendMonitorApi } from '@shared/contracts/api'
 import { browserHttpRuntimeApi } from '@renderer/services/browserHttpRuntimeApi'
 import { browserRuntimeApi } from '@renderer/services/browserRuntimeApi'
+import { isNativeRuntime } from '@renderer/services/nativeRuntime'
+let inprocessApi: DividendMonitorApi | undefined
+let initialization: Promise<void> | undefined
+
+export function isInprocessRuntime(): boolean {
+  return !window.dividendMonitor && (isNativeRuntime() || new URLSearchParams(window.location.search).get('runtime') === 'inprocess')
+}
+
+/** React 挂载前完成初始化，桌面/HTTP/mock 不加载 main 用例依赖图。 */
+export function initializeRuntime(): Promise<void> {
+  if (!isInprocessRuntime()) return Promise.resolve()
+  return initialization ??= (async () => {
+    const { initializeNativeRuntime } = await import('@renderer/services/nativeRuntime')
+    await initializeNativeRuntime()
+    inprocessApi = (await import('@renderer/services/inprocessRuntimeApi')).inprocessRuntimeApi
+  })()
+}
 
 function getRuntimeApi(): DividendMonitorApi {
   const api = window.dividendMonitor
 
-  if (!api && window.location.search.includes('runtime=mock')) {
+  if (isInprocessRuntime()) {
+    if (!inprocessApi) throw new Error('运行时尚未初始化')
+    return inprocessApi
+  }
+
+  if (!api && new URLSearchParams(window.location.search).get('runtime') === 'mock') {
     return browserRuntimeApi
   }
 

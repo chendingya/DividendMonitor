@@ -18,3 +18,4 @@ supabase/.temp/
 
 # git worktrees (parallel development worktrees inside the repo)
 .worktrees/
+mobile/www/

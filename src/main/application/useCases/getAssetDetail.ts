@@ -21,7 +21,7 @@ export async function getAssetDetail(query: AssetQueryDto): Promise<AssetDetailD
   }
 
   const detail = toAssetDetailDto(source, indexValuation)
-  const snapshot = snapshotRepository.findByKey(detail.assetKey)
+  const snapshot = (await snapshotRepository.findByKey(detail.assetKey))
 
   return {
     ...detail,

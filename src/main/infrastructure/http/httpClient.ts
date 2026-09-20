@@ -1,14 +1,11 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios'
-import { EventEmitter } from 'node:events'
-import http from 'node:http'
-import https from 'node:https'
 
-// getDetail() fires requests serially with staggered delays, so the socket
-// pool is no longer the bottleneck. Keep a moderate pool for UI-initiated
-// parallel requests.
-EventEmitter.defaultMaxListeners = 50
-http.globalAgent.maxSockets = 16
-https.globalAgent.maxSockets = 16
+export type HttpGetTransport = (url: string, responseType: 'json' | 'text' | 'arraybuffer', config: AxiosRequestConfig) => Promise<unknown>
+let platformTransport: HttpGetTransport | undefined
+
+export function setHttpGetTransport(transport: HttpGetTransport | undefined): void {
+  platformTransport = transport
+}
 
 const httpClient = axios.create({
   timeout: 10000,
@@ -51,6 +48,7 @@ function toHttpError(error: unknown, url: string): Error {
 
 export async function getJson<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
   try {
+    if (platformTransport) return await platformTransport(url, 'json', applyRefererGuard(config, url)) as T
     const response = await httpClient.get<T>(url, applyRefererGuard(config, url))
     return response.data
   } catch (error) {
@@ -60,6 +58,7 @@ export async function getJson<T>(url: string, config?: AxiosRequestConfig): Prom
 
 export async function getText(url: string, config?: AxiosRequestConfig): Promise<string> {
   try {
+    if (platformTransport) return await platformTransport(url, 'text', applyRefererGuard(config, url)) as string
     const response = await httpClient.get<string>(url, {
       responseType: 'text',
       ...applyRefererGuard(config, url)
@@ -68,4 +67,12 @@ export async function getText(url: string, config?: AxiosRequestConfig): Promise
   } catch (error) {
     throw toHttpError(error, url)
   }
+}
+
+export async function getArrayBuffer(url: string, config?: AxiosRequestConfig): Promise<ArrayBuffer> {
+  try {
+    if (platformTransport) return await platformTransport(url, 'arraybuffer', applyRefererGuard(config, url)) as ArrayBuffer
+    const response = await httpClient.get<ArrayBuffer>(url, { ...applyRefererGuard(config, url), responseType: 'arraybuffer' })
+    return response.data
+  } catch (error) { throw toHttpError(error, url) }
 }

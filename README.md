@@ -16,6 +16,8 @@
 
 收息佬（DividendMonitor）是一个 Electron 桌面应用，帮助 A 股、ETF、基金与贵金属的长期投资者用统一口径追踪股息收益、对比估值、管理持仓并回测分红复投策略。数据本地优先存储，可选 Supabase 在线同步实现多设备云备份。
 
+Android 试用版使用 Capacitor 原生 SQLite 与原生网络，复用同一套界面和业务计算。运行 `npm run android:debug` 生成调试 APK，环境要求、设备测试和功能限制见 [Android 构建说明](docs/ANDROID-BUILD.md)。
+
 ## 界面预览
 
 ### 工作台

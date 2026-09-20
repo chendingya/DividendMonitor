@@ -12,7 +12,7 @@ type RouteContext = {
 
 export async function handleSettingsRoute({ pathname, method, body, response }: RouteContext): Promise<boolean> {
   if (pathname === '/api/settings' && method === 'GET') {
-    const result = getSettings()
+    const result = (await getSettings())
     sendJson(response, 200, result)
     return true
   }
@@ -21,13 +21,13 @@ export async function handleSettingsRoute({ pathname, method, body, response }: 
     if (!body || typeof body !== 'object') {
       throw new HttpError('设置请求体无效。', 400)
     }
-    const result = updateSettings(body as Record<string, unknown>)
+    const result = (await updateSettings(body as Record<string, unknown>))
     sendJson(response, 200, result)
     return true
   }
 
   if (pathname === '/api/settings' && method === 'DELETE') {
-    const result = resetSettings()
+    const result = (await resetSettings())
     sendJson(response, 200, result)
     return true
   }

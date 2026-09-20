@@ -1,4 +1,4 @@
-import { getSupabaseClient, resetSupabaseClient } from '@main/infrastructure/supabase/supabaseClient'
+import { getSupabaseClient } from '@main/infrastructure/supabase/supabaseClient'
 import { setRuntimeMode } from '@main/infrastructure/supabase/runtimeMode'
 import type { Session, User } from '@supabase/supabase-js'
 
@@ -29,7 +29,9 @@ function toAuthSession(session: Session | null): AuthSession | null {
 }
 
 /** 邮件确认回调地址：跟随 LOCAL_HTTP_API_PORT（端口退避后仍可直达 API） */
-function getAuthCallbackUrl(): string {
+function getAuthCallbackUrl(): string | undefined {
+  // 浏览器沿用 Supabase 的 Site URL；本机 HTTP 回调只适用于桌面运行时。
+  if (typeof process === 'undefined') return undefined
   const port = process.env['LOCAL_HTTP_API_PORT']?.trim()
   if (port && /^\d+$/.test(port)) {
     return `http://127.0.0.1:${port}/auth/callback`
@@ -40,12 +42,30 @@ function getAuthCallbackUrl(): string {
 /** 登录态广播器（默认 no-op）：桌面端由 electronBroadcasters 注入 BrowserWindow 推送实现 */
 let authStateBroadcaster: (session: AuthSession | null) => void = () => undefined
 
+/** 进程内订阅者（inprocess 运行时直连用例时注册），与广播器并行收到同一 session */
+const authStateListeners = new Set<(session: AuthSession | null) => void>()
+
 /** 注入登录态广播器（幂等覆盖）。 */
 export function setAuthStateBroadcaster(fn: (session: AuthSession | null) => void): void {
   authStateBroadcaster = fn
 }
 
+/**
+ * 订阅登录态变化（inprocess 运行时用）：注册内部监听者，返回取消订阅函数。
+ * 不占用广播器注入位——broadcastAuthChange 仍会先通知全部订阅者、再调用注入的
+ * 广播器，桌面端 BrowserWindow 推送行为保持不变。
+ */
+export function subscribeAuthState(cb: (session: AuthSession | null) => void): () => void {
+  authStateListeners.add(cb)
+  return () => {
+    authStateListeners.delete(cb)
+  }
+}
+
 function broadcastAuthChange(session: AuthSession | null): void {
+  for (const listener of authStateListeners) {
+    listener(session)
+  }
   authStateBroadcaster(session)
 }
 
@@ -158,8 +178,8 @@ export const authService = {
     const supabase = getSupabaseClient()
     if (!supabase) return
 
-    await supabase.auth.signOut()
-    resetSupabaseClient()
+    const { error } = await supabase.auth.signOut()
+    if (error) throw new Error(`退出登录失败：${error.message}`)
     cachedSession = null
     setRuntimeMode('offline')
   },

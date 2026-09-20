@@ -1,3 +1,4 @@
+import type { SqliteExecutor } from '@main/infrastructure/db/databaseTypes'
 import { getDatabase } from '@main/infrastructure/db/sqlite'
 import type { AssetIdentifierDto, AssetKey, AssetType, MarketCode } from '@shared/contracts/api'
 import { buildAssetKey, buildStockAssetKey, normalizeAssetCode, parseAssetKey } from '@shared/contracts/api'
@@ -33,9 +34,11 @@ function sanitizeSymbols(symbols: string[]) {
 }
 
 export class WatchlistRepository implements IWatchlistRepository {
+  constructor(private readonly executor?: SqliteExecutor) {}
+
   async listAssets(): Promise<WatchlistAssetRecord[]> {
-    const db = getDatabase()
-    const rows = db
+    const db = this.executor ?? getDatabase()
+    const rows = (await db
       .prepare(
         `
           SELECT asset_key, asset_type, market, code, name
@@ -43,7 +46,7 @@ export class WatchlistRepository implements IWatchlistRepository {
           ORDER BY updated_at DESC, created_at DESC, code ASC
         `
       )
-      .all() as Array<{
+      .all()) as Array<{
       asset_key: string
       asset_type: AssetType
       market: MarketCode
@@ -86,11 +89,11 @@ export class WatchlistRepository implements IWatchlistRepository {
       throw new Error(`Only A-share 6-digit asset codes are supported: ${asset.code}`)
     }
 
-    const db = getDatabase()
+    const db = this.executor ?? getDatabase()
     const now = new Date().toISOString()
     const assetKey = buildAssetKey(asset.assetType, asset.market, normalizedCode)
 
-    db.prepare(
+    await db.prepare(
       `
         INSERT INTO watchlist_items (asset_key, asset_type, market, code, name, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -107,8 +110,8 @@ export class WatchlistRepository implements IWatchlistRepository {
       return
     }
 
-    const db = getDatabase()
-    db.prepare('DELETE FROM watchlist_items WHERE asset_key = ?').run(normalized)
+    const db = this.executor ?? getDatabase()
+    await db.prepare('DELETE FROM watchlist_items WHERE asset_key = ?').run(normalized)
   }
 
   async addSymbol(symbol: string) {
