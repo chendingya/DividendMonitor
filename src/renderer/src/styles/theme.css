@@ -2256,6 +2256,43 @@ button.ledger-breadcrumb-item:hover {
   }
 }
 
+/* 手机搜索结果将操作放在资产信息下方，避免按钮隐藏在横向滚动区域中。 */
+.asset-search-mobile-result {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.asset-search-mobile-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow-wrap: anywhere;
+}
+
+.asset-search-name {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-main);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.asset-search-code {
+  margin-top: 4px;
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.asset-search-mobile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 /* 数据行窄屏横向滚动兜底（≤720px 行已折叠为单列堆叠，仅保留容器级溢出约束） */
 @media (max-width: 720px) {
   .ledger-data-card {

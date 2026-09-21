@@ -391,7 +391,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <button
           type="button"
           className="ledger-upgrade-button"
-          onClick={() => navigate('/user-center')}
+          onClick={() => navigate('/login')}
         >
           登录 / 注册
         </button>

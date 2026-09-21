@@ -6,10 +6,12 @@ import { AppCard } from '@renderer/components/app/AppCard'
 import { AssetAvatar } from '@renderer/components/app/AssetAvatar'
 import { PageStateBlock } from '@renderer/components/app/PageStateBlock'
 import { useWatchlist } from '@renderer/hooks/useWatchlist'
+import { useIsMobile } from '@renderer/hooks/useIsMobile'
 import { assetApi } from '@renderer/services/assetApi'
 import { buildAssetDetailPath, buildAssetSearchPath, rememberLastAssetKey, rememberLastSymbol } from '@renderer/services/routeContext'
 
 export function AssetSearchPage() {
+  const isMobile = useIsMobile(720)
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [apiMessage, messageHolder] = message.useMessage()
@@ -135,7 +137,36 @@ export function AssetSearchPage() {
             loading={loading}
             pagination={{ pageSize: 10, hideOnSinglePage: true, showSizeChanger: false }}
             dataSource={results}
-            columns={[
+            columns={isMobile ? [
+              {
+                title: '资产',
+                render: (_, record: AssetSearchItemDto) => (
+                  <div className="asset-search-mobile-result">
+                    <div className="asset-search-mobile-summary">
+                      <AssetAvatar name={record.name} assetType={record.assetType} size={32} />
+                      <div>
+                        <button className="asset-search-name" onClick={() => openDetail(record)}>
+                          {record.name}
+                        </button>
+                        <div className="asset-search-code">{record.symbol ?? record.code}</div>
+                      </div>
+                    </div>
+                    <div className="asset-search-mobile-actions">
+                      <Button onClick={() => openDetail(record)}>查看详情</Button>
+                      <Button
+                        type="primary"
+                        ghost
+                        disabled={watchlistAssetKeys.has(record.assetKey)}
+                        loading={mutatingAssetKey === record.assetKey}
+                        onClick={() => addToWatchlist(record)}
+                      >
+                        {watchlistAssetKeys.has(record.assetKey) ? '已在自选' : '加入自选'}
+                      </Button>
+                    </div>
+                  </div>
+                )
+              }
+            ] : [
               {
                 title: '资产',
                 render: (_, record: AssetSearchItemDto) => (

@@ -25,11 +25,11 @@ npm run android:sync
 # 在 Android Studio 打开工程
 npm run android:open
 
-# 设备测试：真实原生插件、App 业务 API、分组增删改和 Activity 重开持久化
+# 设备测试：原生插件与手机宽度下的实际页面流程
 npm run android:test
 ```
 
-设备测试必须使用无登录会话的测试安装，不使用个人账户。测试只创建并清理 `native-smoke-*` 本地分组；网络测试只读取公开腾讯行情。测试报告位于 `android/app/build/reports/androidTests/connected/`。
+设备测试必须使用无登录会话、CSS 视口不超过 600px 的测试安装，不使用个人账户。`NativeRuntimeTest` 直接调用业务 API，验证原生插件和分组持久化；`NativeUiFlowTest` 操作打包后的 WebView 表单、导航和按钮，不导入业务 API，验证搜索操作可见、登录入口和股票详情加载。测试只创建并清理 `native-smoke-*` 本地分组；网络测试读取公开行情、搜索和详情。测试报告位于 `android/app/build/reports/androidTests/connected/`。
 
 构建脚本优先使用 `ANDROID_JAVA_HOME`，其次本工作区 `.runtime-data/tools/jdk21`，最后 `JAVA_HOME`。SDK 优先使用 `ANDROID_HOME` / `ANDROID_SDK_ROOT`，Windows 默认使用用户目录下的 Android SDK。`android/local.properties`、构建产物和本地工具均不提交。
 
@@ -67,3 +67,12 @@ Android 15 使用原生系统栏边距避免遮挡。系统返回键返回上一
 - 云端写入失败、跨设备成员删除、桌面恢复备份后的连接重开经边界 mock + 真实 SQLite 回归，并经独立代码审查。真实 Supabase 账号/RLS、多设备同步与真实手机仍待验收。
 
 本机首次构建修复了不完整的 SDK Platform 35，并补齐 Build Tools 34。全局 Gradle `init.gradle` 中旧 JCenter 镜像曾导致依赖缺失，临时构建配置使用官方仓库；项目不修改全局镜像配置，也不关闭 TLS 校验。
+
+## 2026-09-21 界面复现与修复
+
+- 在 Android 15 x86_64 模拟器操作原交付 APK：搜索 `600519`、`601398` 均返回结果，但详情和加入自选按钮位于表格横向滚动区域外；点击资产名称没有作用。手机搜索结果现改为单列，资产名称可点击，操作按钮直接可见。
+- 导航中的“登录 / 注册”原先跳到用户中心，需要再次向下滚动找到登录按钮。现直接打开登录表单。两条界面回归测试在原 APK 失败，在修复 APK 通过。
+- 使用虚构账号在实际登录表单提交，收到“邮箱或密码错误”。这仅验证了认证请求及错误反馈，不代表成功登录或云同步已验收；没有使用个人账号，也没有向云端写入资产。
+- 模拟器 34.2.15、37.1.11 在 SwiftShader 软件渲染下加载详情时发生 Windows `0xc0000005` 崩溃。工作区内独立安装的官方 37.1.11 改用 `-gpu host -feature -Vulkan` 后，三个界面测试全部通过（43.45 秒），包括实际搜索后点击工商银行详情并验证详情页展示资产名称。不修改全局 SDK；这不是 Vivo 真机崩溃的结论。
+- 修复版本通过 TypeScript 检查、83 个 Vitest 文件 / 489 项测试、移动资源和 APK 构建、APK v2 签名校验。修复包为 `release/android/shou-xi-lao-0.3.0-ui-fix-debug.apk`，旁附 SHA256 文件。
+- Vivo X80 / OriginOS 6 真机、成功登录、云端资产推拉及账号切换仍需单独验证。
