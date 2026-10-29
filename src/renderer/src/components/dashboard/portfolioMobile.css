@@ -1,0 +1,82 @@
+.portfolio-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.portfolio-mobile-list {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.portfolio-mobile-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  padding-top: 18px;
+}
+
+.portfolio-mobile-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.portfolio-mobile-code {
+  color: var(--text-soft);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.portfolio-mobile-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+
+.portfolio-mobile-metrics dt {
+  color: var(--text-soft);
+  font-size: 12px;
+}
+
+.portfolio-mobile-metrics dd {
+  margin: 4px 0 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.portfolio-mobile-transactions {
+  margin-top: 16px;
+}
+
+.portfolio-mobile-transactions summary {
+  cursor: pointer;
+  min-height: 40px;
+  padding: 10px 0;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.portfolio-mobile-transactions ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.portfolio-mobile-transactions li {
+  padding: 14px 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.portfolio-mobile-transactions .portfolio-row-actions {
+  margin-top: 10px;
+}
+
+@media (max-width: 720px) {
+  .portfolio-mobile-card .ledger-inline-action-btn {
+    min-height: 40px;
+  }
+}

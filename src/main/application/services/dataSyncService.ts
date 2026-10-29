@@ -2,6 +2,9 @@ import { getSupabaseClient } from '@main/infrastructure/supabase/supabaseClient'
 import { authService } from '@main/infrastructure/supabase/authService'
 import { notifySyncStatus } from '@main/infrastructure/supabase/syncStatusNotifier'
 import { getDatabase } from '@main/infrastructure/db/sqlite'
+import type { SqliteExecutor } from '@main/infrastructure/db/databaseTypes'
+import type { PortfolioPositionDto } from '@shared/contracts/api'
+import { toPortfolioCalendarDate } from '@main/application/mappers/portfolioDateMapper'
 import { WatchlistRepository } from '@main/repositories/watchlistRepository'
 import { PortfolioRepository } from '@main/repositories/portfolioRepository'
 import { buildAssetKey, normalizeAssetCode } from '@shared/contracts/api'
@@ -109,20 +112,7 @@ async function pushLocalToCloud(): Promise<{ watchlist: number; portfolio: numbe
       const code = normalizeAssetCode(pos.code ?? pos.symbol ?? '')
       const assetKey = pos.assetKey?.trim() || buildAssetKey(pos.assetType, pos.market, code)
       localIds.add(pos.id)
-      return {
-        id: pos.id,
-        user_id: userId,
-        asset_key: assetKey,
-        asset_type: pos.assetType,
-        market: pos.market,
-        code,
-        name: pos.name,
-        direction: pos.direction ?? 'BUY',
-        shares: pos.shares,
-        avg_cost: pos.avgCost,
-        created_at: pos.createdAt || now,
-        updated_at: now
-      }
+      return toCloudPortfolioRow({ ...pos, assetKey, code, createdAt: pos.createdAt || now }, userId)
     })
 
     if (upsertRows.length > 0) {
@@ -245,18 +235,7 @@ async function pullCloudToLocal(): Promise<{ watchlist: number; portfolio: numbe
             await localPortfolio.remove(pos.id)
           }
           for (const row of cloudRows) {
-            await localPortfolio.upsert({
-              id: String(row['id'] ?? ''),
-              assetKey: String(row['asset_key'] ?? ''),
-              assetType: String(row['asset_type'] ?? 'STOCK') as 'STOCK' | 'ETF' | 'FUND',
-              market: String(row['market'] ?? 'A_SHARE') as 'A_SHARE',
-              code: String(row['code'] ?? ''),
-              symbol: String(row['asset_type'] ?? '') === 'STOCK' ? String(row['code'] ?? '') : undefined,
-              name: String(row['name'] ?? ''),
-              direction: String(row['direction'] ?? 'BUY') as 'BUY' | 'SELL',
-              shares: Number(row['shares'] ?? 0),
-              avgCost: Number(row['avg_cost'] ?? 0)
-            })
+            await cacheCloudPortfolioRow(tx, fromCloudPortfolioRow(row))
             portfolioCount++
           }
 
@@ -282,18 +261,45 @@ type WatchlistRow = {
   name: string | null
 }
 
-type PortfolioRow = {
-  id: string
-  assetKey: string
-  assetType: string
-  market: string
-  code: string
-  name: string | null
-  direction: string
-  shares: number
-  avgCost: number
-  createdAt: string
-  updatedAt: string
+type PortfolioRow = PortfolioPositionDto
+
+function toCloudPortfolioRow(position: PortfolioRow, userId: string): Record<string, unknown> {
+  return {
+    id: position.id, user_id: userId, asset_key: position.assetKey,
+    asset_type: position.assetType, market: position.market, code: position.code,
+    name: position.name, direction: position.direction ?? 'BUY',
+    shares: position.shares, avg_cost: position.avgCost,
+    trade_price: position.tradePrice ?? null, opened_at: position.openedAt ?? null,
+    risk_level: position.riskLevel ?? null,
+    corporate_actions_applied_until: position.corporateActionsAppliedUntil ?? '',
+    created_at: position.createdAt, updated_at: position.updatedAt
+  }
+}
+
+function fromCloudPortfolioRow(row: Record<string, unknown>): PortfolioRow {
+  return {
+    id: String(row['id'] ?? ''), assetKey: String(row['asset_key'] ?? ''),
+    assetType: String(row['asset_type'] ?? 'STOCK') as PortfolioRow['assetType'],
+    market: String(row['market'] ?? 'A_SHARE') as PortfolioRow['market'],
+    code: String(row['code'] ?? ''), name: String(row['name'] ?? ''),
+    direction: String(row['direction'] ?? 'BUY') as PortfolioRow['direction'],
+    shares: Number(row['shares'] ?? 0), avgCost: Number(row['avg_cost'] ?? 0),
+    tradePrice: row['trade_price'] != null ? Number(row['trade_price']) : undefined,
+    openedAt: toPortfolioCalendarDate(row['opened_at']),
+    riskLevel: (row['risk_level'] as PortfolioRow['riskLevel']) ?? undefined,
+    corporateActionsAppliedUntil: String(row['corporate_actions_applied_until'] ?? ''),
+    createdAt: String(row['created_at'] ?? ''), updatedAt: String(row['updated_at'] ?? '')
+  }
+}
+
+/** 导入是缓存远端版本，不能当作一次本地编辑来重写时间和除权游标。 */
+async function cacheCloudPortfolioRow(executor: SqliteExecutor, position: PortfolioRow): Promise<void> {
+  await new PortfolioRepository(executor).upsert(position)
+  await executor.prepare(`
+    UPDATE portfolio_positions
+    SET corporate_actions_applied_until = ?, created_at = ?, updated_at = ?
+    WHERE id = ?
+  `).run(position.corporateActionsAppliedUntil ?? null, position.createdAt, position.updatedAt, position.id)
 }
 
 /**
@@ -410,10 +416,14 @@ async function bidirectionalMerge(): Promise<{ watchlistPushed: number; watchlis
         assetType: pos.assetType,
         market: pos.market,
         code,
-        name: pos.name ?? null,
+        name: pos.name ?? '',
         direction: pos.direction ?? 'BUY',
         shares: pos.shares,
         avgCost: pos.avgCost,
+        tradePrice: pos.tradePrice,
+        openedAt: pos.openedAt,
+        riskLevel: pos.riskLevel,
+        corporateActionsAppliedUntil: pos.corporateActionsAppliedUntil,
         createdAt: pos.createdAt || new Date().toISOString(),
         updatedAt: pos.updatedAt || new Date().toISOString()
       })
@@ -430,40 +440,14 @@ async function bidirectionalMerge(): Promise<{ watchlistPushed: number; watchlis
     } else {
       const cloudPfMap = new Map<string, PortfolioRow>()
       for (const row of (cloudPfData ?? [])) {
-        const id = String(row['id'])
-        cloudPfMap.set(id, {
-          id,
-          assetKey: String(row['asset_key'] ?? ''),
-          assetType: String(row['asset_type'] ?? 'STOCK'),
-          market: String(row['market'] ?? 'A_SHARE'),
-          code: String(row['code'] ?? ''),
-          name: row['name'] ? String(row['name']) : null,
-          direction: String(row['direction'] ?? 'BUY'),
-          shares: Number(row['shares'] ?? 0),
-          avgCost: Number(row['avg_cost'] ?? 0),
-          createdAt: String(row['created_at'] ?? ''),
-          updatedAt: String(row['updated_at'] ?? '')
-        })
+        const position = fromCloudPortfolioRow(row)
+        cloudPfMap.set(position.id, position)
       }
 
       // Batch push local-only items to cloud
-      const now = new Date().toISOString()
       const onlyInLocal = [...localPfMap.entries()].filter(([id]) => !cloudPfMap.has(id))
       if (onlyInLocal.length > 0) {
-        const upsertRows = onlyInLocal.map(([, item]) => ({
-          id: item.id,
-          user_id: userId,
-          asset_key: item.assetKey,
-          asset_type: item.assetType,
-          market: item.market,
-          code: item.code,
-          name: item.name,
-          direction: item.direction,
-          shares: item.shares,
-          avg_cost: item.avgCost,
-          created_at: item.createdAt || now,
-          updated_at: now
-        }))
+        const upsertRows = onlyInLocal.map(([, item]) => toCloudPortfolioRow(item, userId))
         const { error } = await supabase.from('portfolio_positions').upsert(upsertRows, { onConflict: 'id' })
         if (error) {
           errors.push(`持仓批量推送失败: ${error.message}`)
@@ -475,18 +459,7 @@ async function bidirectionalMerge(): Promise<{ watchlistPushed: number; watchlis
       // Pull cloud-only items to local
       const onlyInCloud = [...cloudPfMap.entries()].filter(([id]) => !localPfMap.has(id))
       for (const [, item] of onlyInCloud) {
-        await localPortfolio.upsert({
-          id: item.id,
-          assetKey: item.assetKey,
-          assetType: item.assetType as 'STOCK' | 'ETF' | 'FUND',
-          market: item.market as 'A_SHARE',
-          code: item.code,
-          symbol: item.assetType === 'STOCK' ? item.code : undefined,
-          name: item.name ?? '',
-          direction: item.direction as 'BUY' | 'SELL',
-          shares: item.shares,
-          avgCost: item.avgCost
-        })
+        await getDatabase().transaction((tx) => cacheCloudPortfolioRow(tx, item))
         portfolioPulled++
       }
 
@@ -501,34 +474,13 @@ async function bidirectionalMerge(): Promise<{ watchlistPushed: number; watchlis
 
         if (cloudTime > localTime) {
           // Cloud is newer → pull to local
-          await localPortfolio.upsert({
-            id: cloudItem.id,
-            assetKey: cloudItem.assetKey,
-            assetType: cloudItem.assetType as 'STOCK' | 'ETF' | 'FUND',
-            market: cloudItem.market as 'A_SHARE',
-            code: cloudItem.code,
-            symbol: cloudItem.assetType === 'STOCK' ? cloudItem.code : undefined,
-            name: cloudItem.name ?? '',
-            direction: cloudItem.direction as 'BUY' | 'SELL',
-            shares: cloudItem.shares,
-            avgCost: cloudItem.avgCost
-          })
+          await getDatabase().transaction((tx) => cacheCloudPortfolioRow(tx, cloudItem))
           portfolioPulled++
         } else if (localTime > cloudTime) {
           // Local is newer → collect for batch push to cloud
           updatesToCloud.push({
             id,
-            data: {
-              asset_key: localItem.assetKey,
-              asset_type: localItem.assetType,
-              market: localItem.market,
-              code: localItem.code,
-              name: localItem.name,
-              direction: localItem.direction,
-              shares: localItem.shares,
-              avg_cost: localItem.avgCost,
-              updated_at: now
-            }
+            data: toCloudPortfolioRow(localItem, userId)
           })
         }
         // If same timestamp, skip — already in sync

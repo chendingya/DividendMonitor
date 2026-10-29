@@ -91,6 +91,8 @@ export function WatchlistPage() {
         return (left.symbol ?? left.code).localeCompare(right.symbol ?? right.code)
       }
       if (sortBy === 'price-desc') {
+        if (left.latestPrice == null) return right.latestPrice == null ? 0 : 1
+        if (right.latestPrice == null) return -1
         return right.latestPrice - left.latestPrice
       }
       const leftYield = left.estimatedFutureYield ?? left.averageYield ?? (sortBy === 'yield-asc' ? Number.POSITIVE_INFINITY : Number.NEGATIVE_INFINITY)

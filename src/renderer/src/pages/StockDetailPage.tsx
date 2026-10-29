@@ -93,7 +93,7 @@ export function StockDetailPage() {
         return
       }
 
-      await addAsset({ assetKey })
+      await addAsset({ assetKey, name: data?.name })
       apiMessage.success('已将该资产加入自选')
     } catch (actionError) {
       apiMessage.error(actionError instanceof Error ? actionError.message : '更新自选失败')

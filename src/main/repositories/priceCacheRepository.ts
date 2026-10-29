@@ -1,6 +1,9 @@
 import { getDatabase } from '@main/infrastructure/db/sqlite'
 import type { HistoricalPricePoint } from '@main/domain/entities/Stock'
 
+// 每行 3 个绑定参数，200 行共 600 个，兼容旧 SQLite 的 999 变量上限。
+const PRICE_CACHE_BATCH_ROWS = 200
+
 export interface IPriceCacheRepository {
   getPriceHistory(code: string): Promise<HistoricalPricePoint[]>
   savePriceHistory(code: string, prices: HistoricalPricePoint[]): Promise<void>
@@ -24,14 +27,13 @@ export class SqlitePriceCacheRepository implements IPriceCacheRepository {
     const db = getDatabase()
     try {
       await db.transaction(async (db) => {
-        const stmt = db.prepare(
-          'INSERT OR REPLACE INTO price_cache (code, date, close) VALUES (?, ?, ?)'
-        )
-
-        for (const p of prices) {
-          await stmt.run(code, p.date, p.close)
+        for (let offset = 0; offset < prices.length; offset += PRICE_CACHE_BATCH_ROWS) {
+          const batch = prices.slice(offset, offset + PRICE_CACHE_BATCH_ROWS)
+          // 同一事务内按批跨原生桥，避免数千次 await 持有数据库队列。
+          const values = batch.map(() => '(?, ?, ?)').join(', ')
+          await db.prepare(`INSERT OR REPLACE INTO price_cache (code, date, close) VALUES ${values}`)
+            .run(...batch.flatMap(price => [code, price.date, price.close]))
         }
-
       })
     } catch {
       throw new Error(`Failed to save price cache for ${code}`)

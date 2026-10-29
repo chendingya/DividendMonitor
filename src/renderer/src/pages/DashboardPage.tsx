@@ -10,6 +10,7 @@ import {
 import { DashboardHero, DashboardSearchCard } from '@renderer/components/dashboard/DashboardHero'
 import { DashboardMetricCards } from '@renderer/components/dashboard/DashboardMetricCards'
 import { PortfolioTable } from '@renderer/components/dashboard/PortfolioTable'
+import { createPortfolioPositionEditRequest, createPortfolioTransactionEdit } from '@renderer/components/dashboard/portfolioTransactionEditor'
 import { DashboardOpportunities } from '@renderer/components/dashboard/DashboardOpportunities'
 import { DashboardTools } from '@renderer/components/dashboard/DashboardTools'
 import { HousingYieldCard } from '@renderer/components/dashboard/HousingYieldCard'
@@ -276,7 +277,6 @@ export function DashboardPage() {
 
   function openAssetSearch() {
     const keyword = searchKeyword.trim()
-    if (!keyword) return
     navigate(buildAssetSearchPath(keyword))
   }
 
@@ -298,22 +298,11 @@ export function DashboardPage() {
   }
 
   function openEdit(record: PortfolioRow) {
-    setEditorMode('edit')
-    setEditingRow(record)
-    setEditorInitialValues({
-      assetKey: record.assetKey,
-      assetType: record.assetType,
-      market: record.market,
-      code: record.code,
-      symbol: record.symbol ?? '',
-      name: record.name,
-      direction: 'BUY',
-      shares: record.netShares,
-      avgCost: record.tradePrice ?? record.avgCost,
-      openedAt: record.openedAt,
-      riskLevel: record.riskLevel
-    })
-    setEditorOpen(true)
+    if (record.transactions.length !== 1) {
+      apiMessage.info('请展开交易明细，选择需要编辑的一笔交易')
+      return
+    }
+    onEditTransaction(record, record.transactions[0])
   }
 
   function closeEditor() {
@@ -328,21 +317,7 @@ export function DashboardPage() {
         apiMessage.error('未找到待编辑持仓')
         return
       }
-      await upsertPortfolioPositionInBackend({
-        id: editingRow.id,
-        assetKey: values.assetKey || editingRow.assetKey,
-        assetType: values.assetType ?? editingRow.assetType,
-        market: values.market ?? editingRow.market,
-        code: values.code ?? editingRow.code,
-        symbol: values.symbol ?? editingRow.symbol,
-        name: values.name?.trim() || editingRow.name || '未命名标的',
-        direction: values.direction ?? editingRow.direction ?? 'BUY',
-        shares: values.shares,
-        avgCost: values.avgCost,
-        tradePrice: values.tradePrice,
-        riskLevel: values.riskLevel ?? editingRow.riskLevel,
-        openedAt: values.openedAt
-      })
+      await upsertPortfolioPositionInBackend(createPortfolioPositionEditRequest(editingRow, values))
       await reload()
       closeEditor()
       apiMessage.success('持仓已更新')
@@ -421,21 +396,10 @@ export function DashboardPage() {
   }
 
   function onEditTransaction(record: PortfolioRow, transaction: PortfolioTransaction) {
+    const edit = createPortfolioTransactionEdit(record, transaction)
     setEditorMode('edit')
-    setEditingRow({ ...record, id: transaction.id })
-    setEditorInitialValues({
-      assetKey: record.assetKey,
-      assetType: record.assetType,
-      market: record.market,
-      code: record.code,
-      symbol: record.symbol ?? '',
-      name: record.name,
-      direction: transaction.direction,
-      shares: transaction.shares,
-      avgCost: transaction.tradePrice ?? transaction.avgCost,
-      openedAt: transaction.openedAt,
-      riskLevel: record.riskLevel
-    })
+    setEditingRow({ ...record, id: edit.id, riskLevel: transaction.riskLevel })
+    setEditorInitialValues(edit.initialValues)
     setEditorOpen(true)
   }
 

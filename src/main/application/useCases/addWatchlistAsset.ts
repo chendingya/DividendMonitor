@@ -5,14 +5,17 @@ import { getWatchlistRepository } from '@main/repositories/repositoryFactory'
 
 export async function addWatchlistAsset(request: WatchlistAddRequestDto): Promise<void> {
   const identifier = resolveAssetQuery(request)
-  const repository = new AssetRepository()
   const watchlistRepository = getWatchlistRepository()
-  const detail = await repository.getDetail(request)
+  let name = request.name?.trim()
+  if (!name) {
+    const detail = await new AssetRepository().getDetail(request)
+    name = detail.kind === 'STOCK' ? detail.stock.name : detail.name
+  }
 
   await watchlistRepository.addAsset({
     assetType: identifier.assetType,
     market: identifier.market,
     code: identifier.code,
-    name: request.name?.trim() || (detail.kind === 'STOCK' ? detail.stock.name : detail.name)
+    name
   })
 }

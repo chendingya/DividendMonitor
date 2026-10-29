@@ -1,7 +1,7 @@
 import { createNodeSqliteDatabase } from '@main/infrastructure/db/nodeSqliteDatabase'
-import type { SqliteDatabase } from '@main/infrastructure/db/databaseTypes'
+import type { SqliteDatabase, SqliteExecutor } from '@main/infrastructure/db/databaseTypes'
 import { DatabaseSync } from 'node:sqlite'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const createPriceCacheTable = `
   CREATE TABLE IF NOT EXISTS price_cache (
@@ -32,6 +32,38 @@ describe('SqlitePriceCacheRepository', () => {
     await memoryDb.exec(createPriceCacheTable)
     repo = new SqlitePriceCacheRepository()
   })
+
+  afterEach(async () => { await memoryDb.close() })
+
+  function observeTransactionWrites(): number[] {
+    const parameterCounts: number[] = []
+    const database = memoryDb
+    const wrap = (executor: SqliteExecutor): SqliteExecutor => ({
+      ...executor,
+      prepare(sql) {
+        const statement = executor.prepare(sql)
+        return {
+          ...statement,
+          run(...params) {
+            if (/INSERT OR REPLACE INTO price_cache/u.test(sql)) parameterCounts.push(params.length)
+            return statement.run(...params)
+          }
+        }
+      }
+    })
+    memoryDb = {
+      ...database,
+      transaction: work => database.transaction(executor => work(wrap(executor)))
+    }
+    return parameterCounts
+  }
+
+  function largePriceHistory(length: number) {
+    return Array.from({ length }, (_, index) => ({
+      date: new Date(Date.UTC(2000, 0, 1 + index)).toISOString().slice(0, 10),
+      close: 100 + index
+    }))
+  }
 
   describe('getPriceHistory', () => {
     it('returns empty array when no data cached', async () => {
@@ -100,6 +132,36 @@ describe('SqlitePriceCacheRepository', () => {
 
       await repo.savePriceHistory('600000', prices)
       expect((await repo.getPriceHistory('600000'))).toHaveLength(5000)
+    })
+
+    it('1200 多条行情按每批 200 行跨桥写入，保留日期覆盖、最后值和排序且每批少于 999 参数', async () => {
+      await repo.savePriceHistory('601988', [{ date: '2000-01-01', close: 1 }])
+      await repo.savePriceHistory('600519', [{ date: '2000-01-01', close: 2 }])
+      const parameterCounts = observeTransactionWrites()
+      const prices = largePriceHistory(1201).reverse()
+      prices.push({ date: '2000-01-01', close: 999 })
+      await repo.savePriceHistory('601988', prices)
+      const expected = largePriceHistory(1201)
+      expected[0].close = 999
+      expect(await repo.getPriceHistory('601988')).toEqual(expected)
+      expect(await repo.getPriceHistory('600519')).toEqual([{ date: '2000-01-01', close: 2 }])
+      expect(parameterCounts).toHaveLength(Math.ceil(prices.length / 200))
+      expect(parameterCounts.every(count => count > 0 && count <= 999 && count % 3 === 0)).toBe(true)
+    })
+
+    it('后续批次写失败时回滚整个事务，包括前批对已有日期的覆盖', async () => {
+      await repo.savePriceHistory('601988', [{ date: '2000-01-01', close: 1 }])
+      await memoryDb.exec(`
+        CREATE TRIGGER reject_invalid_price BEFORE INSERT ON price_cache
+        WHEN NEW.close < 0 BEGIN SELECT RAISE(ABORT, 'invalid price'); END;
+      `)
+      const parameterCounts = observeTransactionWrites()
+      const prices = largePriceHistory(1201)
+      prices[1200].close = -1
+      await expect(repo.savePriceHistory('601988', prices)).rejects.toThrow('Failed to save price cache')
+      expect(await repo.getPriceHistory('601988')).toEqual([{ date: '2000-01-01', close: 1 }])
+      expect(parameterCounts).toHaveLength(Math.ceil(prices.length / 200))
+      expect(parameterCounts.every(count => count <= 999)).toBe(true)
     })
   })
 

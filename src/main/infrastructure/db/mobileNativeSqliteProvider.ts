@@ -1,10 +1,14 @@
-import { Capacitor } from '@capacitor/core'
+import { Capacitor, registerPlugin } from '@capacitor/core'
 import { CapacitorSQLite, SQLiteConnection, type SQLiteDBConnection } from '@capacitor-community/sqlite'
 import { initializeSchema, setDatabaseResolver } from './sqlite'
 import { createSerializedDatabase } from './serializedDatabase'
 import type { SqliteExecutor, SqliteInputValue, SqliteRow } from './databaseTypes'
 
 const DATABASE_NAME = 'dividend-monitor'
+const databaseLifecycle = registerPlugin<{
+  beforeOpen(): Promise<void>
+  releaseConnection(): Promise<void>
+}>('NativeDatabaseLifecycle')
 
 function nativeValues(params: SqliteInputValue[]): unknown[] {
   return params.map((value) => {
@@ -56,12 +60,15 @@ export function installMobileNativeSqliteProvider(): Promise<void> {
     const manager = new SQLiteConnection(CapacitorSQLite)
     const connection = await manager.createConnection(DATABASE_NAME, false, 'no-encryption', 1, false)
     try {
+      await databaseLifecycle.beforeOpen()
       await connection.open()
       const database = createSerializedDatabase(createNativeSqliteExecutor(connection))
       await initializeSchema(database)
       setDatabaseResolver(() => database)
     } catch (error) {
-      await manager.closeConnection(DATABASE_NAME, false).catch(() => undefined)
+      await databaseLifecycle.releaseConnection().catch((cleanupError) => {
+        console.error('[SQLite] 原生连接初始化清理失败:', cleanupError)
+      })
       throw error
     }
   })().catch((error) => {

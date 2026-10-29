@@ -5,6 +5,8 @@ import { authService } from '@main/infrastructure/supabase/authService'
 import { notifySyncStatus } from '@main/infrastructure/supabase/syncStatusNotifier'
 import { PortfolioRepository } from '@main/repositories/portfolioRepository'
 import type { IPortfolioRepository } from '@main/repositories/interfaces'
+import { getDatabase } from '@main/infrastructure/db/sqlite'
+import { toPortfolioCalendarDate } from '@main/application/mappers/portfolioDateMapper'
 
 export class SupabasePortfolioRepository implements IPortfolioRepository {
   private readonly localRepo = new PortfolioRepository()
@@ -40,7 +42,7 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
         shares: Number(row['shares'] ?? 0),
         avgCost: Number(row['avg_cost'] ?? 0),
         tradePrice: row['trade_price'] != null ? Number(row['trade_price']) : undefined,
-        openedAt: row['opened_at'] ? String(row['opened_at']) : undefined,
+        openedAt: toPortfolioCalendarDate(row['opened_at']),
         riskLevel: (row['risk_level'] as 'LOW' | 'MEDIUM' | 'HIGH' | null) ?? undefined,
         corporateActionsAppliedUntil: row['corporate_actions_applied_until']
           ? String(row['corporate_actions_applied_until'])
@@ -84,6 +86,22 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
 
     try {
       const userId = await this.getUserId()
+      let createdAt = now
+      let appliedUntil = ''
+      if (request.id?.trim()) {
+        const { data, error } = await supabase.from('portfolio_positions')
+          .select('created_at, avg_cost, opened_at, corporate_actions_applied_until')
+          .eq('user_id', userId).eq('id', id)
+        if (error) throw error
+        const existing = data?.[0]
+        if (existing) {
+          createdAt = String(existing.created_at ?? now)
+          const sameOpenedAt = toPortfolioCalendarDate(existing.opened_at) === toPortfolioCalendarDate(request.openedAt)
+          if (Number(existing.avg_cost) === avgCost && sameOpenedAt) {
+            appliedUntil = String(existing.corporate_actions_applied_until ?? '')
+          }
+        }
+      }
 
       // 无 id 时永远 INSERT 新行（与本地 PortfolioRepository 行为一致），
       // 同一 assetKey 允许多笔记录共存，由前端按 assetKey 聚合展示。
@@ -102,8 +120,8 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
         trade_price: request.tradePrice != null ? Number(request.tradePrice) : null,
         opened_at: request.openedAt?.trim() || null,
         risk_level: riskLevel,
-        corporate_actions_applied_until: '',
-        created_at: now,
+        corporate_actions_applied_until: appliedUntil,
+        created_at: createdAt,
         updated_at: now
       }, { onConflict: 'id' })
 
@@ -116,7 +134,8 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
       notifySyncStatus({ status: 'offline-fallback', message: `持仓同步失败：${message}。数据已保存在本地，刷新后会显示。` })
     }
 
-    await this.localRepo.upsert(request)
+    // 同一笔交易只生成一次主键，否则后续按 id 合并会复制成两笔持仓。
+    await this.localRepo.upsert({ ...request, id })
   }
 
   async remove(id: string): Promise<void> {
@@ -203,7 +222,14 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
       notifySyncStatus({ status: 'offline-fallback', message: `持仓同步失败：${message}。数据已保存在本地，刷新后会显示。` })
     }
 
-    await this.localRepo.replaceByAsset(request)
+    await getDatabase().transaction(async (tx) => {
+      const local = new PortfolioRepository(tx)
+      await local.removeByAsset(request.asset)
+      await local.upsert({
+        id, assetKey, assetType: identity.assetType, market: identity.market, code: identity.code,
+        name, direction: 'BUY', shares, avgCost, openedAt: request.openedAt
+      })
+    })
   }
 
   async applyCorporateActionAdjustment(

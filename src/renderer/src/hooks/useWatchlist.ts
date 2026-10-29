@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import type { AssetQueryDto, WatchlistEntryDto } from '@shared/contracts/api'
+import type { WatchlistAddRequestDto, WatchlistEntryDto } from '@shared/contracts/api'
 import { watchlistApi } from '@renderer/services/watchlistApi'
 import { useFetch } from '@renderer/hooks/useFetch'
 
@@ -35,7 +35,7 @@ export function useWatchlist() {
   )
 
   const addAsset = useCallback(
-    async (request: AssetQueryDto) => {
+    async (request: WatchlistAddRequestDto) => {
       const mutatingKey = request.assetKey ?? request.code ?? request.symbol ?? ''
       await withMutation(mutatingKey, () => watchlistApi.addAsset(request))
     },

@@ -26,7 +26,9 @@ export type CorporateActionAdjustment = {
  * 因为成本基础是会计事实，不应受登记日市场行情影响。现价 > 成本时因子法会少扣，
  * 现价 < 成本时会多扣，导致持仓收益率与会计实际不符。
  */
-export async function applyCorporateActionsToPositions(): Promise<CorporateActionAdjustment[]> {
+export async function applyCorporateActionsToPositions(
+  options: { fetchMissing?: boolean } = {}
+): Promise<CorporateActionAdjustment[]> {
   const portfolioRepo = getPortfolioRepository()
   const dividendRepo = getDividendRepository()
   const positions = await portfolioRepo.list()
@@ -42,9 +44,8 @@ export async function applyCorporateActionsToPositions(): Promise<CorporateActio
       continue
     }
 
-    // 若本地尚无该标的的分红方案，先触发一次抓取并落库。
-    // 这样打开持仓页即可自动补全，不依赖启动时的批量同步或用户曾打开过个股详情。
-    if ((await dividendRepo.listByAsset(position.assetKey)).length === 0) {
+    // 显式补全入口默认抓取缺失分红；持仓列表可只应用缓存，避免被外网详情请求阻塞。
+    if (options.fetchMissing !== false && (await dividendRepo.listByAsset(position.assetKey)).length === 0) {
       try {
         // skipCache=true：强制重新抓取，避免旧快照里被误杀的分红方案覆盖本次落库。
         await new AssetRepository().getDetail({ assetKey: position.assetKey }, true)

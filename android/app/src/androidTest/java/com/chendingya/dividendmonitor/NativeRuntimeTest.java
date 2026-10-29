@@ -58,6 +58,36 @@ public class NativeRuntimeTest {
         assertTrue(run(scenario, "window.__nativeSmokeApi.auth.getSession().then(s=>s===null)").getBoolean("value"));
     }
 
+    private void isolateDirectSqliteProbe(ActivityScenario<MainActivity> scenario, String database) throws Exception {
+        int positionCount = run(scenario, "window.__nativeSmokeApi.portfolio.list().then(items=>items.length)").getInt("value");
+        if (positionCount > 0) {
+            boolean refreshed = false;
+            for (int attempt = 0; attempt < 360; attempt++) {
+                String result = evaluate(scenario,
+                    "(()=>{const b=document.querySelector('.dashboard-mobile-more-menu>button');"
+                    + "return Boolean(b&&!b.disabled&&b.textContent.includes('刷新估值'))})()");
+                if ("true".equals(result)) { refreshed = true; break; }
+                Thread.sleep(250);
+            }
+            assertTrue("Wait for the dashboard's own quote transactions before a direct native probe", refreshed);
+        }
+        evaluate(scenario, "location.hash='#/login'");
+        boolean loginVisible = false;
+        for (int attempt = 0; attempt < 120; attempt++) {
+            if ("true".equals(evaluate(scenario, "Boolean(document.querySelector('input[type=password]'))"))) {
+                loginVisible = true;
+                break;
+            }
+            Thread.sleep(250);
+        }
+        assertTrue("Unmount the dashboard before starting a direct native transaction", loginVisible);
+        // Shared repository reads retain the application's queue, so earlier writes finish first.
+        run(scenario, "window.__nativeSmokeApi.watchlist.listGroups()");
+        assertFalse("Direct native probe must begin outside all application transactions",
+            run(scenario, "window.Capacitor.nativePromise('CapacitorSQLite','isTransactionActive',{" + database + "})")
+                .getJSONObject("value").getBoolean("result"));
+    }
+
     @Test
     public void localGroupPersistsAcrossActivityRestart() throws Exception {
         String name = "native-smoke-" + System.currentTimeMillis();
@@ -76,6 +106,48 @@ public class NativeRuntimeTest {
             assertTrue(run(scenario, "window.__nativeSmokeApi.watchlist.listGroups().then(gs=>gs.some(g=>g.id==='" + groupId + "'&&g.name.endsWith('-updated')))").getBoolean("value"));
             run(scenario, "window.__nativeSmokeApi.watchlist.deleteGroup('" + groupId + "')");
             assertTrue(run(scenario, "window.__nativeSmokeApi.watchlist.listGroups().then(gs=>!gs.some(g=>g.id==='" + groupId + "'))").getBoolean("value"));
+        }
+    }
+
+    @Test
+    public void unfinishedNativeTransactionRollsBackOnActivityRestart() throws Exception {
+        String id = "native-lifecycle-" + System.currentTimeMillis();
+        String database = "database:'dividend-monitor',readonly:false";
+        String rowQuery = "window.Capacitor.nativePromise('CapacitorSQLite','query',{" + database
+            + ",statement:'SELECT value FROM native_lifecycle_smoke WHERE id = ?',values:['" + id + "']})";
+        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
+            ready(scenario);
+            isolateDirectSqliteProbe(scenario, database);
+            run(scenario, "window.Capacitor.nativePromise('CapacitorSQLite','execute',{" + database
+                + ",transaction:true,statements:'CREATE TABLE IF NOT EXISTS native_lifecycle_smoke (id TEXT PRIMARY KEY, value INTEGER NOT NULL);'})");
+            run(scenario, "window.Capacitor.nativePromise('CapacitorSQLite','run',{" + database
+                + ",transaction:true,statement:'INSERT INTO native_lifecycle_smoke (id,value) VALUES (?,?)',values:['" + id + "',1]})");
+            JSONObject committed = run(scenario, rowQuery).getJSONObject("value");
+            assertEquals("Fixture must commit one row before opening the regression transaction", 1,
+                committed.getJSONArray("values").length());
+            assertEquals("Fixture must commit value 1 before the uncommitted update", 1,
+                committed.getJSONArray("values").getJSONObject(0).getInt("value"));
+            run(scenario, "window.Capacitor.nativePromise('CapacitorSQLite','beginTransaction',{" + database + "})");
+            run(scenario, "window.Capacitor.nativePromise('CapacitorSQLite','run',{" + database
+                + ",transaction:false,statement:'UPDATE native_lifecycle_smoke SET value = ? WHERE id = ?',values:[2,'" + id + "']})");
+            assertTrue("The regression must destroy an Activity with a real uncommitted native transaction",
+                run(scenario, "window.Capacitor.nativePromise('CapacitorSQLite','isTransactionActive',{" + database + "})")
+                    .getJSONObject("value").getBoolean("result"));
+            JSONObject uncommitted = run(scenario, rowQuery).getJSONObject("value");
+            assertEquals("The transaction must still contain the fixture row", 1,
+                uncommitted.getJSONArray("values").length());
+            assertEquals("The uncommitted update must be visible inside its transaction", 2,
+                uncommitted.getJSONArray("values").getJSONObject(0).getInt("value"));
+        }
+        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
+            ready(scenario);
+            isolateDirectSqliteProbe(scenario, database);
+            JSONObject result = run(scenario, rowQuery).getJSONObject("value");
+            assertEquals("The previously committed row must survive", 1, result.getJSONArray("values").length());
+            assertEquals("Activity destruction must roll back the unfinished transaction", 1,
+                result.getJSONArray("values").getJSONObject(0).getInt("value"));
+            run(scenario, "window.Capacitor.nativePromise('CapacitorSQLite','run',{" + database
+                + ",transaction:true,statement:'DELETE FROM native_lifecycle_smoke WHERE id = ?',values:['" + id + "']})");
         }
     }
 

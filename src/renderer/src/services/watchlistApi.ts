@@ -1,4 +1,4 @@
-import type { AssetQueryDto, WatchlistEntryDto, WatchlistGroupDto, WatchlistGroupUpsertDto, WatchlistGroupAssetActionDto } from '@shared/contracts/api'
+import type { WatchlistAddRequestDto, WatchlistEntryDto, WatchlistGroupDto, WatchlistGroupUpsertDto, WatchlistGroupAssetActionDto } from '@shared/contracts/api'
 import { buildStockAssetKey, createStockAssetQuery } from '@shared/contracts/api'
 import { getWatchlistDesktopApi } from '@renderer/services/desktopApi'
 
@@ -14,7 +14,7 @@ export const watchlistApi = {
   remove(symbol: string) {
     return api().removeAsset(buildStockAssetKey(symbol))
   },
-  addAsset(request: string | AssetQueryDto) {
+  addAsset(request: string | WatchlistAddRequestDto) {
     return api().addAsset(typeof request === 'string' ? { assetKey: request } : request)
   },
   removeAsset(assetKey: string) {

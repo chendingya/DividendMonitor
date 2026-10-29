@@ -56,9 +56,9 @@ public class NativeUiFlowTest {
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
             searchBank(scenario);
             assertEquals("Detail action is clipped outside the phone viewport", "true", evaluate(scenario,
-                "(()=>{const r=(" + button("查看详情") + ").getBoundingClientRect(); return r.left>=0&&r.right<=innerWidth;})()"));
+                "(()=>{const r=(" + button("查看详情") + ").getBoundingClientRect(); return r.left>=0&&r.right<=document.documentElement.clientWidth+1;})()"));
             assertEquals("Watchlist action is clipped outside the phone viewport", "true", evaluate(scenario,
-                "(()=>{const r=(" + button("加入自选") + ").getBoundingClientRect(); return r.left>=0&&r.right<=innerWidth;})()"));
+                "(()=>{const b=(" + button("加入自选") + ")||(" + button("已在自选") + ");if(!b)return false;const r=b.getBoundingClientRect();return r.left>=0&&r.right<=document.documentElement.clientWidth+1;})()"));
         }
     }
 
@@ -75,6 +75,16 @@ public class NativeUiFlowTest {
                 Thread.sleep(250);
             }
             fail("Stock detail did not load within 90 seconds: " + evaluate(scenario, "document.body.innerText"));
+        }
+    }
+
+    @Test
+    public void homeSearchOpensWithoutPreenteredKeyword() throws Exception {
+        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
+            ready(scenario);
+            waitFor(scenario, button("搜索资产"));
+            evaluate(scenario, "(" + button("搜索资产") + ").click()");
+            waitFor(scenario, "location.hash.startsWith('#/search')");
         }
     }
 

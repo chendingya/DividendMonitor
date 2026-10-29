@@ -1,5 +1,6 @@
 import { Input, Button, Space, Typography } from 'antd'
 import { AppCard } from '@renderer/components/app/AppCard'
+import { useIsMobile } from '@renderer/hooks/useIsMobile'
 import { formatTime } from '@renderer/utils/format'
 import type { PortfolioPosition } from '@renderer/services/portfolioStore'
 import type { PortfolioRow } from '@renderer/hooks/usePortfolio'
@@ -29,6 +30,44 @@ export function DashboardHero({
   onImport,
   onAdd
 }: DashboardHeroProps) {
+  const isMobile = useIsMobile(720)
+
+  if (isMobile) {
+    return (
+      <section className="ledger-hero-card dashboard-mobile-hero" aria-label="工作台操作">
+        <div className="dashboard-mobile-heading">
+          <div>
+            <div className="ledger-section-kicker">投资组合</div>
+            <h1 className="ledger-hero-title">工作台</h1>
+          </div>
+          <details className="dashboard-mobile-more">
+            <summary aria-label="更多操作">更多操作 <span aria-hidden="true">···</span></summary>
+            <div className="dashboard-mobile-more-menu">
+              <button type="button" disabled={rows.length === 0 || refreshing} onClick={onRefresh}>
+                {refreshing ? '刷新中...' : '刷新估值'}
+              </button>
+              <button type="button" onClick={onImport}>导入持仓</button>
+              <button type="button" disabled={positions.length === 0} onClick={onExportPositions}>导出持仓</button>
+              <button type="button" disabled={rows.length === 0} onClick={onExportReport}>导出报告</button>
+            </div>
+          </details>
+        </div>
+        <p className="ledger-hero-subtitle">查看资产、收益与未来股息</p>
+        <div className="dashboard-mobile-primary-actions">
+          <button type="button" className="ledger-secondary-button" onClick={onSearch}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7" /><path d="m16 16 5 5" /></svg>
+            搜索资产
+          </button>
+          <button type="button" className="ledger-primary-button" onClick={onAdd}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M12 4v16M4 12h16" /></svg>
+            录入持仓
+          </button>
+        </div>
+        {refreshedAt ? <div className="dashboard-mobile-refresh-time">更新于 {formatTime(refreshedAt)}</div> : null}
+      </section>
+    )
+  }
+
   return (
     <section className="ledger-hero-card">
       <div className="ledger-hero-copy">
@@ -122,6 +161,26 @@ export function DashboardSearchCard({
   onSearchKeywordChange: (value: string) => void
   onSearch: () => void
 }) {
+  const isMobile = useIsMobile(720)
+
+  if (isMobile) {
+    return (
+      <details className="dashboard-mobile-search">
+        <summary>按代码或名称搜索</summary>
+        <div className="dashboard-mobile-search-form">
+          <Input
+            aria-label="资产代码或名称"
+            placeholder="例如 601398 / 红利ETF"
+            value={searchKeyword}
+            onChange={(event) => onSearchKeywordChange(event.target.value)}
+            onPressEnter={onSearch}
+          />
+          <button type="button" className="ledger-primary-button" onClick={onSearch}>搜索</button>
+        </div>
+      </details>
+    )
+  }
+
   return (
     <AppCard title="资产搜索">
       <Space direction="vertical" size={12} style={{ width: '100%' }}>

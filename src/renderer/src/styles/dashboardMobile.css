@@ -1,0 +1,329 @@
+/* Phone layouts keep controls close to the content they operate on. */
+@media (max-width: 720px) {
+  .ledger-shell .ledger-main {
+    padding: 12px 14px 20px;
+  }
+
+  .ledger-shell .ledger-topbar {
+    padding: 0;
+    gap: 8px;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .ledger-shell .ledger-topbar-row {
+    padding: 0;
+    gap: 8px;
+  }
+
+  .ledger-shell .ledger-topbar-search {
+    height: 44px;
+    border: 1px solid #e8edf3;
+    border-radius: 12px;
+    background: #fff;
+    font-size: 14px;
+  }
+
+  .ledger-shell .ledger-mobile-nav-toggle,
+  .ledger-shell .ledger-topbar-action {
+    width: 44px;
+    height: 44px;
+    border: 1px solid #e8edf3;
+    border-radius: 12px;
+    background: #fff;
+    color: #536275;
+    box-shadow: none;
+  }
+
+  /* These two desktop placeholders have no actions; leave settings in reach. */
+  .ledger-shell .ledger-topbar-action[aria-label='通知'],
+  .ledger-shell .ledger-topbar-action[aria-label='消息'] {
+    display: none;
+  }
+
+  .ledger-shell.is-dashboard .ledger-breadcrumb-row {
+    display: none;
+  }
+
+  .ledger-shell .ledger-canvas {
+    padding: 14px 0 max(24px, env(safe-area-inset-bottom));
+  }
+
+  .ledger-shell .ledger-page {
+    gap: 16px;
+  }
+
+  .dashboard-mobile-hero.ledger-hero-card {
+    padding: 18px;
+    border: 1px solid #e8edf3;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 3px 14px rgba(28, 48, 78, 0.025);
+  }
+
+  .dashboard-mobile-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .dashboard-mobile-heading .ledger-section-kicker {
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+
+  .dashboard-mobile-heading .ledger-hero-title {
+    margin-top: 3px;
+    font-size: 28px;
+    line-height: 1.2;
+    letter-spacing: 0;
+    white-space: nowrap;
+  }
+
+  .dashboard-mobile-hero .ledger-hero-subtitle {
+    margin: 7px 0 16px;
+    color: #718095;
+    font-size: 13px;
+    line-height: 20px;
+  }
+
+  .dashboard-mobile-primary-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .dashboard-mobile-primary-actions > button {
+    height: 44px;
+    border-radius: 11px;
+    gap: 7px;
+    font-size: 14px;
+    white-space: nowrap;
+    box-shadow: none;
+  }
+
+  .dashboard-mobile-primary-actions .ledger-secondary-button {
+    color: var(--primary);
+    background: #eff5ff;
+    border-color: #dce9ff;
+  }
+
+  .dashboard-mobile-more {
+    position: relative;
+    align-self: flex-start;
+  }
+
+  .dashboard-mobile-more summary,
+  .dashboard-mobile-search summary {
+    list-style: none;
+    cursor: pointer;
+  }
+
+  .dashboard-mobile-more summary::-webkit-details-marker,
+  .dashboard-mobile-search summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .dashboard-mobile-more summary {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 44px;
+    padding-left: 8px;
+    color: #66758a;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .dashboard-mobile-more summary span {
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .dashboard-mobile-more-menu {
+    position: absolute;
+    z-index: 30;
+    top: 44px;
+    right: 0;
+    width: 156px;
+    padding: 6px;
+    border: 1px solid #e3eaf3;
+    border-radius: 13px;
+    background: #fff;
+    box-shadow: 0 12px 32px rgba(24, 46, 80, 0.16);
+  }
+
+  .dashboard-mobile-more-menu > button {
+    width: 100%;
+    min-height: 44px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: #334155;
+    font: inherit;
+    font-size: 14px;
+    text-align: left;
+    padding: 10px 12px;
+  }
+
+  .dashboard-mobile-more-menu > button:disabled {
+    color: #a0aab9;
+  }
+
+  .dashboard-mobile-more-menu > button:not(:disabled):active {
+    background: #edf4ff;
+  }
+
+  .dashboard-mobile-refresh-time {
+    margin-top: 10px;
+    color: #8793a4;
+    font-size: 11px;
+  }
+
+  .dashboard-overview.ledger-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .dashboard-overview > .ledger-metric-panel {
+    min-height: 0;
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid #e8edf3;
+    border-radius: 16px;
+    box-shadow: none;
+  }
+
+  .dashboard-overview .ledger-metric-top {
+    display: none;
+  }
+
+  .dashboard-overview .ledger-metric-label {
+    margin-top: 0;
+    color: #69788b;
+    font-size: 12px;
+  }
+
+  .dashboard-overview .ledger-metric-value {
+    margin-top: 7px;
+    font-size: clamp(19px, 5.8vw, 25px);
+    line-height: 1.25;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+    overflow-wrap: anywhere;
+  }
+
+  .dashboard-overview .ledger-metric-hint {
+    margin-top: 6px;
+    font-size: 11px;
+    line-height: 16px;
+  }
+
+  .dashboard-overview > .ledger-metric-panel.is-primary {
+    grid-column: 1 / -1;
+    position: relative;
+    padding: 16px 18px;
+    border: 0;
+    background: #1058d6;
+  }
+
+  .dashboard-overview .is-primary .ledger-metric-top {
+    display: block;
+    position: absolute;
+    top: 13px;
+    right: 14px;
+  }
+
+  .dashboard-overview .is-primary .ledger-metric-icon {
+    display: none;
+  }
+
+  .dashboard-overview .is-primary .ledger-metric-accent {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
+
+  .dashboard-overview .is-primary .ledger-metric-label {
+    padding-right: 70px;
+    color: rgba(255, 255, 255, 0.76);
+  }
+
+  .dashboard-overview .is-primary .ledger-metric-value {
+    margin-top: 7px;
+    font-size: 32px;
+    line-height: 1.15;
+  }
+
+  .dashboard-overview .is-primary .ledger-metric-hint {
+    margin-top: 5px;
+    color: rgba(255, 255, 255, 0.68);
+  }
+
+  .dashboard-risk-overview.ledger-metric-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .dashboard-risk-overview .ledger-metric-panel {
+    min-height: 0;
+    padding: 12px 10px;
+    border-radius: 13px;
+  }
+
+  .dashboard-risk-overview .ledger-metric-top,
+  .dashboard-risk-overview .ledger-metric-hint {
+    display: none;
+  }
+
+  .dashboard-risk-overview .ledger-metric-label {
+    margin-top: 0;
+    font-size: 10px;
+  }
+
+  .dashboard-risk-overview .ledger-metric-value {
+    margin-top: 6px;
+    font-size: 18px;
+  }
+
+  .dashboard-mobile-search {
+    border-bottom: 1px solid #e5eaf1;
+  }
+
+  .dashboard-mobile-search summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 44px;
+    color: #6c7b8e;
+    font-size: 13px;
+  }
+
+  .dashboard-mobile-search summary::after {
+    content: '+';
+    color: var(--primary);
+    font-size: 20px;
+  }
+
+  .dashboard-mobile-search[open] summary::after {
+    content: '−';
+  }
+
+  .dashboard-mobile-search-form {
+    display: flex;
+    gap: 8px;
+    padding-bottom: 14px;
+  }
+
+  .dashboard-mobile-search-form > input {
+    min-width: 0;
+    height: 44px;
+    border-radius: 10px;
+  }
+
+  .dashboard-mobile-search-form > button {
+    height: 44px;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+}

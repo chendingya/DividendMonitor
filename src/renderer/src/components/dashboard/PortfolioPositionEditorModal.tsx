@@ -3,6 +3,7 @@ import type { InputRef } from 'antd'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AssetSearchItemDto, AssetType, MarketCode } from '@shared/contracts/api'
 import { useSettings } from '@renderer/hooks/useSettings'
+import './portfolioEditorMobile.css'
 
 type AssetApi = {
   search(request: { keyword: string; assetTypes?: AssetType[] }): Promise<AssetSearchItemDto[]>
@@ -282,7 +283,7 @@ export function PortfolioPositionEditorModal({
   }
 
   return (
-    <Modal open={open} title={mode === 'edit' ? '编辑持仓' : '添加资产'} onCancel={onCancel} onOk={handleOk} okText={mode === 'edit' ? '保存修改' : '添加'}>
+    <Modal className="portfolio-editor-modal" open={open} title={mode === 'edit' ? '编辑持仓' : '添加资产'} onCancel={onCancel} onOk={handleOk} cancelText="取消" okText={mode === 'edit' ? '保存修改' : '添加'}>
       {messageHolder}
       <Form form={form} layout="vertical">
         <Form.Item name="assetKey" hidden>

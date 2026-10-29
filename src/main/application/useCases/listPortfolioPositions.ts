@@ -3,9 +3,10 @@ import { getPortfolioRepository } from '@main/repositories/repositoryFactory'
 import { applyCorporateActionsToPositions } from '@main/application/useCases/applyCorporateActionsToPositions'
 
 export async function listPortfolioPositions(): Promise<PortfolioPositionDto[]> {
-  // 打开持仓时自动应用已发生的除权除息（成本价扣减、送转股数增加），再返回最新持仓。
+  // 先应用已缓存的除权除息再返回持仓；行情补全后再次读取即可应用新分红。
+  // 列表读取不能等待外网详情，否则空缓存/慢网络会隐藏已经保存的持仓。
   try {
-    await applyCorporateActionsToPositions()
+    await applyCorporateActionsToPositions({ fetchMissing: false })
   } catch (err) {
     console.warn('[Portfolio] 自动除权除息失败:', (err as Error).message)
   }

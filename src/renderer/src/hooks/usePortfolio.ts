@@ -15,6 +15,7 @@ export type PortfolioTransaction = {
   avgCost: number
   tradePrice?: number
   openedAt?: string
+  riskLevel?: PortfolioPosition['riskLevel']
   updatedAt: string
 }
 
@@ -51,6 +52,10 @@ export function usePortfolio() {
   const [error, setError] = useState<string | null>(null)
 
   const recentAssetKeys = useMemo(() => getRecentAssetKeys(), [])
+  // 交易数量、成本或除权游标改变时无需重抓同一资产；每个资产只请求一次。
+  const assetKeySignature = useMemo(() => JSON.stringify(
+    [...new Set(positions.map(position => position.assetKey).filter((key): key is string => Boolean(key)))].sort()
+  ), [positions])
 
   useEffect(() => {
     let disposed = false
@@ -86,6 +91,7 @@ export function usePortfolio() {
         avgCost: position.avgCost,
         tradePrice: position.tradePrice,
         openedAt: position.openedAt,
+        riskLevel: position.riskLevel,
         updatedAt: position.updatedAt
       }
 
@@ -193,16 +199,15 @@ export function usePortfolio() {
   }, [details, recentAssetKeys])
 
   useEffect(() => {
-    if (positions.length === 0) {
+    const assetKeys = JSON.parse(assetKeySignature) as string[]
+    if (assetKeys.length === 0) {
       setDetails({})
+      setRefreshing(false)
       return
     }
     let disposed = false
     setRefreshing(true)
-    const assetKeys = positions
-      .map((position) => position.assetKey)
-      .filter((item): item is string => Boolean(item))
-    void Promise.allSettled(assetKeys.map((assetKey) => assetApi.getDetail({ assetKey }))).then((results) => {
+    void Promise.allSettled(assetKeys.map((assetKey) => assetApi.getDetail({ assetKey }))).then(async (results) => {
       if (disposed) {
         return
       }
@@ -213,21 +218,27 @@ export function usePortfolio() {
         }
       })
       setDetails(next)
-      setRefreshing(false)
+      try {
+        // 详情已把新分红落库，重新读取应用成本/股数调整；资产签名不变，不会再触发行情请求。
+        const items = await listPortfolioPositionsFromBackend()
+        if (!disposed) setPositions(items)
+      } catch (err) {
+        if (!disposed) setError(err instanceof Error ? err.message : '更新持仓成本失败')
+      } finally {
+        if (!disposed) setRefreshing(false)
+      }
     })
     return () => {
       disposed = true
     }
-  }, [positions])
+  }, [assetKeySignature])
 
   async function refreshQuotes() {
-    if (positions.length === 0) {
+    const assetKeys = JSON.parse(assetKeySignature) as string[]
+    if (assetKeys.length === 0) {
       return
     }
     setRefreshing(true)
-    const assetKeys = positions
-      .map((position) => position.assetKey)
-      .filter((item): item is string => Boolean(item))
     const results = await Promise.allSettled(assetKeys.map((assetKey) => assetApi.getDetail({ assetKey })))
     const next: Record<string, AssetDetailDto> = {}
     let failed = 0
@@ -239,7 +250,13 @@ export function usePortfolio() {
       }
     })
     setDetails(next)
-    setRefreshing(false)
+    try {
+      setPositions(await listPortfolioPositionsFromBackend())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '更新持仓成本失败')
+    } finally {
+      setRefreshing(false)
+    }
     return { failed }
   }
 

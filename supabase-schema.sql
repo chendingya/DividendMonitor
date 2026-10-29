@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS portfolio_positions (
   direction TEXT NOT NULL DEFAULT 'BUY',
   shares REAL NOT NULL,
   avg_cost REAL NOT NULL,
+  trade_price REAL,
+  risk_level TEXT,
   corporate_actions_applied_until TEXT NOT NULL DEFAULT '',
   opened_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT now(),
@@ -170,3 +172,7 @@ ALTER TABLE portfolio_positions ADD COLUMN IF NOT EXISTS corporate_actions_appli
 
 -- 9. 迁移：持仓表新增「买入日期」列（自动除权除息用）
 ALTER TABLE portfolio_positions ADD COLUMN IF NOT EXISTS opened_at TIMESTAMPTZ;
+
+-- 10. 迁移：补齐交易价格和风险等级；与移动端/桌面端持仓契约一致。
+ALTER TABLE portfolio_positions ADD COLUMN IF NOT EXISTS trade_price REAL;
+ALTER TABLE portfolio_positions ADD COLUMN IF NOT EXISTS risk_level TEXT;

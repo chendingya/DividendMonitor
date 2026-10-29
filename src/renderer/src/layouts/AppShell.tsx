@@ -6,6 +6,7 @@ import { useIsMobile } from '@renderer/hooks/useIsMobile'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { buildAssetSearchPath } from '@renderer/services/routeContext'
 import { useAuth } from '@renderer/contexts/AuthContext'
+import '@renderer/styles/dashboardMobile.css'
 
 type AppIconName =
   | 'dashboard'
@@ -413,7 +414,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="ledger-shell">
+    <div className={`ledger-shell${location.pathname === '/' ? ' is-dashboard' : ''}`}>
       {messageHolder}
       <aside className="ledger-sidebar">
         <div className="ledger-sidebar-brand">

@@ -1,4 +1,5 @@
 import { Space, Table, Tag, Typography } from 'antd'
+import { useState } from 'react'
 import { AppCard } from '@renderer/components/app/AppCard'
 import { AssetAvatar } from '@renderer/components/app/AssetAvatar'
 import { AssetGroupPopover } from '@renderer/components/app/AssetGroupPopover'
@@ -6,6 +7,8 @@ import { LedgerIcon } from '@renderer/components/app/LedgerUi'
 import { PageStateBlock } from '@renderer/components/app/PageStateBlock'
 import type { PortfolioRow, PortfolioTransaction } from '@renderer/hooks/usePortfolio'
 import type { WatchlistGroupDto } from '@shared/contracts/api'
+import { useIsMobile } from '@renderer/hooks/useIsMobile'
+import './portfolioMobile.css'
 
 const currency = new Intl.NumberFormat('zh-CN', {
   style: 'currency',
@@ -43,15 +46,94 @@ export function PortfolioTable({
   onEditTransaction,
   onRemoveTransaction
 }: PortfolioTableProps) {
+  const isMobile = useIsMobile(720)
+  const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([])
+
+  function toggleTransactions(id: string) {
+    setExpandedRowKeys((current) => current.includes(id) ? current.filter((key) => key !== id) : [...current, id])
+  }
+
+  function renderRowActions(record: PortfolioRow, showTransactionToggle = true) {
+    return (
+      <div className="portfolio-row-actions">
+        <AssetGroupPopover
+          assetKey={record.assetKey ?? ''}
+          groups={groups}
+          getAssetGroupIds={getAssetGroupIds}
+          onToggle={(groupId, add) => onToggleAssetGroup(record.assetKey ?? '', groupId, add)}
+        />
+        <button
+          type="button" className="ledger-inline-action-btn"
+          onClick={() => onGoToDetail(record)} disabled={!record.assetKey && !record.symbol}
+          title="查看详情" aria-label={`查看详情 ${record.name}`}
+        >查看详情</button>
+        {record.transactionCount === 1 ? (
+          <button
+            type="button" className="ledger-inline-action-btn"
+            onClick={() => onEdit(record)} title="编辑持仓" aria-label={`编辑持仓 ${record.name}`}
+          >编辑持仓</button>
+        ) : showTransactionToggle ? (
+          <button
+            type="button" className="ledger-inline-action-btn"
+            onClick={() => toggleTransactions(record.id)} aria-label={`交易明细 ${record.name}`}
+            aria-expanded={expandedRowKeys.includes(record.id)}
+          >交易明细</button>
+        ) : null}
+        <button
+          type="button" className="ledger-inline-action-btn is-danger"
+          onClick={() => onRemove(record)} title="删除持仓" aria-label={`删除持仓 ${record.name}`}
+        >删除持仓</button>
+      </div>
+    )
+  }
+
   return (
     <AppCard title="持仓明细" extra={<Typography.Text type="secondary">{rows.length} 条</Typography.Text>}>
-      <p className="ledger-transaction-hint">同一资产可录入多笔买入/卖出交易，系统按净持仓与净成本汇总展示。点击行前箭头展开查看每笔明细。</p>
+      <p className="ledger-transaction-hint">同一资产可录入多笔买入/卖出交易，系统按净持仓与净成本汇总展示。多笔持仓请打开交易明细，选择具体交易进行编辑。</p>
       {rows.length === 0 ? (
         <PageStateBlock
           kind="empty"
           title="当前没有持仓"
           description={'可先搜索资产加入自选，或通过"录入持仓"记录你的股票、ETF、基金或贵金属仓位。'}
         />
+      ) : isMobile ? (
+        <div className="portfolio-mobile-list" data-testid="portfolio-mobile-list">
+          {rows.map((record) => (
+            <article className="portfolio-mobile-card" key={record.id} data-asset-key={record.assetKey}>
+              <div className="portfolio-mobile-identity">
+                <AssetAvatar name={record.name} assetType={record.assetType ?? 'STOCK'} size={32} />
+                <div><strong>{record.name}</strong><div className="portfolio-mobile-code">{record.symbol ?? record.code ?? '无代码资产'}</div></div>
+              </div>
+              <dl className="portfolio-mobile-metrics">
+                <div><dt>份额/股数</dt><dd data-testid="portfolio-net-shares">{record.netShares.toFixed(2)} ({record.transactionCount} 笔)</dd></div>
+                <div><dt>成本价</dt><dd>{currency.format(record.avgCost)}</dd></div>
+                <div><dt>最新价</dt><dd>{record.latestPrice == null ? '--' : currency.format(record.latestPrice)}</dd></div>
+                <div><dt>持仓市值</dt><dd>{record.marketValue == null ? '--' : currency.format(record.marketValue)}</dd></div>
+                <div><dt>收益率</dt><dd>{record.positionReturn == null ? '--' : percent.format(record.positionReturn)}</dd></div>
+                <div><dt>预期分红率</dt><dd>{record.yieldMetric == null ? '--' : percent.format(record.yieldMetric)}</dd></div>
+                <div><dt>买入日期</dt><dd>{record.openedAt ?? '--'}</dd></div>
+              </dl>
+              {renderRowActions(record, false)}
+              {record.transactionCount > 1 ? (
+                <details className="portfolio-mobile-transactions">
+                  <summary aria-label={`交易明细 ${record.name}`}>交易明细（{record.transactionCount} 笔）</summary>
+                  <ol>
+                    {record.transactions.map((transaction) => (
+                      <li key={transaction.id} data-transaction-id={transaction.id}>
+                        <div>{transaction.direction === 'BUY' ? '买入' : '卖出'} · {transaction.shares.toFixed(2)} 股 · {currency.format(transaction.tradePrice ?? transaction.avgCost)}</div>
+                        <div className="portfolio-mobile-code">{transaction.openedAt ?? '未填写买入日期'}</div>
+                        <div className="portfolio-row-actions">
+                          {onEditTransaction ? <button type="button" className="ledger-inline-action-btn" aria-label={`编辑此笔 ${transaction.id}`} onClick={() => onEditTransaction(record, transaction)}>编辑此笔</button> : null}
+                          {onRemoveTransaction ? <button type="button" className="ledger-inline-action-btn is-danger" aria-label={`删除此笔 ${transaction.id}`} onClick={() => onRemoveTransaction(record, transaction)}>删除此笔</button> : null}
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                </details>
+              ) : null}
+            </article>
+          ))}
+        </div>
       ) : (
         <Table
           className="soft-table"
@@ -59,6 +141,8 @@ export function PortfolioTable({
           pagination={false}
           dataSource={rows}
           expandable={{
+            expandedRowKeys,
+            onExpandedRowsChange: (keys) => setExpandedRowKeys(keys.map(String)),
             rowExpandable: (record) => record.transactionCount > 1,
             expandedRowRender: (record) => (
               <div style={{ padding: '4px 0' }}>
@@ -175,39 +259,7 @@ export function PortfolioTable({
             {
               title: '操作',
               render: (_, record) => (
-                <Space className="ledger-inline-action-group">
-                  <AssetGroupPopover
-                    assetKey={record.assetKey ?? ''}
-                    groups={groups}
-                    getAssetGroupIds={getAssetGroupIds}
-                    onToggle={(groupId, add) => onToggleAssetGroup(record.assetKey ?? '', groupId, add)}
-                  />
-                  <button
-                    type="button"
-                    className="ledger-inline-action-btn ledger-icon-only"
-                    onClick={() => onGoToDetail(record)}
-                    disabled={!record.assetKey && !record.symbol}
-                    title="查看详情"
-                  >
-                    <LedgerIcon name="detail" />
-                  </button>
-                  <button
-                    type="button"
-                    className="ledger-inline-action-btn ledger-icon-only"
-                    onClick={() => onEdit(record)}
-                    title="编辑持仓"
-                  >
-                    <LedgerIcon name="edit" />
-                  </button>
-                  <button
-                    type="button"
-                    className="ledger-inline-action-btn ledger-icon-only is-danger"
-                    onClick={() => onRemove(record)}
-                    title="删除持仓"
-                  >
-                    <LedgerIcon name="delete" />
-                  </button>
-                </Space>
+                renderRowActions(record)
               )
             }
           ]}

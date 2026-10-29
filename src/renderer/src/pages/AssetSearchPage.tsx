@@ -85,7 +85,7 @@ export function AssetSearchPage() {
 
   async function addToWatchlist(item: AssetSearchItemDto) {
     try {
-      await addAsset({ assetKey: item.assetKey })
+      await addAsset({ assetKey: item.assetKey, name: item.name })
       apiMessage.success(`已将 ${item.name} 加入自选`)
     } catch (actionError) {
       apiMessage.error(actionError instanceof Error ? actionError.message : '加入自选失败')

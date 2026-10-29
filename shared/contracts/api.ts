@@ -372,7 +372,9 @@ export type WatchlistEntryDto = {
   code: string
   symbol?: string
   name: string
-  latestPrice: number
+  latestPrice?: number
+  quoteStatus?: 'stale' | 'unavailable'
+  quoteUpdatedAt?: string
   peRatio?: number
   estimatedFutureYield?: number
   averageYield?: number

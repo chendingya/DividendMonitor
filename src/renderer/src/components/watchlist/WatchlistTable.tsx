@@ -75,7 +75,17 @@ export function WatchlistTable({
                   : '--'}
               <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }}>{record.yieldLabel ?? '收益率'}</div>
             </div>
-            <div>{record.latestPrice.toFixed(2)}</div>
+            <div>
+              {record.latestPrice != null && Number.isFinite(record.latestPrice) ? record.latestPrice.toFixed(2) : '--'}
+              {record.quoteStatus ? (
+                <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }} title={record.quoteUpdatedAt}>
+                  {record.quoteStatus === 'stale' ? '缓存行情' : '未获取行情'}
+                  {record.quoteStatus === 'stale' && record.quoteUpdatedAt
+                    ? ` · ${new Date(record.quoteUpdatedAt).toLocaleString('zh-CN')}`
+                    : ''}
+                </div>
+              ) : null}
+            </div>
             <div>
               <button
                 type="button"

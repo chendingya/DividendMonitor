@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@renderer/contexts/AuthContext'
 import { getSyncDesktopApi } from '@renderer/services/desktopApi'
 import { AppCard } from '@renderer/components/app/AppCard'
+import './userCenterMobile.css'
 
 type SyncDirection = 'push' | 'pull' | 'bidirectional'
 
@@ -92,8 +93,8 @@ export function UserCenterPage() {
   // ============ Logged-out / Offline state ============
   if (!session || mode === 'offline') {
     return (
-      <div className="ledger-page">
-        <section className="ledger-metric-grid">
+      <div className="ledger-page user-center-page">
+        <section className="ledger-metric-grid user-center-status-grid">
           <div className="ledger-metric-panel is-primary">
             <div className="ledger-metric-top">
               <div className="ledger-metric-icon">
@@ -142,7 +143,7 @@ export function UserCenterPage() {
           <p style={{ color: 'var(--text-soft)', fontSize: 14, lineHeight: 1.8, margin: '0 0 18px' }}>
             登录账号后，你的自选和持仓数据将自动同步到云端，支持多设备访问与备份恢复。
           </p>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div className="user-center-offline-actions" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <button
               type="button"
               className="ledger-primary-button"
@@ -182,7 +183,7 @@ export function UserCenterPage() {
     : 'primary'
 
   return (
-    <div className="ledger-page">
+    <div className="ledger-page user-center-page">
       {/* Hero: User profile */}
       <section className="ledger-hero-card">
         <div className="ledger-hero-copy">
@@ -209,7 +210,7 @@ export function UserCenterPage() {
       </section>
 
       {/* Metric cards */}
-      <section className="ledger-metric-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+      <section className="ledger-metric-grid user-center-status-grid">
         <div className="ledger-metric-panel is-primary">
           <div className="ledger-metric-top">
             <div className="ledger-metric-icon">
@@ -262,7 +263,7 @@ export function UserCenterPage() {
             如果你在不同设备上使用，或曾离线使用后需要补同步，可以手动执行同步操作。
           </p>
 
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
+          <div className="user-center-sync-actions" style={{ marginTop: 4 }}>
             <button
               type="button"
               className="ledger-primary-button"
@@ -304,7 +305,7 @@ export function UserCenterPage() {
 
           <div className="ledger-toolbar-divider" />
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+          <div className="user-center-sync-help">
             <div className="ledger-calc-summary-item">
               <span>双向同步</span>
               <strong style={{ fontSize: 15 }}>推送 + 拉取</strong>
@@ -327,7 +328,7 @@ export function UserCenterPage() {
       {/* Account actions */}
       <AppCard title="账号操作">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          <div style={{
+          <div className="user-center-account-row" style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '16px 0'
           }}>
@@ -342,7 +343,7 @@ export function UserCenterPage() {
 
           <div className="ledger-toolbar-divider" />
 
-          <div style={{
+          <div className="user-center-account-row" style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '16px 0'
           }}>
@@ -424,7 +425,7 @@ export function UserCenterPage() {
 
           <div className="ledger-toolbar-divider" />
 
-          <div style={{
+          <div className="user-center-account-row" style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '16px 0'
           }}>
@@ -445,7 +446,7 @@ export function UserCenterPage() {
 
           <div className="ledger-toolbar-divider" />
 
-          <div style={{
+          <div className="user-center-account-row" style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '16px 0'
           }}>

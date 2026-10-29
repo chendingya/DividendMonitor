@@ -1,0 +1,52 @@
+@media (max-width: 720px) {
+  .portfolio-editor-modal.ant-modal {
+    top: 16px;
+    max-width: calc(100vw - 24px);
+    padding-bottom: 0;
+  }
+
+  .portfolio-editor-modal .ant-modal-content {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 32px);
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .portfolio-editor-modal .ant-modal-header,
+  .portfolio-editor-modal .ant-modal-footer {
+    flex-shrink: 0;
+  }
+
+  .portfolio-editor-modal .ant-modal-body {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-right: 3px;
+  }
+
+  .portfolio-editor-modal .ant-form-item {
+    margin-bottom: 16px;
+  }
+
+  .portfolio-editor-modal .ant-input,
+  .portfolio-editor-modal .ant-input-number-input,
+  .portfolio-editor-modal .ant-select-selector {
+    min-height: 44px;
+  }
+
+  .portfolio-editor-modal .ant-modal-footer {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #e8edf3;
+  }
+
+  .portfolio-editor-modal .ant-modal-footer > button {
+    flex: 1;
+    height: 44px;
+    margin: 0;
+    border-radius: 10px;
+  }
+}

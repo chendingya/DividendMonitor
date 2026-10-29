@@ -38,7 +38,7 @@ export function DashboardMetricCards({
 
   return (
     <>
-      <section className="ledger-metric-grid">
+      <section className="ledger-metric-grid dashboard-overview" aria-label="投资组合概览">
         <MetricPanel
           label="投资组合总收益率"
           value={rowCount === 0 ? '--' : percent.format(totalReturn)}
@@ -58,7 +58,7 @@ export function DashboardMetricCards({
         />
       </section>
       {hasRisk ? (
-        <section className="ledger-metric-grid">
+        <section className="ledger-metric-grid dashboard-risk-overview" aria-label="投资组合风险指标">
           <MetricPanel
             label="组合年化波动率"
             value={
