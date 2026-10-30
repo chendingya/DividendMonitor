@@ -1,0 +1,72 @@
+.housing-city-cards {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.housing-city-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border-subtle, rgba(171, 173, 175, 0.2));
+  border-radius: 12px;
+}
+
+.housing-city-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.housing-city-card-header .ant-btn {
+  min-height: 44px;
+}
+
+.housing-city-card-header .ant-btn-link {
+  padding-left: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.housing-city-card-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 14px 0 4px;
+}
+
+.housing-city-card-metrics dt,
+.housing-city-card-hint {
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+.housing-city-card-metrics dd {
+  margin: 4px 0 0;
+  color: var(--text-main);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.housing-city-card-metrics .ant-tag {
+  margin: 0;
+  white-space: normal;
+}
+
+.housing-city-card-detail {
+  min-height: 44px;
+  padding: 8px 0;
+  text-align: left;
+}
+
+@media (max-width: 720px) {
+  [data-testid='housing-custom-form'] .ant-input,
+  [data-testid='housing-custom-form'] .ant-input-number-input,
+  [data-testid='housing-custom-form'] .ant-btn {
+    min-height: 44px;
+  }
+
+  [data-testid='housing-custom-form'] textarea.ant-input {
+    min-height: 88px;
+  }
+}

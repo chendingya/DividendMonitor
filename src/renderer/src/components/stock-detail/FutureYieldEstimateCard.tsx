@@ -31,11 +31,14 @@ function formatSharesValue(value: number | null | undefined) {
   return formatScaledValue(value, '股')
 }
 
-function formatPerShareValue(value: number | null | undefined) {
+function formatPerShareValue(value: number | null | undefined, unit: '股' | '份' = '股') {
   if (value == null || !Number.isFinite(value)) {
     return '--'
   }
-  return `${decimal.format(value)} 元/股`
+  const amount = unit === '份'
+    ? value.toLocaleString('zh-CN', { minimumFractionDigits: 4, maximumFractionDigits: 4 })
+    : decimal.format(value)
+  return `${amount} 元/${unit}`
 }
 
 function formatPriceValue(value: number | null | undefined) {
@@ -124,8 +127,12 @@ function buildStepDetails(estimate: FutureYieldEstimateDto) {
   ]
 }
 
-export function FutureYieldEstimateCard({ estimate }: { estimate: FutureYieldEstimateDto }) {
+export function FutureYieldEstimateCard({ estimate, distributionUnit = '股' }: {
+  estimate: FutureYieldEstimateDto
+  distributionUnit?: '股' | '份'
+}) {
   const methodLabel = estimate.method === 'baseline' ? '基准法' : '保守法'
+  const distributionLabel = distributionUnit === '份' ? '预计每份分配' : '预计每股分红'
   const stepDetails = buildStepDetails(estimate)
 
   return (
@@ -151,7 +158,7 @@ export function FutureYieldEstimateCard({ estimate }: { estimate: FutureYieldEst
             {estimate.isAvailable ? percent.format(estimate.estimatedFutureYield) : '--'}
           </div>
           <div className="metric-subtle">
-            预计每股分红 {estimate.isAvailable ? estimate.estimatedDividendPerShare.toFixed(3) : '--'}
+            {distributionLabel} {estimate.isAvailable ? estimate.estimatedDividendPerShare.toFixed(3) : '--'}
           </div>
         </div>
         {!estimate.isAvailable && estimate.reason ? (
@@ -174,13 +181,13 @@ export function FutureYieldEstimateCard({ estimate }: { estimate: FutureYieldEst
                 {estimate.method === 'baseline' ? (
                   <div className="ledger-calc-summary-item">
                     <span>最近年份分配合计</span>
-                    <strong>{formatPerShareValue(estimate.inputs.baselineYearDistPerShare)}</strong>
+                    <strong>{formatPerShareValue(estimate.inputs.baselineYearDistPerShare, distributionUnit)}</strong>
                   </div>
                 ) : (
                   <>
                     <div className="ledger-calc-summary-item">
                       <span>年均分配</span>
-                      <strong>{formatPerShareValue(estimate.inputs.avgAnnualDistPerShare)}</strong>
+                      <strong>{formatPerShareValue(estimate.inputs.avgAnnualDistPerShare, distributionUnit)}</strong>
                     </div>
                     <div className="ledger-calc-summary-item">
                       <span>保守统计年数</span>
@@ -252,7 +259,7 @@ export function FutureYieldEstimateCard({ estimate }: { estimate: FutureYieldEst
           </Typography.Title>
           <div className="ledger-calc-summary">
             <div className="ledger-calc-summary-item">
-              <span>预计每股分红</span>
+              <span>{distributionLabel}</span>
               <strong>{estimate.estimatedDividendPerShare.toFixed(3)}</strong>
             </div>
             <div className="ledger-calc-summary-item">

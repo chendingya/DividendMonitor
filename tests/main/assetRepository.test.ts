@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { AssetProvider } from '@main/repositories/assetProviderRegistry'
+import { AssetProviderRegistry, PreciousMetalAssetProvider } from '@main/repositories/assetProviderRegistry'
 import { AssetRepository } from '@main/repositories/assetRepository'
+import { toAssetSearchItemDto } from '@main/application/mappers/stockDtoMappers'
+import { pickBestSearchResult } from '@renderer/components/dashboard/portfolioAssetIdentity'
 
 function createProvider(assetType: 'STOCK' | 'ETF' | 'FUND' | 'GOLD' | 'SILVER', overrides: Partial<AssetProvider> = {}): AssetProvider {
   return {
@@ -57,6 +60,86 @@ describe('AssetRepository', () => {
     expect(stockSearch).not.toHaveBeenCalled()
     expect(etfSearch).toHaveBeenCalledWith('300')
     expect(fundSearch).toHaveBeenCalledWith('300')
+  })
+
+  it('keeps matching local precious metals when remote providers fail', async () => {
+    const failedStockProvider = createProvider('STOCK', {
+      async search() { throw new Error('stock search network unavailable') }
+    })
+    const failedFundProvider = createProvider('FUND', {
+      async search() { throw new Error('fund search network unavailable') }
+    })
+    const repository = new AssetRepository(new AssetProviderRegistry([
+      failedStockProvider,
+      failedFundProvider,
+      new PreciousMetalAssetProvider('GOLD'),
+      new PreciousMetalAssetProvider('SILVER')
+    ]))
+
+    await expect(repository.search({ keyword: 'AU9999', assetTypes: ['STOCK', 'FUND', 'GOLD'] })).resolves.toEqual([
+      { assetType: 'GOLD', market: 'SGE', code: 'AU9999', name: '黄金99.99', searchIncomplete: true }
+    ])
+  })
+
+  it('does not treat the stock match as unique when the same-code fund search failed', async () => {
+    const repository = new AssetRepository(new AssetProviderRegistry([
+      createProvider('STOCK', {
+        async search() {
+          return [{ assetType: 'STOCK', market: 'A_SHARE', code: '000001', symbol: '000001', name: '平安银行' }]
+        }
+      }),
+      createProvider('FUND', { async search() { throw new Error('fund catalog network unavailable') } })
+    ]))
+
+    const items = (await repository.search({ keyword: '000001' })).map(toAssetSearchItemDto)
+
+    expect(items).toEqual([
+      { assetKey: 'STOCK:A_SHARE:000001', assetType: 'STOCK', market: 'A_SHARE', code: '000001', symbol: '000001', name: '平安银行', searchIncomplete: true }
+    ])
+    expect(pickBestSearchResult('000001', items)).toBeUndefined()
+  })
+
+  it('keeps nonnumeric local metal identification available with incomplete search results', async () => {
+    const repository = new AssetRepository(new AssetProviderRegistry([
+      createProvider('FUND', { async search() { throw new Error('fund catalog network unavailable') } }),
+      new PreciousMetalAssetProvider('GOLD')
+    ]))
+
+    const items = (await repository.search({ keyword: 'AU9999' })).map(toAssetSearchItemDto)
+
+    expect(pickBestSearchResult('AU9999', items)).toEqual({
+      assetKey: 'GOLD:SGE:AU9999', assetType: 'GOLD', market: 'SGE', code: 'AU9999', symbol: undefined, name: '黄金99.99', searchIncomplete: true
+    })
+  })
+
+  it('preserves the source error when other providers have no matching results', async () => {
+    const sourceError = new Error('stock search network unavailable')
+    const repository = new AssetRepository(new AssetProviderRegistry([
+      createProvider('STOCK', { async search() { throw sourceError } }),
+      new PreciousMetalAssetProvider('GOLD'),
+      new PreciousMetalAssetProvider('SILVER')
+    ]))
+
+    await expect(repository.search({ keyword: '贵州茅台' })).rejects.toBe(sourceError)
+  })
+
+  it('preserves the source error when all selected providers fail', async () => {
+    const sourceError = new Error('ETF search network unavailable')
+    const repository = new AssetRepository(new AssetProviderRegistry([
+      createProvider('ETF', { async search() { throw sourceError } })
+    ]))
+
+    await expect(repository.search({ keyword: '红利', assetTypes: ['ETF'] })).rejects.toBe(sourceError)
+  })
+
+  it('returns an empty result when every selected provider succeeds without matches', async () => {
+    const repository = new AssetRepository(new AssetProviderRegistry([
+      createProvider('STOCK'),
+      new PreciousMetalAssetProvider('GOLD'),
+      new PreciousMetalAssetProvider('SILVER')
+    ]))
+
+    await expect(repository.search({ keyword: 'no-such-asset' })).resolves.toEqual([])
   })
 
   it('groups compare requests by provider and preserves original order', async () => {

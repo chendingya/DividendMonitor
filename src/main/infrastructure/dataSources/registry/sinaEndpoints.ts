@@ -31,16 +31,17 @@ type SinaPreciousMetalQuotePayload = {
 
 function toSgeSinaCode(code: string): string {
   const normalized = code.trim().toUpperCase()
-  if (normalized.startsWith('HF_')) return normalized
+  if (normalized.startsWith('HF_')) return `hf_${normalized.slice(3)}`
   return `SGE_${normalized}`
 }
 
 function parseSinaSgeQuote(raw: string, code: string): SinaPreciousMetalQuotePayload {
   const match = raw.match(/var hq_str_\w+="([^"]+)"/)
-  if (!match) return {}
+  if (!match) throw new Error(`新浪暂未返回 ${code} 的有效报价`)
   const fields = match[1].split(',')
   const isInternational = code.toUpperCase().startsWith('HF_')
   const latestPrice = parseFloat(fields[isInternational ? 0 : 3] ?? '')
+  if (!Number.isFinite(latestPrice) || latestPrice <= 0) throw new Error(`新浪暂未返回 ${code} 的有效报价`)
   const name = fields[1] ?? ''
   return {
     f43: Number.isFinite(latestPrice) ? latestPrice : undefined,

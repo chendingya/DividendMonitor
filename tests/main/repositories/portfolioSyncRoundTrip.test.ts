@@ -256,6 +256,41 @@ describe('在线持仓及同步往返', () => {
     })
   })
 
+  it('在线入口仅修改买入日时还原再重放，云端与本地都不重复扣息', async () => {
+    await db.exec(`
+      CREATE TABLE dividend_events (
+        asset_key TEXT NOT NULL, year INTEGER NOT NULL, fiscal_year INTEGER NOT NULL,
+        announce_date TEXT NOT NULL, record_date TEXT, ex_date TEXT, pay_date TEXT,
+        dividend_per_share REAL NOT NULL, total_dividend_amount REAL, payout_ratio REAL,
+        reference_close_price REAL NOT NULL, bonus_share_per10 REAL, transfer_share_per10 REAL,
+        source TEXT NOT NULL, fetched_at TEXT NOT NULL, status TEXT NOT NULL, announcement_progress TEXT,
+        UNIQUE(asset_key, announce_date, fiscal_year)
+      )
+    `)
+    const { DividendRepository } = await import('@main/repositories/dividendRepository')
+    const dividends = new DividendRepository()
+    await dividends.upsertMany('STOCK:A_SHARE:601398', [{
+      year: 2025, exDate: '2025-07-16', dividendPerShare: 0.2,
+      referenceClosePrice: 5, source: 'test', status: 'IMPLEMENTED'
+    }])
+    vi.doMock('@main/repositories/repositoryFactory', () => ({
+      getPortfolioRepository: () => online, getDividendRepository: () => dividends
+    }))
+    const { upsertPortfolioPosition } = await import('@main/application/useCases/upsertPortfolioPosition')
+    const { listPortfolioPositions } = await import('@main/application/useCases/listPortfolioPositions')
+    await online.upsert({ ...position, id: 'online-trade' })
+    const [adjusted] = await listPortfolioPositions()
+    expect(adjusted.avgCost).toBeCloseTo(4.8)
+    await upsertPortfolioPosition({ ...adjusted, corporateActionsAppliedUntil: undefined, openedAt: '2025-01-03' })
+    expect((await listPortfolioPositions())[0].avgCost).toBeCloseTo(4.8)
+    expect((await local.list())[0]).toMatchObject({
+      avgCost: 4.8, openedAt: '2025-01-03', corporateActionsAppliedUntil: '2025-07-16'
+    })
+    expect(cloud.tables.get('portfolio_positions')![0]).toMatchObject({
+      avg_cost: 4.8, opened_at: '2025-01-03', corporate_actions_applied_until: '2025-07-16'
+    })
+  })
+
   it('仓库提供的云表建表语句能够存储在线持仓实际发送的字段', async () => {
     await online.upsert(position)
     const schema = readFileSync(resolve('supabase-schema.sql'), 'utf8')

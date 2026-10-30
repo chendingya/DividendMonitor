@@ -1,7 +1,5 @@
-import { HousingService } from '@main/application/services/housingService'
-
-const service = new HousingService()
+import { housingService } from '@main/application/services/housingService'
 
 export async function getHousingCityDetail(city: string) {
-  return service.getCityDetail(city)
+  return housingService.getCityDetail(city)
 }

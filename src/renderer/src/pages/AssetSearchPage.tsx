@@ -120,6 +120,14 @@ export function AssetSearchPage() {
       </AppCard>
 
       {error ? <Alert type="error" message={error} /> : null}
+      {!loading && results.some((item) => item.searchIncomplete) ? (
+        <Alert
+          type="warning"
+          showIcon
+          message="部分数据源暂时不可用"
+          description="当前仅显示已获取的搜索结果，其他资产可能未显示，请稍后重试以查看完整结果。"
+        />
+      ) : null}
 
       {!initialKeyword ? (
         <PageStateBlock kind="empty" title="输入关键词开始搜索" description="支持股票代码、ETF 代码、基金代码以及资产名称。" />

@@ -88,6 +88,18 @@ describe('EastmoneyPreciousMetalDataSource', () => {
     )
   })
 
+  it('白银原生报价和历史价的元每千克统一为详情合约的元每克', async () => {
+    requestMock.mockImplementation(async (request) => {
+      if (request.capability === 'asset.kline') return { data: [{ date: '2026-10-30', close: 12150 }] }
+      if (request.input.code === 'hf_XAG') return { data: { f43: 50.79 } }
+      return { data: { f43: 12150, f57: 'AG9999', f58: '白银9999' } }
+    })
+    const detail = await new EastmoneyPreciousMetalDataSource().getDetail('AG9999', 'SILVER')
+    expect(detail.latestPrice).toBe(12.15)
+    expect(detail.priceHistory).toEqual([{ date: '2026-10-30', close: 12.15 }])
+    expect(detail.internationalPriceUsdPerOz).toBe(50.79)
+  })
+
   it('throws when quote returns no price', async () => {
     requestMock
       .mockResolvedValueOnce({

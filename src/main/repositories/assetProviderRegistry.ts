@@ -17,6 +17,7 @@ export type AssetSearchSource = {
   code: string
   symbol?: string
   name: string
+  searchIncomplete?: boolean
 }
 
 export type StockAssetDetailSource = StockDetailSource & {

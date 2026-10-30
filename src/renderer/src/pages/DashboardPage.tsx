@@ -11,6 +11,8 @@ import { DashboardHero, DashboardSearchCard } from '@renderer/components/dashboa
 import { DashboardMetricCards } from '@renderer/components/dashboard/DashboardMetricCards'
 import { PortfolioTable } from '@renderer/components/dashboard/PortfolioTable'
 import { createPortfolioPositionEditRequest, createPortfolioTransactionEdit } from '@renderer/components/dashboard/portfolioTransactionEditor'
+import { createPortfolioEditorInitialValues } from '@renderer/components/dashboard/portfolioAssetIdentity'
+import { deserializePortfolioPositions, serializePortfolioPositions } from '@renderer/components/dashboard/portfolioPositionTransfer'
 import { DashboardOpportunities } from '@renderer/components/dashboard/DashboardOpportunities'
 import { DashboardTools } from '@renderer/components/dashboard/DashboardTools'
 import { HousingYieldCard } from '@renderer/components/dashboard/HousingYieldCard'
@@ -21,6 +23,7 @@ import { IndustryDistributionPie } from '@renderer/components/industry/IndustryD
 import { PortfolioDistributionPie, type DistributionSlice } from '@renderer/components/dashboard/PortfolioDistributionPie'
 import { useIndustryAnalysis } from '@renderer/hooks/useIndustryAnalysis'
 import { assetApi } from '@renderer/services/assetApi'
+import { buildStockAssetKey } from '@shared/contracts/api'
 import { useWatchlistGroups } from '@renderer/hooks/useWatchlistGroups'
 import { watchlistApi } from '@renderer/services/watchlistApi'
 import {
@@ -255,13 +258,7 @@ export function DashboardPage() {
   const [editorOpen, setEditorOpen] = useState(false)
   const [editorMode, setEditorMode] = useState<PortfolioEditorMode>('create')
   const [editingRow, setEditingRow] = useState<PortfolioRow | null>(null)
-  const [editorInitialValues, setEditorInitialValues] = useState<PortfolioEditorInitialValues>({
-    symbol: '',
-    name: '',
-    direction: 'BUY',
-    shares: 100,
-    avgCost: 10
-  })
+  const [editorInitialValues, setEditorInitialValues] = useState<PortfolioEditorInitialValues>(createPortfolioEditorInitialValues)
 
   function goToDetail(record: { assetKey?: string; symbol?: string }) {
     if (record.assetKey) {
@@ -283,17 +280,7 @@ export function DashboardPage() {
   function openCreate() {
     setEditorMode('create')
     setEditingRow(null)
-    setEditorInitialValues({
-      assetKey: '',
-      assetType: undefined,
-      market: 'A_SHARE',
-      code: '',
-      symbol: '',
-      name: '',
-      direction: 'BUY',
-      shares: 100,
-      avgCost: 10
-    })
+    setEditorInitialValues(createPortfolioEditorInitialValues())
     setEditorOpen(true)
   }
 
@@ -362,20 +349,21 @@ export function DashboardPage() {
   }
 
   function onRemoveRow(record: PortfolioRow) {
-    if (record.symbol) {
+    if (record.assetKey || record.symbol) {
+      const code = record.code ?? record.symbol ?? record.name
       Modal.confirm({
         title: '确认删除该标的？',
-        content: `将删除 ${record.symbol}（${record.name}）的全部交易记录。`,
+        content: `将删除 ${code}（${record.name}）的全部交易记录。`,
         okText: '下一步',
         okButtonProps: { danger: true },
         cancelText: '取消',
         onOk: () =>
           openSecondConfirm({
-            content: `确认删除 ${record.symbol}（${record.name}）的全部交易记录`,
+            content: `确认删除 ${code}（${record.name}）的全部交易记录`,
             onConfirm: async () => {
-              await removePortfolioPositionsByAssetInBackend(record.assetKey ?? record.symbol!)
+              await removePortfolioPositionsByAssetInBackend(record.assetKey ?? buildStockAssetKey(record.symbol!))
               await reload()
-              apiMessage.success(`已删除 ${record.symbol} 的全部交易记录`)
+              apiMessage.success(`已删除 ${code} 的全部交易记录`)
             }
           })
       })
@@ -492,16 +480,7 @@ export function DashboardPage() {
 
   function exportPositions() {
     if (positions.length === 0) return
-    const data = positions.map((p) => ({
-      assetType: p.assetType,
-      code: p.code,
-      symbol: p.symbol,
-      name: p.name,
-      direction: p.direction ?? 'BUY',
-      shares: p.shares,
-      avgCost: p.avgCost
-    }))
-    const json = JSON.stringify(data, null, 2)
+    const json = serializePortfolioPositions(positions)
     const blob = new Blob([new TextEncoder().encode(json)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
@@ -513,37 +492,12 @@ export function DashboardPage() {
 
   async function importPositions(file: File) {
     try {
-      const text = await file.text()
-      const data = JSON.parse(text) as Array<{
-        assetType?: string; code?: string; symbol?: string
-        name: string; direction?: string; shares: number; avgCost: number
-      }>
-      if (!Array.isArray(data) || data.length === 0) {
-        apiMessage.error('文件格式无效或没有持仓数据')
-        return
-      }
+      const data = deserializePortfolioPositions(await file.text())
       let imported = 0
       for (const item of data) {
-        if (!item.name || item.shares == null || item.avgCost == null) continue
-        const direction = (item.direction === 'SELL' ? 'SELL' : 'BUY') as 'BUY' | 'SELL'
-        const assetType = (item.assetType ?? 'STOCK') as 'STOCK' | 'ETF' | 'FUND' | 'GOLD' | 'SILVER'
-        const code = item.code ?? item.symbol ?? ''
-        const symbol = item.symbol ?? code
-        const assetKey =
-          item.symbol ? `STOCK:A_SHARE:${item.symbol}` :
-          assetType === 'GOLD' || assetType === 'SILVER' ? `${assetType}:SGE:${code}` :
-          assetType !== 'STOCK' ? `${assetType}:A_SHARE:${code}` : undefined
-
         await upsertPortfolioPositionInBackend({
           id: crypto.randomUUID(),
-          assetKey,
-          assetType,
-          code,
-          symbol,
-          name: item.name,
-          direction,
-          shares: Math.abs(item.shares),
-          avgCost: Math.abs(item.avgCost)
+          ...item
         })
         imported++
       }

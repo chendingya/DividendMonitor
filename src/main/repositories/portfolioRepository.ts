@@ -102,6 +102,7 @@ export class PortfolioRepository implements IPortfolioRepository {
     const riskLevel = request.riskLevel ?? null
     const openedAt = request.openedAt?.trim() || null
     const tradePrice = request.tradePrice != null ? Number(request.tradePrice) : null
+    const appliedUntil = request.corporateActionsAppliedUntil?.trim() || null
     const db = this.executor ?? getDatabase()
     const existing = (await db.prepare('SELECT created_at FROM portfolio_positions WHERE id = ?').get(id)) as
       | { created_at?: string }
@@ -110,9 +111,9 @@ export class PortfolioRepository implements IPortfolioRepository {
     await db.prepare(
       `
         INSERT INTO portfolio_positions (
-          id, asset_key, asset_type, market, code, name, direction, shares, avg_cost, trade_price, opened_at, risk_level, created_at, updated_at
+          id, asset_key, asset_type, market, code, name, direction, shares, avg_cost, trade_price, opened_at, risk_level, corporate_actions_applied_until, created_at, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           asset_key = excluded.asset_key,
           asset_type = excluded.asset_type,
@@ -126,14 +127,15 @@ export class PortfolioRepository implements IPortfolioRepository {
           opened_at = excluded.opened_at,
           risk_level = excluded.risk_level,
           corporate_actions_applied_until =
-            CASE WHEN excluded.avg_cost IS DISTINCT FROM portfolio_positions.avg_cost
-                  OR excluded.opened_at IS DISTINCT FROM portfolio_positions.opened_at
+            CASE WHEN ? = 1 THEN excluded.corporate_actions_applied_until
+                 WHEN excluded.avg_cost IS DISTINCT FROM portfolio_positions.avg_cost
+                  OR substr(excluded.opened_at, 1, 10) IS DISTINCT FROM substr(portfolio_positions.opened_at, 1, 10)
                  THEN NULL
                  ELSE portfolio_positions.corporate_actions_applied_until
             END,
           updated_at = excluded.updated_at
       `
-    ).run(id, assetKey, assetType, market, code, name, direction, shares, avgCost, tradePrice, openedAt, riskLevel, existing?.created_at ?? now, now)
+    ).run(id, assetKey, assetType, market, code, name, direction, shares, avgCost, tradePrice, openedAt, riskLevel, appliedUntil, existing?.created_at ?? now, now, request.corporateActionsAppliedUntil !== undefined ? 1 : 0)
   }
 
   async remove(id: string): Promise<void> {

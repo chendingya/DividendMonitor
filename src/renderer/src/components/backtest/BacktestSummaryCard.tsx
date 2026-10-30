@@ -1,6 +1,7 @@
 import { List, Tag, Typography } from 'antd'
 import type { BacktestResultDto } from '@shared/contracts/api'
 import { AppCard } from '@renderer/components/app/AppCard'
+import './backtestMobile.css'
 
 const currency = new Intl.NumberFormat('zh-CN', {
   style: 'currency',
@@ -68,7 +69,7 @@ function MetricCardGlyph({ kind }: { kind: string }) {
 export function BacktestSummaryCard({ result }: { result: BacktestResultDto }) {
   return (
     <div className="page-section">
-      <div className="ledger-metric-grid" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}>
+      <div className="ledger-metric-grid backtest-metric-grid">
         <div className="ledger-metric-panel is-primary">
           <div className="ledger-metric-top">
             <div className="ledger-metric-icon">

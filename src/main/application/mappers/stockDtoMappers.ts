@@ -103,7 +103,8 @@ export function assertStockSearchItem(item: AssetSearchSource): StockSearchItemD
     market: item.market,
     code: item.code,
     symbol: item.symbol,
-    name: item.name
+    name: item.name,
+    ...(item.searchIncomplete ? { searchIncomplete: true } : {})
   }
 }
 
@@ -118,7 +119,8 @@ export function toAssetSearchItemDto(item: AssetSearchSource): AssetSearchItemDt
     market: item.market,
     code: item.code,
     symbol: item.symbol,
-    name: item.name
+    name: item.name,
+    ...(item.searchIncomplete ? { searchIncomplete: true } : {})
   }
 }
 

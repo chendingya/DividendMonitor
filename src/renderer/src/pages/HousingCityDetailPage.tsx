@@ -1,6 +1,6 @@
-import { Button, Col, Empty, Form, Input, InputNumber, Popconfirm, Row, Tag, message } from 'antd'
+import { Alert, Button, Col, Empty, Form, Input, InputNumber, Popconfirm, Row, Tag, message } from 'antd'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import * as echarts from 'echarts'
 import { AppCard } from '@renderer/components/app/AppCard'
 import { ChartExportButton } from '@renderer/components/app/ChartExportButton'
@@ -8,6 +8,7 @@ import { PageState } from '@renderer/components/app/PageState'
 import { useHousingCityDetail, useHousingUserData } from '@renderer/hooks/useHousing'
 import { computeIndexChangePercent, formatTotalYuan } from '@renderer/utils/housingCalc'
 import type { HousingIndexSeriesPointDto, HousingPriceTrendPointDto } from '@shared/contracts/api'
+import '@renderer/components/housing/housingMobile.css'
 
 function formatPercent(value: number | undefined, digits = 2): string {
   if (value == null) return '--'
@@ -216,45 +217,68 @@ function IndexSeriesChart({ series }: { series: HousingIndexSeriesPointDto[] }) 
 }
 
 export function HousingCityDetailPage() {
+  const navigate = useNavigate()
   const { city: rawCity } = useParams<{ city: string }>()
   const city = rawCity ? decodeURIComponent(rawCity) : ''
   const [apiMessage, messageHolder] = message.useMessage()
   const [form] = Form.useForm()
-  const { data, loading, error, reload } = useHousingCityDetail(city)
-  const { save, remove, saving, removing } = useHousingUserData(() => {
-    void reload()
-  })
+  const { data, loading, error, reload, setData } = useHousingCityDetail(city)
+  const { save, remove, saving, removing } = useHousingUserData(reload)
 
   useEffect(() => {
-    if (!data?.userData) return
+    if (!data || data.city !== city) {
+      form.resetFields()
+      return
+    }
     form.setFieldsValue({
-      priceTotalYuan: data.userData.priceTotalYuan,
-      rentTotalMonthYuan: data.userData.rentTotalMonthYuan,
-      district: data.userData.district,
-      community: data.userData.community,
-      note: data.userData.note
+      priceTotalYuan: data.userData?.priceTotalYuan,
+      rentTotalMonthYuan: data.userData?.rentTotalMonthYuan,
+      district: data.userData?.district,
+      community: data.userData?.community,
+      note: data.userData?.note
     })
-  }, [data?.userData, form])
+  }, [city, data, form])
 
   async function handleSave() {
-    const values = await form.validateFields()
-    await save({ city, ...values })
-    apiMessage.success('自定义数据已保存')
+    try {
+      const values = await form.validateFields()
+      const result = await save({ city, ...values })
+      if (result.refreshError) {
+        apiMessage.warning(`自定义数据已保存，但刷新失败：${result.refreshError}`)
+      } else {
+        apiMessage.success('自定义数据已保存')
+      }
+    } catch (saveError) {
+      if (saveError && typeof saveError === 'object' && 'errorFields' in saveError) return
+      apiMessage.error(saveError instanceof Error ? saveError.message : '保存失败')
+    }
   }
 
   async function handleRemove() {
-    await remove(city)
-    form.resetFields()
-    apiMessage.success('已清除自定义数据')
+    try {
+      const result = await remove(city)
+      form.resetFields()
+      if (result.refreshError) {
+        setData((previous) => previous ? {
+          ...previous, userData: undefined, yieldSource: 'market', rentalYieldPercent: undefined, priceToRentRatio: undefined
+        } : previous)
+        apiMessage.warning(`已清除自定义数据，但刷新失败：${result.refreshError}`)
+      } else {
+        apiMessage.success('已清除自定义数据')
+      }
+    } catch (removeError) {
+      apiMessage.error(removeError instanceof Error ? removeError.message : '清除失败')
+    }
   }
 
   const hasCustomData = data?.userData?.priceTotalYuan != null || data?.userData?.rentTotalMonthYuan != null
   const hasIndexData = (data?.indexSeries?.length ?? 0) > 0
 
   return (
-    <PageState loading={loading} error={error}>
+    <PageState loading={loading && !data}>
       <div className="ledger-page">
         {messageHolder}
+        {error ? <Alert type="error" showIcon message="房价数据加载失败" description={error} action={<Button onClick={() => void reload().catch(() => {})}>重试</Button>} /> : null}
 
         <section className="ledger-watchlist-header">
           <div className="ledger-watchlist-copy">
@@ -264,7 +288,7 @@ export function HousingCityDetailPage() {
             <p className="ledger-hero-subtitle">
               数据期 {data?.period ?? '--'} · {data?.unit ?? ''}
             </p>
-            <div className="ledger-watchlist-summary">
+            <div className="ledger-watchlist-summary" data-testid="housing-custom-summary">
               {hasCustomData ? (
                 <>
                   <span className="pill primary">
@@ -281,39 +305,45 @@ export function HousingCityDetailPage() {
               )}
               <span className="pill">租金收益率 {data?.rentalYieldPercent?.toFixed(2) ?? '--'}%</span>
               <span className="pill">租售比 {data?.priceToRentRatio?.toFixed(1) ?? '--'} 年</span>
+              {hasCustomData && data?.rentalYieldPercent == null ? <span className="pill">待补充总价和月租金</span> : null}
             </div>
+          </div>
+          <div className="ledger-hero-actions">
+            <button type="button" className="ledger-secondary-button" onClick={() => navigate('/housing')}>
+              返回城市列表
+            </button>
           </div>
         </section>
 
         <Row gutter={[20, 20]}>
-          <Col xs={24} lg={14}>
+          <Col xs={{ span: 24, order: 1 }} lg={{ span: 14, order: 0 }}>
             <PriceTrendChart trend={data?.priceTrend ?? []} />
           </Col>
-          <Col xs={24} lg={10}>
+          <Col xs={{ span: 24, order: 0 }} lg={{ span: 10, order: 1 }}>
             <AppCard title="自定义数据">
               <div style={{ marginBottom: 8, color: 'var(--text-faint)', fontSize: 12 }}>
-                录入区/小区级房产总价与整套月租金后，收益率按你的数据重算（覆盖自动数据）。
+                每个城市可保存一组区/小区参数。总价和整套月租金填完整后，详情、首页与收益对比按你的数据重算。
               </div>
-              <Form form={form} layout="vertical" size="small">
+              <Form form={form} layout="vertical" size="small" data-testid="housing-custom-form">
                 <Row gutter={12}>
-                  <Col span={12}>
+                  <Col xs={24} sm={12}>
                     <Form.Item label="房价总价 (元)" name="priceTotalYuan">
                       <InputNumber style={{ width: '100%' }} min={0} placeholder="如 5000000" />
                     </Form.Item>
                   </Col>
-                  <Col span={12}>
+                  <Col xs={24} sm={12}>
                     <Form.Item label="月租金 (元/月)" name="rentTotalMonthYuan">
                       <InputNumber style={{ width: '100%' }} min={0} placeholder="如 8000" />
                     </Form.Item>
                   </Col>
                 </Row>
                 <Row gutter={12}>
-                  <Col span={12}>
+                  <Col xs={24} sm={12}>
                     <Form.Item label="区域" name="district">
                       <Input placeholder="如 朝阳区" />
                     </Form.Item>
                   </Col>
-                  <Col span={12}>
+                  <Col xs={24} sm={12}>
                     <Form.Item label="小区" name="community">
                       <Input placeholder="如 望京某小区" />
                     </Form.Item>
@@ -322,34 +352,36 @@ export function HousingCityDetailPage() {
                 <Form.Item label="备注" name="note">
                   <Input.TextArea rows={2} placeholder="可选" />
                 </Form.Item>
-                <Button type="primary" loading={saving} onClick={() => void handleSave()}>
-                  保存
-                </Button>
-                {data?.userData ? (
-                  <>
-                    <Popconfirm
-                      title="清除自定义数据"
-                      description="将删除该城市录入的总价与月租金，恢复自动数据口径。"
-                      okText="清除"
-                      okButtonProps={{ danger: true }}
-                      onConfirm={() => void handleRemove()}
-                    >
-                      <Button danger loading={removing} style={{ marginLeft: 8 }}>
-                        清除
-                      </Button>
-                    </Popconfirm>
-                    <span style={{ marginLeft: 12, color: 'var(--text-faint)', fontSize: 12 }}>
-                      上次更新 {new Date(data.userData.updatedAt).toLocaleString()}
-                    </span>
-                  </>
-                ) : null}
+                <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                  <Button type="primary" loading={saving} disabled={removing} onClick={() => void handleSave()} style={{ minHeight: 44 }}>
+                    保存
+                  </Button>
+                  {data?.userData ? (
+                    <>
+                      <Popconfirm
+                        title="清除自定义数据"
+                        description="将删除该城市录入的总价与月租金，恢复自动数据口径。"
+                        okText="清除"
+                        okButtonProps={{ danger: true }}
+                        onConfirm={() => void handleRemove()}
+                      >
+                        <Button danger loading={removing} disabled={saving} style={{ minHeight: 44 }}>
+                          清除
+                        </Button>
+                      </Popconfirm>
+                      <span style={{ color: 'var(--text-faint)', fontSize: 12 }}>
+                        上次更新 {new Date(data.userData.updatedAt).toLocaleString('zh-CN', { hour12: false })}
+                      </span>
+                    </>
+                  ) : null}
+                </div>
               </Form>
             </AppCard>
           </Col>
-          <Col xs={24} lg={14}>
+          <Col xs={{ span: 24, order: 2 }} lg={{ span: 14, order: 2 }}>
             <IndexSeriesChart series={data?.indexSeries ?? []} />
           </Col>
-          <Col xs={24} lg={10}>
+          <Col xs={{ span: 24, order: 3 }} lg={{ span: 10, order: 3 }}>
             <AppCard title="环比涨跌">
               {!hasIndexData ? (
                 <div style={{ color: 'var(--text-faint)', fontSize: 12 }}>

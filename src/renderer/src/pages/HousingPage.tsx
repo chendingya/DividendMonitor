@@ -1,9 +1,11 @@
-import { Button, Input, Table, Tag, Tooltip, message } from 'antd'
+import { Alert, Button, Input, Table, Tag, Tooltip, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AppCard } from '@renderer/components/app/AppCard'
 import { PageState } from '@renderer/components/app/PageState'
+import { HousingCityCards } from '@renderer/components/housing/HousingCityCards'
+import { useIsMobile } from '@renderer/hooks/useIsMobile'
 import { useHousingCities } from '@renderer/hooks/useHousing'
 import type { HousingCitySummaryDto } from '@shared/contracts/api'
 
@@ -14,6 +16,7 @@ function formatPercent(value: number | undefined, digits = 2): string {
 
 export function HousingPage() {
   const navigate = useNavigate()
+  const isMobile = useIsMobile(720)
   const [apiMessage, messageHolder] = message.useMessage()
   const [keyword, setKeyword] = useState('')
   const [watchFilter, setWatchFilter] = useState<'all' | 'watched'>('all')
@@ -27,6 +30,10 @@ export function HousingPage() {
   }, [data, keyword, watchFilter])
 
   const watchedCount = useMemo(() => data?.filter((item) => item.isWatched).length ?? 0, [data])
+
+  async function handleRefresh() {
+    try { await reload() } catch { /* useFetch 在页面展示加载错误。 */ }
+  }
 
   async function handleToggleWatch(city: HousingCitySummaryDto) {
     try {
@@ -87,14 +94,15 @@ export function HousingPage() {
       dataIndex: 'rentalYieldPercent',
       key: 'rentalYieldPercent',
       align: 'right',
-      width: 110,
+      width: 145,
       sorter: (a, b) => (a.rentalYieldPercent ?? -1) - (b.rentalYieldPercent ?? -1),
-      render: (value?: number) =>
-        value == null ? (
-          <span style={{ color: 'var(--text-faint)', fontSize: 12 }}>暂无</span>
-        ) : (
-          <span style={{ color: value > 2 ? '#1b7a47' : 'var(--text-soft)' }}>{value.toFixed(2)}%</span>
-        )
+      render: (value: number | undefined, record) => (
+        <div>
+          {value == null ? <span style={{ color: 'var(--text-faint)', fontSize: 12 }}>{record.yieldSource === 'custom' ? '待补充' : '暂无'}</span>
+            : <span style={{ color: value > 2 ? '#1b7a47' : 'var(--text-soft)' }}>{value.toFixed(2)}%</span>}
+          {record.yieldSource === 'custom' ? <Tag color="blue" style={{ marginLeft: 6, marginRight: 0 }}>自定义</Tag> : null}
+        </div>
+      )
     },
     {
       title: '租售比 (年)',
@@ -143,9 +151,10 @@ export function HousingPage() {
   ]
 
   return (
-    <PageState loading={loading} error={error}>
+    <PageState loading={loading && !data}>
       <div className="ledger-page">
         {messageHolder}
+        {error ? <Alert type="error" showIcon message="房价数据加载失败" description={error} action={<Button onClick={() => void handleRefresh()}>重试</Button>} /> : null}
 
         <section className="ledger-watchlist-header">
           <div className="ledger-watchlist-copy">
@@ -160,7 +169,7 @@ export function HousingPage() {
             </div>
           </div>
           <div className="ledger-hero-actions">
-            <button type="button" className="ledger-secondary-button" onClick={() => void reload()}>
+            <button type="button" className="ledger-secondary-button" onClick={() => void handleRefresh()}>
               刷新数据
             </button>
             <button type="button" className="ledger-primary-button" onClick={() => navigate('/housing/mortgage')}>
@@ -193,7 +202,7 @@ export function HousingPage() {
                 placeholder="筛选城市"
                 value={keyword}
                 onChange={(event) => setKeyword(event.target.value)}
-                style={{ width: 240 }}
+                style={{ width: isMobile ? '100%' : 240, maxWidth: '100%' }}
               />
             </div>
             <span style={{ fontSize: 12, color: 'var(--text-faint)' }}>
@@ -203,7 +212,11 @@ export function HousingPage() {
         </section>
 
         <AppCard title={`城市列表（${filteredData.length} 城）`}>
-          <Table<HousingCitySummaryDto>
+          {isMobile ? (
+            <HousingCityCards cities={filteredData} mutatingCity={mutatingCity}
+              onView={(city) => navigate(`/housing/${encodeURIComponent(city)}`)}
+              onToggleWatch={(city) => void handleToggleWatch(city)} />
+          ) : <Table<HousingCitySummaryDto>
             rowKey="city"
             size="middle"
             loading={loading}
@@ -212,7 +225,7 @@ export function HousingPage() {
             pagination={{ pageSize: 20, showSizeChanger: false }}
             scroll={{ x: 1020 }}
             className="soft-table"
-          />
+          />}
         </AppCard>
       </div>
     </PageState>

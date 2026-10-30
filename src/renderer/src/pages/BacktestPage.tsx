@@ -2,6 +2,7 @@ import { message } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { PageState } from '@renderer/components/app/PageState'
+import { AppDatePicker } from '@renderer/components/app/AppDatePicker'
 import { PageStateBlock } from '@renderer/components/app/PageStateBlock'
 import { BacktestSummaryCard } from '@renderer/components/backtest/BacktestSummaryCard'
 import { BacktestNavChart } from '@renderer/components/backtest/BacktestNavChart'
@@ -177,11 +178,12 @@ export function BacktestPage() {
           </p>
         </div>
         <div className="ledger-hero-actions">
-          <input
-            type="date"
+          <AppDatePicker
             className="ledger-date-input"
+            aria-label="回测买入日期"
             value={buyDate}
-            onChange={(event) => setBuyDate(event.target.value)}
+            onChange={(date) => { if (date) setBuyDate(date) }}
+            allowClear={false}
           />
           <button type="button" className="ledger-secondary-button" onClick={() => navigate(buildAssetDetailPath(primaryAssetKey))}>
             返回详情

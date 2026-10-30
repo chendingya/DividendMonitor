@@ -89,11 +89,11 @@ export class EastmoneyPreciousMetalDataSource implements PreciousMetalDataSource
     return response.data
   }
 
-  private async getKline(code: string): Promise<HistoricalPricePoint[]> {
+  private async getKline(code: string, assetType: Extract<AssetType, 'GOLD' | 'SILVER'>): Promise<HistoricalPricePoint[]> {
     try {
       const response = await getDefaultSourceGateway().request<{ code: string; fqt: 0 | 1; lmt: number }, HistoricalPricePoint[]>({
         capability: 'asset.kline',
-        routeContext: { assetType: 'GOLD', market: 'SGE', code },
+        routeContext: { assetType, market: 'SGE', code },
         input: { code, fqt: 0, lmt: 2000 }
       })
       return response.data
@@ -127,10 +127,12 @@ export class EastmoneyPreciousMetalDataSource implements PreciousMetalDataSource
     const [quotePayload, internationalPriceUsdPerOz, priceHistory] = await Promise.all([
       this.getQuote(normalizedCode, assetType),
       this.getInternationalQuote(assetType),
-      this.getKline(normalizedCode)
+      this.getKline(normalizedCode, assetType)
     ])
 
-    const latestPrice = quotePayload.f43 ?? 0
+    // 金交所白银使用元/千克；共享贵金属详情与显示换算统一使用元/克。
+    const priceDivisor = assetType === 'SILVER' ? 1000 : 1
+    const latestPrice = (quotePayload.f43 ?? 0) / priceDivisor
     if (latestPrice <= 0) {
       throw new Error(`Invalid latest price for ${normalizedCode}: ${latestPrice}`)
     }
@@ -146,7 +148,7 @@ export class EastmoneyPreciousMetalDataSource implements PreciousMetalDataSource
       exchangeName: EXCHANGE_NAME,
       latestPrice,
       internationalPriceUsdPerOz,
-      priceHistory,
+      priceHistory: priceHistory.map((point) => ({ ...point, close: point.close / priceDivisor })),
       dividendEvents,
       dataSource: 'eastmoney'
     }

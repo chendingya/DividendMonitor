@@ -1,9 +1,14 @@
 import { ConfigProvider } from 'antd'
+import zhCN from 'antd/locale/zh_CN'
+import dayjs from 'dayjs'
+import 'dayjs/locale/zh-cn'
 import { HashRouter, useLocation } from 'react-router-dom'
 import { AuthProvider } from '@renderer/contexts/AuthContext'
 import { AppShell } from '@renderer/layouts/AppShell'
 import { AppRouter } from '@renderer/router/AppRouter'
 import { NativeAppLifecycle } from '@renderer/components/app/NativeAppLifecycle'
+
+dayjs.locale('zh-cn')
 
 function AppLayout() {
   const location = useLocation()
@@ -23,6 +28,7 @@ function AppLayout() {
 export default function App() {
   return (
     <ConfigProvider
+      locale={zhCN}
       theme={{
         token: {
           colorPrimary: '#0052d0',

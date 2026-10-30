@@ -87,7 +87,7 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
     try {
       const userId = await this.getUserId()
       let createdAt = now
-      let appliedUntil = ''
+      let appliedUntil = request.corporateActionsAppliedUntil?.trim() ?? ''
       if (request.id?.trim()) {
         const { data, error } = await supabase.from('portfolio_positions')
           .select('created_at, avg_cost, opened_at, corporate_actions_applied_until')
@@ -97,7 +97,7 @@ export class SupabasePortfolioRepository implements IPortfolioRepository {
         if (existing) {
           createdAt = String(existing.created_at ?? now)
           const sameOpenedAt = toPortfolioCalendarDate(existing.opened_at) === toPortfolioCalendarDate(request.openedAt)
-          if (Number(existing.avg_cost) === avgCost && sameOpenedAt) {
+          if (request.corporateActionsAppliedUntil === undefined && Number(existing.avg_cost) === avgCost && sameOpenedAt) {
             appliedUntil = String(existing.corporate_actions_applied_until ?? '')
           }
         }

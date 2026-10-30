@@ -20,6 +20,7 @@ import { useAssetDetail } from '@renderer/hooks/useAssetDetail'
 import { useWatchlist } from '@renderer/hooks/useWatchlist'
 import { useIndustryBenchmark } from '@renderer/hooks/useIndustryAnalysis'
 import { buildStockAssetKey, createStockAssetQuery } from '@shared/contracts/api'
+import '@renderer/styles/assetDetailMobile.css'
 import {
   buildBacktestPathFromAssetKey,
   getRememberedLastAssetKey,
@@ -117,16 +118,11 @@ export function StockDetailPage() {
       ) : (
         (() => {
           const isPreciousMetal = data.assetType === 'GOLD' || data.assetType === 'SILVER'
-
-          if (!isPreciousMetal && data.yearlyYields.length === 0 && data.dividendEvents.length === 0) {
-            return (
-              <PageStateBlock
-                kind="no-data"
-                title="该资产暂无历史现金分配数据"
-                description="已获取到基础信息，但没有可用于计算收益率的历史记录。"
-              />
-            )
-          }
+          const isFund = data.assetType === 'ETF' || data.assetType === 'FUND'
+          const distributionUnit = isFund ? '份' : '股'
+          const distributionLabel = isFund ? '每份分配' : '每股分红'
+          const formatDistribution = (value: number) => value.toFixed(isFund ? 4 : 2)
+          const hasIncomeRecords = data.yearlyYields.length > 0 || data.dividendEvents.length > 0
 
           const latestYear = data.yearlyYields[data.yearlyYields.length - 1]
           const averageYield =
@@ -145,7 +141,7 @@ export function StockDetailPage() {
                 自然年: record.year,
                 除息日: record.exDate ?? '',
                 派息日: record.payDate ?? '',
-                每股分红: record.dividendPerShare.toFixed(2),
+                [distributionLabel]: formatDistribution(record.dividendPerShare),
                 类型: deriveDividendType(record),
                 单次股息率: yieldRate == null ? '' : `${(yieldRate * 100).toFixed(2)}%`
               }
@@ -181,7 +177,7 @@ export function StockDetailPage() {
 
           return (
             <PreciousMetalDisplayProvider>
-            <div className="ledger-page">
+            <div className="ledger-page asset-detail-page">
               {messageHolder}
               <section className="ledger-detail-header">
                 <div>
@@ -223,10 +219,18 @@ export function StockDetailPage() {
                 </div>
               </section>
 
+              {!isPreciousMetal && !hasIncomeRecords ? (
+                <PageStateBlock
+                  kind="no-data"
+                  title="该资产暂无历史现金分配数据"
+                  description="已获取到基础信息，但没有可用于计算收益率的历史记录。"
+                />
+              ) : null}
+
               {isPreciousMetal && data.modules.preciousMetal ? (
                 <PreciousMetalStatRow module={data.modules.preciousMetal} />
               ) : (
-                <Row gutter={[18, 18]}>
+                <Row className="asset-detail-income" gutter={[18, 18]}>
                   <Col xs={24} md={12} xl={6}>
                     <AppCard className="ledger-detail-stat">
                       <div className="ledger-stat-label">股息率</div>
@@ -239,23 +243,23 @@ export function StockDetailPage() {
                       <div className="ledger-stat-label">最近现金分配</div>
                       <div className="ledger-stat-value">
                         {data.dividendEvents.length > 0
-                          ? data.dividendEvents[data.dividendEvents.length - 1].dividendPerShare.toFixed(2)
+                          ? formatDistribution(data.dividendEvents[data.dividendEvents.length - 1].dividendPerShare)
                           : '--'}
                       </div>
-                      <div className="ledger-stat-hint">最近一次每股现金分红</div>
+                      <div className="ledger-stat-hint">{isFund ? '最近一次每份现金分配' : '最近一次每股现金分红'}</div>
                     </AppCard>
                   </Col>
                   <Col xs={24} md={12} xl={6}>
                     <AppCard className="ledger-detail-stat">
                       <div className="ledger-stat-label">平均收益率</div>
-                      <div className="ledger-stat-value">{`${(averageYield * 100).toFixed(2)}%`}</div>
-                      <Progress
+                      <div className="ledger-stat-value">{data.yearlyYields.length > 0 ? `${(averageYield * 100).toFixed(2)}%` : '--'}</div>
+                      {data.yearlyYields.length > 0 ? <Progress
                         percent={Number(Math.min(100, averageYield * 1200).toFixed(2))}
                         showInfo={false}
                         strokeColor="#0052d0"
                         trailColor="rgba(217,221,224,0.65)"
                         style={{ marginTop: 10 }}
-                      />
+                      /> : null}
                     </AppCard>
                   </Col>
                   <Col xs={24} md={12} xl={6}>
@@ -271,7 +275,7 @@ export function StockDetailPage() {
                   </Col>
                 </Row>
               )}
-              <Row gutter={[18, 18]} style={{ marginTop: 18 }}>
+              <Row className="asset-detail-risk" gutter={[18, 18]} style={{ marginTop: 18 }}>
                 <Col xs={24} md={12} xl={8}>
                   <AppCard className="ledger-detail-stat">
                     <div className="ledger-stat-label">年化波动率</div>
@@ -416,7 +420,7 @@ export function StockDetailPage() {
                 </div>
               ) : null}
 
-              {!isPreciousMetal ? (
+              {!isPreciousMetal && hasIncomeRecords ? (
               <Row gutter={[20, 20]}>
                 <Col xs={24} xl={16}>
                   <AppCard
@@ -457,12 +461,12 @@ export function StockDetailPage() {
                   </AppCard>
                 </Col>
                 <Col xs={24} xl={8}>
-                  <FutureYieldEstimateCard estimate={data.futureYieldEstimate} />
+                  <FutureYieldEstimateCard estimate={data.futureYieldEstimate} distributionUnit={distributionUnit} />
                 </Col>
               </Row>
               ) : null}
 
-              {!isPreciousMetal ? <YearlyDividendTrendChart items={data.yearlyYields} assetLabel={`${data.name} ${displayCode}`} /> : null}
+              {!isPreciousMetal && hasIncomeRecords ? <YearlyDividendTrendChart items={data.yearlyYields} assetLabel={`${data.name} ${displayCode}`} /> : null}
 
               {hasValuation ? <ValuationTrendChart detail={data} valuationWindow={valuationWindow} /> : null}
 
@@ -473,7 +477,7 @@ export function StockDetailPage() {
                 />
               ) : null}
 
-              {!isPreciousMetal ? (
+              {!isPreciousMetal && hasIncomeRecords ? (
               <AppCard
                 title={
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
@@ -498,9 +502,9 @@ export function StockDetailPage() {
                     { title: '除息日', dataIndex: 'exDate' },
                     { title: '派息日', dataIndex: 'payDate' },
                     {
-                      title: '金额',
+                      title: `金额（元/${distributionUnit}）`,
                       dataIndex: 'dividendPerShare',
-                      render: (value: number) => value.toFixed(2)
+                      render: formatDistribution
                     },
                     {
                       title: '类型',

@@ -3,6 +3,15 @@ import { useFetch } from '@renderer/hooks/useFetch'
 import { housingApi } from '@renderer/services/housingApi'
 import type { HousingCityDetailDto, HousingCitySummaryDto, UserHousingDataUpsertDto } from '@shared/contracts/api'
 
+async function refreshAfterWrite(refresh?: () => void | Promise<void>): Promise<{ refreshError?: string }> {
+  try {
+    await refresh?.()
+    return {}
+  } catch (error) {
+    return { refreshError: error instanceof Error ? error.message : '刷新失败' }
+  }
+}
+
 export function useHousingCities() {
   const { data, loading, error, reload } = useFetch<HousingCitySummaryDto[]>(
     () => housingApi.listCities(),
@@ -34,7 +43,7 @@ export function useHousingCityDetail(city: string) {
   )
 }
 
-export function useHousingUserData(onSaved?: () => void) {
+export function useHousingUserData(onSaved?: () => void | Promise<void>) {
   const [saving, setSaving] = useState(false)
   const [removing, setRemoving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -44,9 +53,10 @@ export function useHousingUserData(onSaved?: () => void) {
     setError(null)
     try {
       await housingApi.updateUserData(request)
-      onSaved?.()
+      return await refreshAfterWrite(onSaved)
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : '保存失败')
+      throw saveError
     } finally {
       setSaving(false)
     }
@@ -57,9 +67,10 @@ export function useHousingUserData(onSaved?: () => void) {
     setError(null)
     try {
       await housingApi.removeUserData(city)
-      onSaved?.()
+      return await refreshAfterWrite(onSaved)
     } catch (removeError) {
       setError(removeError instanceof Error ? removeError.message : '清除失败')
+      throw removeError
     } finally {
       setRemoving(false)
     }

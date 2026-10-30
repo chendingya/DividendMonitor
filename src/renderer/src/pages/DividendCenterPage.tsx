@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { DatePicker, Empty, Spin, Table, Tag, message } from 'antd'
 import * as echarts from 'echarts'
 import dayjs from 'dayjs'
+import { useIsMobile } from '@renderer/hooks/useIsMobile'
+import '@renderer/components/app/appDatePicker.css'
 import { AppCard } from '@renderer/components/app/AppCard'
 import { ChartExportButton } from '@renderer/components/app/ChartExportButton'
 import { dividendApi, type DividendHistoryResult } from '@renderer/services/dividendApi'
@@ -185,6 +187,7 @@ function SummaryPanel({ label, value, primary }: { label: string; value: string;
 }
 
 export function DividendCenterPage() {
+  const isMobile = useIsMobile()
   const [apiMessage, messageHolder] = message.useMessage()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<DividendHistoryResult | null>(null)
@@ -262,7 +265,7 @@ export function DividendCenterPage() {
     <div className="ledger-page" style={{ padding: '28px 32px' }}>
       {messageHolder}
 
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div className="dividend-center-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#2c2f31', letterSpacing: '-0.03em' }}>
             分红统计中心
@@ -272,6 +275,9 @@ export function DividendCenterPage() {
           </p>
         </div>
         <DatePicker.RangePicker
+          className="app-date-range-picker"
+          classNames={{ popup: { root: 'app-date-range-popup' } }}
+          inputReadOnly={isMobile}
           value={dateRange}
           onChange={(dates) => setDateRange(dates)}
           allowClear

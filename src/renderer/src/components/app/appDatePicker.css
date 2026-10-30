@@ -1,0 +1,56 @@
+@media (max-width: 900px) {
+  .app-date-picker.ant-picker,
+  .app-date-range-picker.ant-picker {
+    min-height: 44px;
+  }
+
+  .app-date-picker-popup,
+  .app-date-range-popup {
+    max-width: calc(100vw - 16px);
+    /* 弹层宽度随触控单元放大后，rc-trigger的锚点避让可能落到负left。 */
+    left: max(8px, calc((100vw - 344px) / 2)) !important;
+    right: auto !important;
+  }
+
+  .app-date-picker-popup .ant-picker-panel-container,
+  .app-date-range-popup .ant-picker-panel-container {
+    max-width: calc(100vw - 16px);
+    max-height: calc(100dvh - 24px);
+    overflow: auto;
+  }
+
+  .app-date-range-popup .ant-picker-panels {
+    flex-direction: column;
+  }
+
+  .app-date-picker-popup .ant-picker-date-panel,
+  .app-date-range-popup .ant-picker-date-panel {
+    width: min(344px, calc(100vw - 16px));
+  }
+
+  .app-date-picker-popup .ant-picker-content,
+  .app-date-range-popup .ant-picker-content {
+    width: 100%;
+  }
+
+  .app-date-picker-popup .ant-picker-cell,
+  .app-date-range-popup .ant-picker-cell {
+    padding: 4px 0;
+    height: 44px;
+  }
+
+  .app-date-picker-popup .ant-picker-header > button,
+  .app-date-range-popup .ant-picker-header > button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .dividend-center-header {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .dividend-center-header .app-date-range-picker {
+    width: 100%;
+  }
+}

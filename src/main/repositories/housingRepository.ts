@@ -81,6 +81,23 @@ export class HousingIndexCacheRepository {
 
 /** 用户手动录入的房价/租金数据仓储（本地 SQLite） */
 export class UserHousingDataRepository {
+  async list(): Promise<UserHousingData[]> {
+    const db = getDatabase()
+    const rows = await db.prepare(
+      `SELECT city_code, district, community, price_total_yuan, rent_total_month_yuan, note, updated_at
+       FROM user_housing_data ORDER BY updated_at DESC`
+    ).all() as Array<Record<string, string | number | null>>
+    return rows.map((row) => ({
+      cityCode: String(row.city_code),
+      district: row.district ? String(row.district) : undefined,
+      community: row.community ? String(row.community) : undefined,
+      priceTotalYuan: row.price_total_yuan != null ? Number(row.price_total_yuan) : undefined,
+      rentTotalMonthYuan: row.rent_total_month_yuan != null ? Number(row.rent_total_month_yuan) : undefined,
+      note: row.note ? String(row.note) : undefined,
+      updatedAt: String(row.updated_at)
+    }))
+  }
+
   async findByCity(cityCode: string): Promise<UserHousingData | undefined> {
     const db = getDatabase()
     const row = (await db

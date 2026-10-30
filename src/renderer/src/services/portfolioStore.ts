@@ -16,6 +16,7 @@ export type PortfolioPosition = {
   tradePrice?: number
   openedAt?: string
   riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH'
+  corporateActionsAppliedUntil?: string
   updatedAt: string
 }
 
@@ -101,6 +102,7 @@ function normalizePosition(position: PortfolioPosition): PortfolioPosition | nul
     tradePrice: position.tradePrice,
     openedAt: position.openedAt?.trim() || undefined,
     riskLevel: position.riskLevel,
+    corporateActionsAppliedUntil: position.corporateActionsAppliedUntil?.trim() || undefined,
     updatedAt: position.updatedAt || new Date().toISOString()
   }
 }
@@ -168,6 +170,7 @@ function toBackendRequest(position: PortfolioPosition) {
     avgCost: position.avgCost,
     tradePrice: position.tradePrice,
     riskLevel: position.riskLevel,
+    corporateActionsAppliedUntil: position.corporateActionsAppliedUntil?.trim() || undefined,
     openedAt: position.openedAt?.trim() || undefined
   } as const
 }
@@ -187,6 +190,7 @@ function fromDto(position: PortfolioPositionDto): PortfolioPosition {
     tradePrice: position.tradePrice,
     openedAt: position.openedAt,
     riskLevel: position.riskLevel,
+    corporateActionsAppliedUntil: position.corporateActionsAppliedUntil,
     updatedAt: position.updatedAt
   }
 }
@@ -232,6 +236,7 @@ export async function upsertPortfolioPositionInBackend(input: Omit<PortfolioPosi
     avgCost: input.avgCost,
     tradePrice: input.tradePrice,
     riskLevel: input.riskLevel,
+    corporateActionsAppliedUntil: input.corporateActionsAppliedUntil?.trim() || undefined,
     openedAt: input.openedAt?.trim() || undefined
   })
 }

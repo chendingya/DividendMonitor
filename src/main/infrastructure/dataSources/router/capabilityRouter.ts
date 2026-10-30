@@ -29,7 +29,7 @@ export class CapabilityRouter {
         if (context.assetType === 'GOLD' || context.assetType === 'SILVER') {
           return {
             primary: 'sina',
-            fallbacks: [],
+            fallbacks: ['eastmoney'],
             degradeMode: 'fallback'
           }
         }

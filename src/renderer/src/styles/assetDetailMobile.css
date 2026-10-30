@@ -1,0 +1,73 @@
+@media (max-width: 720px) {
+  .asset-detail-page .ledger-detail-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .asset-detail-page .ledger-detail-header > div,
+  .asset-detail-page .ledger-detail-header > div > div > div {
+    min-width: 0;
+  }
+
+  .asset-detail-page .ledger-detail-title {
+    margin-top: 8px;
+    font-size: 24px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .asset-detail-page .ledger-detail-tags {
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .asset-detail-page .ledger-detail-tags .pill {
+    padding: 4px 9px;
+    font-size: 11px;
+  }
+
+  .asset-detail-page .ledger-detail-price {
+    text-align: left;
+  }
+
+  .asset-detail-page .ledger-detail-price strong {
+    font-size: 32px;
+  }
+
+  .asset-detail-page .ledger-detail-header .ledger-hero-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .asset-detail-page .ledger-detail-header .ledger-hero-actions button {
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+
+  .asset-detail-income > .ant-col,
+  .asset-detail-risk > .ant-col {
+    flex: 0 0 50%;
+    max-width: 50%;
+    display: flex;
+  }
+
+  .asset-detail-page .ledger-detail-stat {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .asset-detail-page .ledger-detail-stat .ant-card-body {
+    padding: 14px;
+  }
+
+  .asset-detail-page .ledger-detail-stat .ledger-stat-value {
+    font-size: 24px;
+    overflow-wrap: anywhere;
+  }
+
+  .asset-detail-page .ledger-detail-stat .ledger-stat-hint {
+    font-size: 11px;
+  }
+}

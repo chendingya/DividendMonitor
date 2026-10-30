@@ -55,6 +55,7 @@ export async function getCrossAssetComparison(): Promise<CrossAssetComparisonDto
     return {
       city: city.city,
       yieldPercent: city.rentalYieldPercent,
+      yieldSource: city.yieldSource,
       volatilityPercent: volatility ?? undefined,
       pricePerSqm: city.pricePerSqm
     }

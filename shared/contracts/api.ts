@@ -78,6 +78,7 @@ export type PortfolioPositionUpsertDto = {
   tradePrice?: number
   openedAt?: string
   riskLevel?: 'LOW' | 'MEDIUM' | 'HIGH'
+  corporateActionsAppliedUntil?: string
 }
 
 export type PortfolioPositionReplaceByAssetDto = {
@@ -363,6 +364,7 @@ export type AssetSearchItemDto = {
   code: string
   name: string
   symbol?: string
+  searchIncomplete?: boolean
 }
 
 export type WatchlistEntryDto = {
@@ -701,6 +703,7 @@ export type HousingCitySummaryDto = {
   yoyPercent?: number           // 新建同比（%）
   rentalYieldPercent?: number   // 租金收益率（%）= 年租金/房价
   priceToRentRatio?: number     // 租售比（年）
+  yieldSource?: 'market' | 'custom' // 收益率口径；自定义金额不完整时指标为空
   isWatched: boolean
 }
 
@@ -735,6 +738,7 @@ export type HousingCityDetailDto = {
   yoyPercent?: number
   rentalYieldPercent?: number
   priceToRentRatio?: number
+  yieldSource?: 'market' | 'custom'
   indexHistory: HousingIndexPointDto[]
   indexSeries: HousingIndexSeriesPointDto[]
   priceTrend: HousingPriceTrendPointDto[]

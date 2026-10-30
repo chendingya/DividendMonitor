@@ -91,7 +91,9 @@ function createSupabaseMock() {
               direction: String(p.direction ?? 'BUY'),
               shares: Number(p.shares ?? 0),
               avg_cost: Number(p.avg_cost ?? 0),
+              opened_at: p.opened_at ?? null,
               risk_level: p.risk_level ?? null,
+              corporate_actions_applied_until: p.corporate_actions_applied_until ?? null,
               created_at: String(p.created_at ?? new Date().toISOString()),
               updated_at: String(p.updated_at ?? new Date().toISOString())
             })
@@ -230,5 +232,19 @@ describe('SupabasePortfolioRepository upsert — 无 id 多笔同 assetKey', () 
     const row = rows.find((r) => r.asset_key === 'FUND:A_SHARE:020602')
     expect(row).toBeTruthy()
     expect((row as UpsertRow).risk_level).toBe('MEDIUM')
+  })
+
+  it('导入带游标的已除权持仓时，云端和本地均保留显式游标', async () => {
+    await repo.upsert({
+      id: 'imported-position', assetKey: 'FUND:A_SHARE:020602', assetType: 'FUND',
+      market: 'A_SHARE', code: '020602', name: '红利基金', direction: 'BUY',
+      shares: 200, avgCost: 0.45, openedAt: '2025-01-01',
+      corporateActionsAppliedUntil: '2025-06-01'
+    })
+    expect((await repo.list())[0]).toMatchObject({
+      id: 'imported-position', shares: 200, avgCost: 0.45, corporateActionsAppliedUntil: '2025-06-01'
+    })
+    const localRow = await memoryDb.prepare('SELECT corporate_actions_applied_until FROM portfolio_positions WHERE id = ?').get('imported-position')
+    expect(localRow).toMatchObject({ corporate_actions_applied_until: '2025-06-01' })
   })
 })

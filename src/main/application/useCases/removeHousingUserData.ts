@@ -1,7 +1,5 @@
-import { HousingService } from '@main/application/services/housingService'
-
-const service = new HousingService()
+import { housingService } from '@main/application/services/housingService'
 
 export async function removeHousingUserData(city: string): Promise<void> {
-  await service.removeUserData(city)
+  await housingService.removeUserData(city)
 }

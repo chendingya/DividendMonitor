@@ -13,7 +13,18 @@ import {
   UserHousingDataRepository
 } from '@main/repositories/housingRepository'
 import { calculateHousingDerivedMetrics, rebuildIndexSeries } from '@main/domain/services/housingCalculationService'
-import type { HousingIndexRecord } from '@main/domain/entities/Housing'
+import type { HousingIndexRecord, UserHousingData } from '@main/domain/entities/Housing'
+
+function deriveMetrics(pricePerSqm: number | undefined, rentPerSqm: number | undefined, userData?: UserHousingData) {
+  const hasCustomAmounts = userData?.priceTotalYuan != null || userData?.rentTotalMonthYuan != null
+  // 整套金额必须成对使用，不能与自动行情的每平方米单价混算。
+  return {
+    ...calculateHousingDerivedMetrics(hasCustomAmounts
+      ? { pricePerSqm: userData?.priceTotalYuan, rentPerSqm: userData?.rentTotalMonthYuan }
+      : { pricePerSqm, rentPerSqm }),
+    yieldSource: hasCustomAmounts ? 'custom' as const : 'market' as const
+  }
+}
 
 export class HousingService {
   private readonly eastmoney = new EastmoneyHousingDataSource()
@@ -21,19 +32,23 @@ export class HousingService {
   private readonly userDataRepo = new UserHousingDataRepository()
   private readonly watchlistRepo = new HousingWatchlistRepository()
   private readonly indexCacheRepo = new HousingIndexCacheRepository()
+  private readonly loadedDetails = new Map<string, HousingCityDetailDto>()
+  private readonly changedCities = new Set<string>()
 
   async listCities(): Promise<HousingCitySummaryDto[]> {
-    const [newHouse, esfHouse, rent, watchlist] = await Promise.all([
+    const [newHouse, esfHouse, rent, watchlist, userData] = await Promise.all([
       this.cih.getNewHouseSnapshot(),
       this.cih.getEsfHouseSnapshot(),
       this.cih.getRentSnapshot(),
-      Promise.resolve(this.watchlistRepo.list())
+      this.watchlistRepo.list(),
+      this.userDataRepo.list()
     ])
 
     const watchedSet = new Set(watchlist.map((item) => item.cityCode))
     const newHouseByCity = new Map(newHouse.cities.map((item) => [item.city, item]))
     const esfByCity = new Map(esfHouse.cities.map((item) => [item.city, item]))
     const rentByCity = new Map(rent.cities.map((item) => [item.city, item]))
+    const userDataByCity = new Map(userData.map((item) => [item.cityCode, item]))
 
     const cities = new Set<string>([
       ...newHouse.cities.map((item) => item.city),
@@ -47,7 +62,7 @@ export class HousingService {
       const rentInfo = rentByCity.get(city)
       const pricePerSqm = newHome?.pricePerSqm ?? esf?.pricePerSqm
       const rentPerSqm = rentInfo?.pricePerSqm
-      const metrics = calculateHousingDerivedMetrics({ rentPerSqm, pricePerSqm })
+      const metrics = deriveMetrics(pricePerSqm, rentPerSqm, userDataByCity.get(city))
 
       results.push({
         city,
@@ -58,6 +73,7 @@ export class HousingService {
         yoyPercent: newHome?.yoyPercent,
         rentalYieldPercent: metrics.rentalYieldPercent,
         priceToRentRatio: metrics.priceToRentRatio,
+        yieldSource: metrics.yieldSource,
         isWatched: watchedSet.has(city)
       })
     }
@@ -66,21 +82,29 @@ export class HousingService {
   }
 
   async getCityDetail(city: string): Promise<HousingCityDetailDto> {
-    const [newHouse, esfHouse, rent, indexHistory, userData] = await Promise.all([
+    const previous = this.loadedDetails.get(city)
+    if (previous && this.changedCities.has(city)) {
+      // 保存/清除只改变本地参数，复用已展示的市场快照和指数，避免把回源失败当成写入失败。
+      const detail = this.withUserData(previous, await this.userDataRepo.findByCity(city))
+      this.loadedDetails.set(city, detail)
+      this.changedCities.delete(city)
+      return detail
+    }
+
+    const [newHouse, esfHouse, rent, indexHistory] = await Promise.all([
       this.cih.getNewHouseSnapshot(),
       this.cih.getEsfHouseSnapshot(),
       this.cih.getRentSnapshot(),
-      this.fetchIndexHistory(city),
-      Promise.resolve(this.userDataRepo.findByCity(city))
+      this.fetchIndexHistory(city)
     ])
+    // 市场请求期间也可能完成本地保存，在返回前读取最新的用户记录。
+    const userData = await this.userDataRepo.findByCity(city)
     const newHome = newHouse.cities.find((item) => item.city === city)
     const esf = esfHouse.cities.find((item) => item.city === city)
     const rentInfo = rent.cities.find((item) => item.city === city)
 
     // 用户手动数据优先（区/小区级精细化，总价/整套月租口径）
-    const effectivePrice = userData?.priceTotalYuan ?? newHome?.pricePerSqm ?? esf?.pricePerSqm
-    const effectiveRent = userData?.rentTotalMonthYuan ?? rentInfo?.pricePerSqm
-    const metrics = calculateHousingDerivedMetrics({ rentPerSqm: effectiveRent, pricePerSqm: effectivePrice })
+    const metrics = deriveMetrics(newHome?.pricePerSqm ?? esf?.pricePerSqm, rentInfo?.pricePerSqm, userData)
 
     const priceTrend: HousingPriceTrendPointDto[] = (newHouse.trend ?? []).map((point) => ({
       period: point.period,
@@ -94,7 +118,7 @@ export class HousingService {
       momPercent: point.momPercent
     }))
 
-    return {
+    const detail: HousingCityDetailDto = {
       city,
       period: newHouse.period,
       unit: newHouse.unit,
@@ -105,6 +129,7 @@ export class HousingService {
       yoyPercent: newHome?.yoyPercent,
       rentalYieldPercent: metrics.rentalYieldPercent,
       priceToRentRatio: metrics.priceToRentRatio,
+      yieldSource: metrics.yieldSource,
       indexHistory,
       indexSeries: this.buildIndexSeries(indexHistory),
       priceTrend,
@@ -119,6 +144,27 @@ export class HousingService {
             updatedAt: userData.updatedAt
           }
         : undefined
+    }
+    this.loadedDetails.set(city, detail)
+    this.changedCities.delete(city)
+    return detail
+  }
+
+  private withUserData(detail: HousingCityDetailDto, userData?: UserHousingData): HousingCityDetailDto {
+    const metrics = deriveMetrics(detail.pricePerSqm ?? detail.secondHandPricePerSqm, detail.rentPerSqm, userData)
+    return {
+      ...detail,
+      rentalYieldPercent: metrics.rentalYieldPercent,
+      priceToRentRatio: metrics.priceToRentRatio,
+      yieldSource: metrics.yieldSource,
+      userData: userData ? {
+        district: userData.district,
+        community: userData.community,
+        priceTotalYuan: userData.priceTotalYuan,
+        rentTotalMonthYuan: userData.rentTotalMonthYuan,
+        note: userData.note,
+        updatedAt: userData.updatedAt
+      } : undefined
     }
   }
 
@@ -205,9 +251,14 @@ export class HousingService {
       rentTotalMonthYuan: request.rentTotalMonthYuan,
       note: request.note
     })
+    this.changedCities.add(request.city)
   }
 
   async removeUserData(city: string): Promise<void> {
     await this.userDataRepo.remove(city)
+    this.changedCities.add(city)
   }
 }
+
+// 详情与参数写入用例共用快照，保持IPC、HTTP和Android进程内运行时的行为一致。
+export const housingService = new HousingService()

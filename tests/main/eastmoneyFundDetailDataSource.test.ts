@@ -163,4 +163,22 @@ describe('eastmoney fund detail parsers', () => {
     const events = parseFundDividendEvents(html, priceHistory, fallbackPrice)
     expect(events[0].referenceClosePrice).toBeCloseTo(fallbackPrice, 4)
   })
+
+  it('normalizes the live 510880 dividend row from ten units to one unit', () => {
+    // fund.eastmoney.com/f10/fhsp_510880.html，2026-10-30 实际返回的分红行。
+    const html = `<table><tr><td>2026年</td><td>2026-01-20</td><td>2026-01-21</td><td>每10份派现金1.4300元</td><td>2026-01-26</td></tr></table>`
+
+    expect(parseFundDividendEvents(html, [{ date: '2026-01-20', close: 3.518 }])).toEqual([
+      {
+        year: 2026,
+        recordDate: '2026-01-20',
+        exDate: '2026-01-21',
+        payDate: '2026-01-26',
+        dividendPerShare: 0.143,
+        referenceClosePrice: 3.518,
+        source: 'eastmoney-fund',
+        status: 'IMPLEMENTED'
+      }
+    ])
+  })
 })

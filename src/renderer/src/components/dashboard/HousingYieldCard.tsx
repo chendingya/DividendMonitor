@@ -50,7 +50,7 @@ export function HousingYieldCard() {
       </div>
       <div className="ledger-list-card">
         <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(171, 173, 175, 0.12)' }}>
-          <div style={{ fontSize: 12, color: '#8b949e' }}>最佳租金收益率</div>
+          <div style={{ fontSize: 12, color: '#8b949e' }}>最佳租金收益率{best?.yieldSource === 'custom' ? '（自定义）' : ''}</div>
           <div style={{ fontSize: 22, fontWeight: 600, color: '#1a7f37', marginTop: 4 }}>
             {best?.rentalYieldPercent == null ? '--' : `${best.rentalYieldPercent.toFixed(2)}%`}
           </div>
@@ -72,9 +72,9 @@ export function HousingYieldCard() {
               style={{ padding: 0, display: 'flex', justifyContent: 'space-between', fontSize: 13 }}
               onClick={() => navigate(`/housing/${encodeURIComponent(item.city)}`)}
             >
-              <span>{item.city}</span>
+              <span>{item.city}{item.yieldSource === 'custom' ? ' · 自定义' : ''}</span>
               <span style={{ color: '#57606a' }}>
-                {item.rentalYieldPercent == null ? '暂无' : `${item.rentalYieldPercent.toFixed(2)}%`}
+                {item.rentalYieldPercent == null ? item.yieldSource === 'custom' ? '待补充' : '暂无' : `${item.rentalYieldPercent.toFixed(2)}%`}
               </span>
             </button>
           ))}

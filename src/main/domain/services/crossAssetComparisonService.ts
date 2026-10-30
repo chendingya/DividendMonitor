@@ -15,6 +15,7 @@ export type CrossAssetHousingSource = {
   yieldPercent?: number
   volatilityPercent?: number
   pricePerSqm?: number
+  yieldSource?: 'market' | 'custom'
 }
 
 export type CrossAssetComparisonSource = {
@@ -52,7 +53,9 @@ function toHousingPoint(source: CrossAssetHousingSource): CrossAssetPointDto {
     city: source.city,
     yieldPercent: source.yieldPercent,
     volatilityPercent: source.volatilityPercent,
-    yieldLabel: source.yieldPercent == null ? undefined : '租金收益率',
+    yieldLabel: source.yieldSource === 'custom'
+      ? source.yieldPercent == null ? '自定义数据待补充' : '租金收益率（自定义）'
+      : source.yieldPercent == null ? undefined : '租金收益率',
     subInfo: source.pricePerSqm != null ? `均价 ${source.pricePerSqm.toFixed(0)} 元/㎡` : undefined,
     detailPath: `/housing/${encodeURIComponent(source.city)}`
   }

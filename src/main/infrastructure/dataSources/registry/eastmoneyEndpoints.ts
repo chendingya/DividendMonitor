@@ -233,15 +233,16 @@ export function parseFundDividendEvents(html: string, priceHistory: HistoricalPr
     if (cells.length < 5) continue
 
     const yearMatch = cells[0].match(/^(\d{4})年$/)
-    const distributionMatch = cells[3].match(/每份派现金([0-9.]+)元/)
+    const distributionMatch = cells[3].match(/每(?:(\d+(?:\.\d+)?)\s*)?份派现金([0-9.]+)元/)
     if (!yearMatch || !distributionMatch) continue
 
     const year = Number(yearMatch[1])
     const recordDate = normalizeDate(cells[1])
     const exDate = normalizeDate(cells[2])
     const payDate = normalizeDate(cells[4])
-    const dividendPerShare = Number(distributionMatch[1])
-    if (!Number.isFinite(dividendPerShare)) continue
+    const distributionUnits = Number(distributionMatch[1] ?? 1)
+    const dividendPerShare = Number(distributionMatch[2]) / distributionUnits
+    if (distributionUnits <= 0 || !Number.isFinite(dividendPerShare)) continue
 
     events.push({
       year,
@@ -535,7 +536,11 @@ export const eastmoneyPreciousMetalQuoteEndpoint: EndpointDefinition<
   timeoutMs: 8000,
   buildUrl: ({ code }) =>
     `https://push2.eastmoney.com/api/qt/stock/get?invt=2&fltt=2&fields=f43,f57,f58&secid=${resolvePreciousMetalSecId(code)}`,
-  mapResponse: (raw) => raw.data ?? {}
+  mapResponse: (raw) => {
+    const quote = raw.data
+    if (!quote || !Number.isFinite(quote.f43) || Number(quote.f43) <= 0) throw new Error('东方财富暂未返回有效的贵金属报价')
+    return quote
+  }
 }
 
 // ====== Precious metal kline endpoint (Shanghai Gold Exchange) ======

@@ -1,6 +1,31 @@
 import type { PortfolioRow, PortfolioTransaction } from '@renderer/hooks/usePortfolio'
 import type { PortfolioPosition } from '@renderer/services/portfolioStore'
 import type { PortfolioEditorInitialValues, PortfolioEditorSubmitValues } from './PortfolioPositionEditorModal'
+import { normalizeCalendarDate } from '@renderer/utils/calendarDate'
+
+export function calculatePortfolioEditorCost(input: {
+  mode: 'create' | 'edit'
+  direction?: 'BUY' | 'SELL'
+  initialValues: { shares: number; avgCost: number; originalAvgCost?: number; tradePrice?: number; direction?: 'BUY' | 'SELL' }
+  shares: number
+  price: number
+  commissionRate: number
+  minCommission: number
+}) {
+  const tradeAmount = input.price * input.shares
+  if (input.mode === 'edit' && input.price === input.initialValues.avgCost
+    && (input.direction ?? 'BUY') === (input.initialValues.direction ?? 'BUY')
+    && (input.initialValues.tradePrice == null || input.shares === input.initialValues.shares)) {
+    return {
+      tradeAmount, commission: 0,
+      trueCost: input.initialValues.originalAvgCost ?? input.initialValues.avgCost,
+      tradePrice: input.initialValues.tradePrice, preserved: true
+    }
+  }
+  const commission = Math.max(tradeAmount * input.commissionRate, input.minCommission)
+  const netAmount = input.direction === 'SELL' ? tradeAmount - commission : tradeAmount + commission
+  return { tradeAmount, commission, trueCost: netAmount / input.shares, tradePrice: input.price, preserved: false }
+}
 
 export function createPortfolioTransactionEdit(
   record: PortfolioRow,
@@ -18,7 +43,9 @@ export function createPortfolioTransactionEdit(
       direction: transaction.direction,
       shares: transaction.shares,
       avgCost: transaction.tradePrice ?? transaction.avgCost,
-      openedAt: transaction.openedAt,
+      originalAvgCost: transaction.avgCost,
+      tradePrice: transaction.tradePrice,
+      openedAt: normalizeCalendarDate(transaction.openedAt),
       riskLevel: transaction.riskLevel
     }
   }

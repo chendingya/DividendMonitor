@@ -15,8 +15,15 @@ export class AssetRepository {
 
   async search(request: AssetSearchRequestDto): Promise<AssetSearchSource[]> {
     const providers = this.registry.getSearchProviders(request.assetTypes)
-    const groups = await Promise.all(providers.map((provider) => provider.search(request.keyword)))
-    return groups.flat()
+    const groups = await Promise.allSettled(providers.map((provider) => provider.search(request.keyword)))
+    const results = groups.flatMap((group) => group.status === 'fulfilled' ? group.value : [])
+    const failure = groups.find((group) => group.status === 'rejected')
+
+    // 部分数据源有匹配时保留可用结果；没有结果时仍暴露真实源站错误。
+    if (results.length === 0) {
+      if (failure?.status === 'rejected') throw failure.reason
+    }
+    return failure ? results.map((item) => ({ ...item, searchIncomplete: true })) : results
   }
 
   async getDetail(query: AssetQueryDto, skipCache = false): Promise<AssetDetailSource> {
