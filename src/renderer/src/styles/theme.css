@@ -332,14 +332,17 @@ body {
   padding-bottom: 16px;
 }
 
+.soft-table .ant-table-thead > tr > th.ant-table-cell-fix-left,
+.soft-table .ant-table-thead > tr > th.ant-table-cell-fix-right,
 .soft-table .ant-table-tbody > tr > td.ant-table-cell-fix-left,
 .soft-table .ant-table-tbody > tr > td.ant-table-cell-fix-right {
-  background: rgba(255, 255, 255, 0.9) !important;
+  background: #ffffff !important;
+  z-index: 2;
 }
 
 .soft-table .ant-table-tbody > tr:hover > td.ant-table-cell-fix-left,
 .soft-table .ant-table-tbody > tr:hover > td.ant-table-cell-fix-right {
-  background: rgba(238, 241, 243, 0.68) !important;
+  background: #f4f7fa !important;
 }
 
 .soft-table .ant-table-tbody > tr:hover > td {
@@ -2569,4 +2572,70 @@ button.ledger-breadcrumb-item:hover {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+
+/* ── Portfolio Table: 双列布局下的列宽控制 ── */
+
+.soft-table .ant-table-thead > tr > th,
+.soft-table .ant-table-tbody > tr > td {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.soft-table .portfolio-row-actions {
+  flex-wrap: nowrap;
+}
+
+.soft-table .portfolio-row-actions .ledger-inline-action-btn {
+  padding: 0 9px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* 窄屏摘要条：隐藏金额按钮独占一行，避免遮挡第二格数值 */
+@media (max-width: 1280px) {
+  .dashboard-amount-toggle {
+    position: static;
+    display: flex;
+    width: fit-content;
+    margin: 0 0 10px auto;
+  }
+
+  .dashboard-summary-cells {
+    padding-top: 0;
+  }
+}
+
+.soft-table .ant-table-content {
+  scrollbar-width: thin;
+}
+
+.soft-table .ant-table-content::-webkit-scrollbar {
+  height: 8px;
+}
+
+.soft-table .ant-table-content::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.45);
+  border-radius: 999px;
+}
+
+.soft-table .ant-table-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.soft-table .ant-table-content {
+  scrollbar-width: thin;
+}
+
+.soft-table .ant-table-content::-webkit-scrollbar {
+  height: 8px;
+}
+
+.soft-table .ant-table-content::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.45);
+  border-radius: 999px;
+}
+
+.soft-table .ant-table-content::-webkit-scrollbar-track {
+  background: transparent;
 }

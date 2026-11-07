@@ -23,7 +23,7 @@ export function buildDistributionPieOption(items: DistributionSlice[], hideAmoun
       type: 'pie',
       radius: ['35%', '65%'],
       avoidLabelOverlap: true,
-      label: { formatter: '{b}\n{d}%' },
+      label: { formatter: hideAmounts ? '{b}' : '{b}\n{d}%' },
       data: items.map((i) => ({ name: i.name, value: Math.round(i.value) }))
     }]
   }

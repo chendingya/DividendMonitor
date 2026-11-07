@@ -47,7 +47,7 @@ export function DashboardSideRail({ slices, riskMetrics, hideAmounts }: Dashboar
                   <span className="dashboard-allocation-dot" style={{ background: slice.color }} />
                   <span>{slice.name}</span>
                   <strong>{display(currency.format(slice.value))}</strong>
-                  <small>{total > 0 ? `${((slice.value / total) * 100).toFixed(0)}%` : '--'}</small>
+                  <small>{total > 0 ? display(`${((slice.value / total) * 100).toFixed(0)}%`) : '--'}</small>
                 </li>
               ))}
             </ul>

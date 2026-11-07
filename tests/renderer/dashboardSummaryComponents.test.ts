@@ -108,6 +108,7 @@ describe('DashboardSideRail', () => {
     const html = renderToStaticMarkup(createElement(DashboardSideRail, { ...railProps, hideAmounts: true }))
     expect(html).not.toContain('116,700')
     expect(html).not.toContain('14.20%')
+    expect(html).not.toContain('62%')
     expect(html).toContain('∗')
   })
 
@@ -187,5 +188,12 @@ describe('饼图金额隐藏', () => {
     const text = option.tooltip.formatter({ name: '银行', value: 500, percent: 100 })
     expect(text).toContain('银行')
     expect(text).not.toContain('500')
+  })
+
+  it('隐藏模式下饼图标签只保留名称，不显示占比', () => {
+    const hiddenOption = buildDistributionPieOption(slices, true) as { series: Array<{ label: { formatter: string } }> }
+    expect(hiddenOption.series[0].label.formatter).toBe('{b}')
+    const shownOption = buildDistributionPieOption(slices, false) as typeof hiddenOption
+    expect(shownOption.series[0].label.formatter).toContain('{d}%')
   })
 })

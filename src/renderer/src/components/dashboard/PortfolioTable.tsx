@@ -70,23 +70,23 @@ export function PortfolioTable({
           type="button" className="ledger-inline-action-btn"
           onClick={() => onGoToDetail(record)} disabled={!record.assetKey && !record.symbol}
           title="查看详情" aria-label={`查看详情 ${record.name}`}
-        >查看详情</button>
+        >详情</button>
         {record.transactionCount === 1 ? (
           <button
             type="button" className="ledger-inline-action-btn"
             onClick={() => onEdit(record)} title="编辑持仓" aria-label={`编辑持仓 ${record.name}`}
-          >编辑持仓</button>
+          >编辑</button>
         ) : showTransactionToggle ? (
           <button
             type="button" className="ledger-inline-action-btn"
             onClick={() => toggleTransactions(record.id)} aria-label={`交易明细 ${record.name}`}
             aria-expanded={expandedRowKeys.includes(record.id)}
-          >交易明细</button>
+          >明细</button>
         ) : null}
         <button
           type="button" className="ledger-inline-action-btn is-danger"
           onClick={() => onRemove(record)} title="删除持仓" aria-label={`删除持仓 ${record.name}`}
-        >删除持仓</button>
+        >删除</button>
       </div>
     )
   }
@@ -144,6 +144,7 @@ export function PortfolioTable({
           rowKey="id"
           pagination={false}
           dataSource={rows}
+          scroll={{ x: 1050 }}
           expandable={{
             expandedRowKeys,
             onExpandedRowsChange: (keys) => setExpandedRowKeys(keys.map(String)),
@@ -208,10 +209,12 @@ export function PortfolioTable({
           columns={[
             {
               title: '资产',
+              width: 150,
+              fixed: 'left',
               render: (_, record) => (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <AssetAvatar name={record.name} assetType={record.assetType ?? 'STOCK'} size={32} />
-                  <div>
+                  <div style={{ minWidth: 0 }}>
                     <Typography.Text strong>{record.name}</Typography.Text>
                     <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }}>
                       {record.symbol ?? record.code ?? '无代码资产'}
@@ -222,35 +225,44 @@ export function PortfolioTable({
             },
             {
               title: '份额/股数',
+              width: 108,
+              onCell: () => ({ style: { whiteSpace: 'nowrap' } }),
               render: (_, record) => `${record.netShares.toFixed(2)} (${record.transactionCount} 笔)`
             },
             {
               title: '成本价',
               dataIndex: 'avgCost',
+              width: 100,
               render: (value: number) => display(currency.format(value))
             },
             {
               title: '买入日期',
               dataIndex: 'openedAt',
+              width: 104,
+              onCell: () => ({ style: { whiteSpace: 'nowrap' } }),
               render: (value?: string) => (value ? value : '--')
             },
             {
               title: '最新价',
               dataIndex: 'latestPrice',
+              width: 100,
               render: (value?: number) => (value == null ? '--' : display(currency.format(value)))
             },
             {
               title: '持仓市值',
               dataIndex: 'marketValue',
+              width: 112,
               render: (value?: number) => (value == null ? '--' : display(currency.format(value)))
             },
             {
               title: '收益率',
               dataIndex: 'positionReturn',
+              width: 96,
               render: (value?: number) => (value == null ? '--' : display(percent.format(value)))
             },
             {
               title: '预期分红率',
+              width: 112,
               render: (_, record) => (
                 <div>
                   <div>{record.yieldMetric == null ? '--' : display(percent.format(record.yieldMetric))}</div>
@@ -262,6 +274,7 @@ export function PortfolioTable({
             },
             {
               title: '操作',
+              width: 168,
               render: (_, record) => (
                 renderRowActions(record)
               )
