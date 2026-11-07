@@ -490,8 +490,10 @@ src/renderer/src/pages/
 - `WatchlistTable`
 - `YieldMapTreemap`
 - `DashboardHero`
-- `DashboardMetricCards`
+- `DashboardSummaryStrip`
+- `DashboardSideRail`
 - `PortfolioTable`
+- `RecentTransactionsCard`
 - `DashboardOpportunities`
 - `DashboardTools`
 - `CorrelationMatrix`

@@ -7,7 +7,37 @@ export type DistributionSlice = {
   color?: string
 }
 
-export function PortfolioDistributionPie({ items, height = 300 }: { items: DistributionSlice[]; height?: number }) {
+export function buildDistributionPieOption(items: DistributionSlice[], hideAmounts: boolean) {
+  const customColors = items.map((i) => i.color).filter((c): c is string => Boolean(c))
+  return {
+    tooltip: {
+      trigger: 'item',
+      formatter: (params: { name: string; value: number; percent: number }) =>
+        hideAmounts
+          ? `${params.name}: ${params.percent}%`
+          : `${params.name}: ¥${params.value} (${params.percent}%)`
+    },
+    legend: { bottom: 0, type: 'scroll' },
+    ...(customColors.length > 0 ? { color: customColors } : {}),
+    series: [{
+      type: 'pie',
+      radius: ['35%', '65%'],
+      avoidLabelOverlap: true,
+      label: { formatter: '{b}\n{d}%' },
+      data: items.map((i) => ({ name: i.name, value: Math.round(i.value) }))
+    }]
+  }
+}
+
+export function PortfolioDistributionPie({
+  items,
+  height = 300,
+  hideAmounts = false
+}: {
+  items: DistributionSlice[]
+  height?: number
+  hideAmounts?: boolean
+}) {
   const chartRef = useRef<HTMLDivElement>(null)
   const instanceRef = useRef<echarts.ECharts | null>(null)
 
@@ -18,25 +48,12 @@ export function PortfolioDistributionPie({ items, height = 300 }: { items: Distr
     if (!instanceRef.current) {
       instanceRef.current = echarts.init(chartRef.current)
     }
-    const customColors = items.map((i) => i.color).filter((c): c is string => Boolean(c))
-    const palette = customColors.length > 0 ? customColors : undefined
-    instanceRef.current.setOption({
-      tooltip: { trigger: 'item', formatter: '{b}: ¥{c} ({d}%)' },
-      legend: { bottom: 0, type: 'scroll' },
-      ...(palette ? { color: palette } : {}),
-      series: [{
-        type: 'pie',
-        radius: ['35%', '65%'],
-        avoidLabelOverlap: true,
-        label: { formatter: '{b}\n{d}%' },
-        data: items.map((i) => ({ name: i.name, value: Math.round(i.value) }))
-      }]
-    }, { notMerge: true })
+    instanceRef.current.setOption(buildDistributionPieOption(items, hideAmounts), { notMerge: true })
     return () => {
       instanceRef.current?.dispose()
       instanceRef.current = null
     }
-  }, [items, height])
+  }, [items, height, hideAmounts])
 
   return <div ref={chartRef} style={{ width: '100%', height }} />
 }

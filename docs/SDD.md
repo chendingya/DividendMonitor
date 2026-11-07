@@ -438,22 +438,28 @@ AnnualizedReturn = (finalMarketValue / initialCost) ^ (365 / holdingDays) - 1
 
 展示内容：
 
-- 投资组合持仓表格（汇总多笔交易为净持仓，支持编辑/删除/详情跳转）
-- 投资组合摘要指标卡片：总收益率、总市值、加权平均收益指标
-- 组合风险指标卡片：组合年化波动率、组合夏普比率、最大回撤
+- 顶部摘要条：持仓总市值（含收益额与收益率）、投入成本、年度分红预估（含今年已到账）、加权收益指标，右上角提供隐藏金额开关（偏好写入 localStorage）
+- 主列：分组标签 + 投资组合持仓表格（汇总多笔交易为净持仓，支持编辑/删除/详情跳转）+ 最近交易（买卖流水与分红记录合并，按日期倒序取 5 条）
+- 右侧栏：资产配置（按资产类型聚合，含金额与占比图例）、组合风险指标（年化波动率、夏普比率、最大回撤）
 - 持仓相关性矩阵热力图（ECharts heatmap，红→蓝渐变显示正/负相关）
 - 高收益机会检测（来自当前持仓的 Top 4）
 - 最近浏览记录 + 快捷工具入口（回测、多股对比）
 - 资产搜索入口 + 一键导入/导出持仓（CSV 报告 / JSON 持仓）
-- 数据刷新入口
+- 数据刷新与导出报告入口（位于顶部 Hero 区）
+- 持仓结构分布：按行业常显，按风险等级、按自定义分组收进「更多分布」折叠区
 
-技术实现：`usePortfolio` 钩子（数据加载、富化、聚合）+ 5 个子组件：
-- `DashboardHero` — 标题 + 操作按钮
-- `DashboardMetricCards` — 两行指标卡片（收益 + 风险）
+技术实现：`usePortfolio` 钩子（数据加载、富化、聚合）+ 子组件：
+
+- `DashboardHero` — 标题、刷新时间与数据维护操作（刷新估值、导入/导出持仓、导出报告）
+- `DashboardSummaryStrip` — 四格摘要条与隐藏金额开关
+- `DashboardSideRail` — 资产配置图例 + 风险指标，不含操作按钮
 - `PortfolioTable` — 持仓明细表格
+- `RecentTransactionsCard` — 最近交易
 - `DashboardOpportunities` — 高收益机会
-- `DashboardTools` — 最近浏览 + 快捷工具
+- `DashboardTools` — 最近浏览 + 快捷工具（回测、多股对比）
 - `CorrelationMatrix` — 相关性矩阵热力图
+
+数据派生逻辑位于 `pages/dashboardSummary.ts`（摘要格、资产类型聚合、最近交易归集），隐私开关位于 `utils/amountPrivacy.ts`。
 
 ### 11.2 股票搜索页
 

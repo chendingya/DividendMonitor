@@ -181,109 +181,67 @@
     font-size: 11px;
   }
 
-  .dashboard-overview.ledger-metric-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-
-  .dashboard-overview > .ledger-metric-panel {
-    min-height: 0;
-    min-width: 0;
+  .dashboard-summary-strip {
     padding: 14px;
     border: 1px solid #e8edf3;
     border-radius: 16px;
     box-shadow: none;
   }
 
-  .dashboard-overview .ledger-metric-top {
-    display: none;
+  .dashboard-summary-cells {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 14px;
+    padding-top: 8px;
   }
 
-  .dashboard-overview .ledger-metric-label {
-    margin-top: 0;
-    color: #69788b;
-    font-size: 12px;
+  .dashboard-summary-cell {
+    padding: 0 10px;
   }
 
-  .dashboard-overview .ledger-metric-value {
-    margin-top: 7px;
-    font-size: clamp(19px, 5.8vw, 25px);
-    line-height: 1.25;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.03em;
+  .dashboard-summary-cell:nth-child(odd) {
+    border-left: none;
+    padding-left: 0;
+  }
+
+  .dashboard-summary-value {
+    font-size: clamp(18px, 5.4vw, 24px);
     overflow-wrap: anywhere;
   }
 
-  .dashboard-overview .ledger-metric-hint {
-    margin-top: 6px;
+  .dashboard-summary-cell:first-child .dashboard-summary-value {
+    font-size: clamp(20px, 6vw, 26px);
+  }
+
+  .dashboard-summary-hint {
     font-size: 11px;
     line-height: 16px;
   }
 
-  .dashboard-overview > .ledger-metric-panel.is-primary {
-    grid-column: 1 / -1;
-    position: relative;
-    padding: 16px 18px;
-    border: 0;
-    background: #1058d6;
+  .dashboard-amount-toggle {
+    min-height: 36px;
   }
 
-  .dashboard-overview .is-primary .ledger-metric-top {
-    display: block;
-    position: absolute;
-    top: 13px;
-    right: 14px;
+  .dashboard-recent-tx-row {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: 'asset kind' 'date amount';
+    row-gap: 4px;
   }
 
-  .dashboard-overview .is-primary .ledger-metric-icon {
-    display: none;
+  .dashboard-recent-tx-date {
+    grid-area: date;
   }
 
-  .dashboard-overview .is-primary .ledger-metric-accent {
-    padding: 4px 8px;
-    font-size: 10px;
+  .dashboard-recent-tx-asset {
+    grid-area: asset;
   }
 
-  .dashboard-overview .is-primary .ledger-metric-label {
-    padding-right: 70px;
-    color: rgba(255, 255, 255, 0.76);
+  .dashboard-recent-tx-kind {
+    grid-area: kind;
+    justify-self: end;
   }
 
-  .dashboard-overview .is-primary .ledger-metric-value {
-    margin-top: 7px;
-    font-size: 32px;
-    line-height: 1.15;
-  }
-
-  .dashboard-overview .is-primary .ledger-metric-hint {
-    margin-top: 5px;
-    color: rgba(255, 255, 255, 0.68);
-  }
-
-  .dashboard-risk-overview.ledger-metric-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
-  }
-
-  .dashboard-risk-overview .ledger-metric-panel {
-    min-height: 0;
-    padding: 12px 10px;
-    border-radius: 13px;
-  }
-
-  .dashboard-risk-overview .ledger-metric-top,
-  .dashboard-risk-overview .ledger-metric-hint {
-    display: none;
-  }
-
-  .dashboard-risk-overview .ledger-metric-label {
-    margin-top: 0;
-    font-size: 10px;
-  }
-
-  .dashboard-risk-overview .ledger-metric-value {
-    margin-top: 6px;
-    font-size: 18px;
+  .dashboard-recent-tx-amount {
+    grid-area: amount;
   }
 
   .dashboard-mobile-search {
