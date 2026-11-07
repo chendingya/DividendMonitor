@@ -1,5 +1,6 @@
 import { PageStateBlock } from '@renderer/components/app/PageStateBlock'
 import { AssetAvatar } from '@renderer/components/app/AssetAvatar'
+import { maskAmount } from '@renderer/utils/amountPrivacy'
 import type { PortfolioOpportunity } from '@renderer/hooks/usePortfolio'
 
 const percent = new Intl.NumberFormat('zh-CN', {
@@ -11,9 +12,15 @@ const percent = new Intl.NumberFormat('zh-CN', {
 type DashboardOpportunitiesProps = {
   opportunities: PortfolioOpportunity[]
   onGoToDetail: (row: PortfolioOpportunity) => void
+  hideAmounts?: boolean
 }
 
-export function DashboardOpportunities({ opportunities, onGoToDetail }: DashboardOpportunitiesProps) {
+export function DashboardOpportunities({
+  opportunities,
+  onGoToDetail,
+  hideAmounts = false
+}: DashboardOpportunitiesProps) {
+  const display = (text: string) => (hideAmounts ? maskAmount(text) : text)
   return (
     <section className="ledger-section">
       <div className="ledger-section-head">
@@ -36,7 +43,7 @@ export function DashboardOpportunities({ opportunities, onGoToDetail }: Dashboar
                     <AssetAvatar name={item.name} assetType={item.assetType ?? 'STOCK'} size={28} />
                   </div>
                   <div className="ledger-opportunity-value">
-                    <strong>{percent.format(item.yieldMetric)}</strong>
+                    <strong>{display(percent.format(item.yieldMetric))}</strong>
                     <span>{item.yieldLabel}</span>
                   </div>
                 </div>

@@ -8,6 +8,7 @@ import { PageStateBlock } from '@renderer/components/app/PageStateBlock'
 import type { PortfolioRow, PortfolioTransaction } from '@renderer/hooks/usePortfolio'
 import type { WatchlistGroupDto } from '@shared/contracts/api'
 import { useIsMobile } from '@renderer/hooks/useIsMobile'
+import { maskAmount } from '@renderer/utils/amountPrivacy'
 import './portfolioMobile.css'
 
 const currency = new Intl.NumberFormat('zh-CN', {
@@ -33,6 +34,7 @@ type PortfolioTableProps = {
   onRemove: (row: PortfolioRow) => void
   onEditTransaction?: (row: PortfolioRow, transaction: PortfolioTransaction) => void
   onRemoveTransaction?: (row: PortfolioRow, transaction: PortfolioTransaction) => void
+  hideAmounts?: boolean
 }
 
 export function PortfolioTable({
@@ -44,10 +46,12 @@ export function PortfolioTable({
   onEdit,
   onRemove,
   onEditTransaction,
-  onRemoveTransaction
+  onRemoveTransaction,
+  hideAmounts = false
 }: PortfolioTableProps) {
   const isMobile = useIsMobile(720)
   const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([])
+  const display = (text: string) => (hideAmounts ? maskAmount(text) : text)
 
   function toggleTransactions(id: string) {
     setExpandedRowKeys((current) => current.includes(id) ? current.filter((key) => key !== id) : [...current, id])
@@ -106,11 +110,11 @@ export function PortfolioTable({
               </div>
               <dl className="portfolio-mobile-metrics">
                 <div><dt>份额/股数</dt><dd data-testid="portfolio-net-shares">{record.netShares.toFixed(2)} ({record.transactionCount} 笔)</dd></div>
-                <div><dt>成本价</dt><dd>{currency.format(record.avgCost)}</dd></div>
-                <div><dt>最新价</dt><dd>{record.latestPrice == null ? '--' : currency.format(record.latestPrice)}</dd></div>
-                <div><dt>持仓市值</dt><dd>{record.marketValue == null ? '--' : currency.format(record.marketValue)}</dd></div>
-                <div><dt>收益率</dt><dd>{record.positionReturn == null ? '--' : percent.format(record.positionReturn)}</dd></div>
-                <div><dt>预期分红率</dt><dd>{record.yieldMetric == null ? '--' : percent.format(record.yieldMetric)}</dd></div>
+                <div><dt>成本价</dt><dd>{display(currency.format(record.avgCost))}</dd></div>
+                <div><dt>最新价</dt><dd>{record.latestPrice == null ? '--' : display(currency.format(record.latestPrice))}</dd></div>
+                <div><dt>持仓市值</dt><dd>{record.marketValue == null ? '--' : display(currency.format(record.marketValue))}</dd></div>
+                <div><dt>收益率</dt><dd>{record.positionReturn == null ? '--' : display(percent.format(record.positionReturn))}</dd></div>
+                <div><dt>预期分红率</dt><dd>{record.yieldMetric == null ? '--' : display(percent.format(record.yieldMetric))}</dd></div>
                 <div><dt>买入日期</dt><dd>{record.openedAt ?? '--'}</dd></div>
               </dl>
               {renderRowActions(record, false)}
@@ -120,7 +124,7 @@ export function PortfolioTable({
                   <ol>
                     {record.transactions.map((transaction) => (
                       <li key={transaction.id} data-transaction-id={transaction.id}>
-                        <div>{transaction.direction === 'BUY' ? '买入' : '卖出'} · {transaction.shares.toFixed(2)} 股 · {currency.format(transaction.tradePrice ?? transaction.avgCost)}</div>
+                        <div>{transaction.direction === 'BUY' ? '买入' : '卖出'} · {transaction.shares.toFixed(2)} 股 · {display(currency.format(transaction.tradePrice ?? transaction.avgCost))}</div>
                         <div className="portfolio-mobile-code">{transaction.openedAt ?? '未填写买入日期'}</div>
                         <div className="portfolio-row-actions">
                           {onEditTransaction ? <button type="button" className="ledger-inline-action-btn" aria-label={`编辑此笔 ${transaction.id}`} onClick={() => onEditTransaction(record, transaction)}>编辑此笔</button> : null}
@@ -168,7 +172,7 @@ export function PortfolioTable({
                           </Tag>
                         </td>
                         <td style={{ padding: '6px 8px', textAlign: 'right' }}>{tx.shares.toFixed(2)}</td>
-                        <td style={{ padding: '6px 8px', textAlign: 'right' }}>{currency.format(tx.tradePrice ?? tx.avgCost)}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right' }}>{display(currency.format(tx.tradePrice ?? tx.avgCost))}</td>
                         <td style={{ padding: '6px 8px' }}>{tx.openedAt ?? '--'}</td>
                         <td style={{ padding: '6px 8px', textAlign: 'center' }}>
                           <Space size={4}>
@@ -223,7 +227,7 @@ export function PortfolioTable({
             {
               title: '成本价',
               dataIndex: 'avgCost',
-              render: (value: number) => currency.format(value)
+              render: (value: number) => display(currency.format(value))
             },
             {
               title: '买入日期',
@@ -233,23 +237,23 @@ export function PortfolioTable({
             {
               title: '最新价',
               dataIndex: 'latestPrice',
-              render: (value?: number) => (value == null ? '--' : currency.format(value))
+              render: (value?: number) => (value == null ? '--' : display(currency.format(value)))
             },
             {
               title: '持仓市值',
               dataIndex: 'marketValue',
-              render: (value?: number) => (value == null ? '--' : currency.format(value))
+              render: (value?: number) => (value == null ? '--' : display(currency.format(value)))
             },
             {
               title: '收益率',
               dataIndex: 'positionReturn',
-              render: (value?: number) => (value == null ? '--' : percent.format(value))
+              render: (value?: number) => (value == null ? '--' : display(percent.format(value)))
             },
             {
               title: '预期分红率',
               render: (_, record) => (
                 <div>
-                  <div>{record.yieldMetric == null ? '--' : percent.format(record.yieldMetric)}</div>
+                  <div>{record.yieldMetric == null ? '--' : display(percent.format(record.yieldMetric))}</div>
                   <div style={{ color: '#8b949e', fontSize: 12, marginTop: 4 }}>
                     {record.yieldLabel ?? '暂无口径'}
                   </div>

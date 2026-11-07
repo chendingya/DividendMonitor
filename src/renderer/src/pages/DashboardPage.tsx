@@ -8,7 +8,13 @@ import {
   type PortfolioEditorSubmitValues
 } from '@renderer/components/dashboard/PortfolioPositionEditorModal'
 import { DashboardHero, DashboardSearchCard } from '@renderer/components/dashboard/DashboardHero'
-import { DashboardMetricCards } from '@renderer/components/dashboard/DashboardMetricCards'
+import { DashboardSummaryStrip } from '@renderer/components/dashboard/DashboardSummaryStrip'
+import { DashboardSideRail } from '@renderer/components/dashboard/DashboardSideRail'
+import { RecentTransactionsCard } from '@renderer/components/dashboard/RecentTransactionsCard'
+import { buildAssetTypeDistribution, buildRecentTransactions, buildSummaryCells } from '@renderer/pages/dashboardSummary'
+import { readHideAmountsPreference, writeHideAmountsPreference } from '@renderer/utils/amountPrivacy'
+import { dividendApi } from '@renderer/services/dividendApi'
+import type { DividendForecastDto, DividendHistoryItem } from '@shared/contracts/api'
 import { PortfolioTable } from '@renderer/components/dashboard/PortfolioTable'
 import { createPortfolioPositionEditRequest, createPortfolioTransactionEdit } from '@renderer/components/dashboard/portfolioTransactionEditor'
 import { createPortfolioEditorInitialValues } from '@renderer/components/dashboard/portfolioAssetIdentity'
@@ -83,9 +89,48 @@ export function DashboardPage() {
   const { data: riskMetrics } = usePortfolioRiskMetrics(rows)
   const { distribution } = useIndustryAnalysis()
 
+  const [hideAmounts, setHideAmounts] = useState(readHideAmountsPreference)
+  const [showMoreDistributions, setShowMoreDistributions] = useState(false)
+  const [forecast, setForecast] = useState<DividendForecastDto | null>(null)
+  const [dividendItems, setDividendItems] = useState<DividendHistoryItem[]>([])
+
+  function toggleHideAmounts() {
+    setHideAmounts((prev) => {
+      const next = !prev
+      writeHideAmountsPreference(next)
+      return next
+    })
+  }
+
   const positionAssetKeySignature = useMemo(
     () => positions.map((p) => p.assetKey ?? '').filter(Boolean).join(','),
     [positions]
+  )
+
+  useEffect(() => {
+    if (positionAssetKeySignature === '') {
+      setForecast(null)
+      setDividendItems([])
+      return
+    }
+    let disposed = false
+    void dividendApi.getForecast()
+      .then((result) => { if (!disposed) setForecast(result) })
+      .catch(() => { if (!disposed) setForecast(null) })
+    void dividendApi.getHistory()
+      .then((result) => { if (!disposed) setDividendItems(result.items) })
+      .catch(() => { if (!disposed) setDividendItems([]) })
+    return () => { disposed = true }
+  }, [positionAssetKeySignature])
+
+  const summaryCells = useMemo(
+    () => buildSummaryCells({ totalValue, totalCost, totalReturn, avgYieldMetric, rowCount: rows.length, forecast }),
+    [totalValue, totalCost, totalReturn, avgYieldMetric, rows.length, forecast]
+  )
+  const assetTypeDistribution = useMemo(() => buildAssetTypeDistribution(rows), [rows])
+  const recentTransactions = useMemo(
+    () => buildRecentTransactions(rows, dividendItems, 5),
+    [rows, dividendItems]
   )
 
   useEffect(() => {
@@ -181,6 +226,8 @@ export function DashboardPage() {
     }
     return items
   }, [rows, groups, assetKeyToGroupIds])
+
+  const hasMoreDistributions = riskDistribution.length > 0 || groupDistribution.length > 0
 
   const handleGetAssetGroupIds = useCallback(async (assetKey: string): Promise<string[]> => {
     try {
@@ -547,13 +594,10 @@ export function DashboardPage() {
         onChange={handleFileChange}
       />
 
-      <DashboardMetricCards
-        totalReturn={totalReturn}
-        totalCost={totalCost}
-        totalValue={totalValue}
-        avgYieldMetric={avgYieldMetric}
-        rowCount={rows.length}
-        riskMetrics={riskMetrics}
+      <DashboardSummaryStrip
+        cells={summaryCells}
+        hideAmounts={hideAmounts}
+        onToggleHideAmounts={toggleHideAmounts}
       />
 
       <DashboardSearchCard
@@ -562,128 +606,142 @@ export function DashboardPage() {
         onSearch={openAssetSearch}
       />
 
-      <div
-        className="ledger-portfolio-group-tabs"
-        style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}
-      >
-        <button
-          type="button"
-          className={`ledger-inline-action-btn ${activeGroupId === null ? 'is-selected' : ''}`}
-          onClick={() => setActiveGroupId(null)}
-        >
-          全部
-        </button>
-        {groups.map((g) => (
-          <div key={g.id} className="ledger-group-row">
-            {editingGroupId === g.id ? (
+      <div className="dashboard-layout-grid">
+        <div className="dashboard-layout-main">
+          <div
+            className="ledger-portfolio-group-tabs"
+            style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}
+          >
+            <button
+              type="button"
+              className={`ledger-inline-action-btn ${activeGroupId === null ? 'is-selected' : ''}`}
+              onClick={() => setActiveGroupId(null)}
+            >
+              全部
+            </button>
+            {groups.map((g) => (
+              <div key={g.id} className="ledger-group-row">
+                {editingGroupId === g.id ? (
+                  <Input
+                    size="small"
+                    className="ledger-group-edit-input"
+                    placeholder="分组名称"
+                    value={editingGroupName}
+                    onChange={(e) => setEditingGroupName(e.target.value)}
+                    onPressEnter={() => handleUpdateGroup(g.id)}
+                    onBlur={() => handleUpdateGroup(g.id)}
+                    style={{ width: 120 }}
+                    autoFocus
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    className={`ledger-inline-action-btn ${activeGroupId === g.id ? 'is-selected' : ''}`}
+                    onClick={() => setActiveGroupId(g.id)}
+                  >
+                    {g.color && (
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          background: g.color,
+                          marginRight: 6,
+                          verticalAlign: 'middle'
+                        }}
+                      />
+                    )}
+                    {g.name}
+                  </button>
+                )}
+
+                {editingGroupId !== g.id && (
+                  <div className="ledger-group-actions">
+                    <button
+                      type="button"
+                      className="ledger-group-action-btn"
+                      onClick={() => handleStartEditGroup(g.id, g.name)}
+                      title="重命名"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" width="13" height="13" aria-hidden="true">
+                        <path d="M13 7l4 4M7 17l1-5 4-4 4 4-4 4-5 1z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M20 20H4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                      </svg>
+                    </button>
+                    <Popconfirm
+                      title="确认删除分组？"
+                      description="分组内的资产不会被删除，仅移除分组本身。"
+                      onConfirm={() => handleDeleteGroup(g.id)}
+                      okText="删除"
+                      cancelText="取消"
+                    >
+                      <button
+                        type="button"
+                        className="ledger-group-action-btn is-danger"
+                        title="删除分组"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" width="13" height="13" aria-hidden="true">
+                          <path d="M4 7h16M8 7V5.5A1.5 1.5 0 019.5 4h5A1.5 1.5 0 0116 5.5V7M6 7l1.5 12.5A1.5 1.5 0 008.9 21h6.2a1.5 1.5 0 001.4-1.5L18 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                        </svg>
+                      </button>
+                    </Popconfirm>
+                  </div>
+                )}
+              </div>
+            ))}
+            {showNewGroupInput ? (
               <Input
                 size="small"
-                className="ledger-group-edit-input"
                 placeholder="分组名称"
-                value={editingGroupName}
-                onChange={(e) => setEditingGroupName(e.target.value)}
-                onPressEnter={() => handleUpdateGroup(g.id)}
-                onBlur={() => handleUpdateGroup(g.id)}
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                onPressEnter={handleCreateGroup}
+                onBlur={() => {
+                  setShowNewGroupInput(false)
+                  setNewGroupName('')
+                }}
                 style={{ width: 120 }}
                 autoFocus
               />
             ) : (
               <button
                 type="button"
-                className={`ledger-inline-action-btn ${activeGroupId === g.id ? 'is-selected' : ''}`}
-                onClick={() => setActiveGroupId(g.id)}
+                className="ledger-inline-action-btn"
+                onClick={() => setShowNewGroupInput(true)}
               >
-                {g.color && (
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      background: g.color,
-                      marginRight: 6,
-                      verticalAlign: 'middle'
-                    }}
-                  />
-                )}
-                {g.name}
+                + 新建分组
               </button>
             )}
-
-            {editingGroupId !== g.id && (
-              <div className="ledger-group-actions">
-                <button
-                  type="button"
-                  className="ledger-group-action-btn"
-                  onClick={() => handleStartEditGroup(g.id, g.name)}
-                  title="重命名"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" width="13" height="13" aria-hidden="true">
-                    <path d="M13 7l4 4M7 17l1-5 4-4 4 4-4 4-5 1z" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M20 20H4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                  </svg>
-                </button>
-                <Popconfirm
-                  title="确认删除分组？"
-                  description="分组内的资产不会被删除，仅移除分组本身。"
-                  onConfirm={() => handleDeleteGroup(g.id)}
-                  okText="删除"
-                  cancelText="取消"
-                >
-                  <button
-                    type="button"
-                    className="ledger-group-action-btn is-danger"
-                    title="删除分组"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" width="13" height="13" aria-hidden="true">
-                      <path d="M4 7h16M8 7V5.5A1.5 1.5 0 019.5 4h5A1.5 1.5 0 0116 5.5V7M6 7l1.5 12.5A1.5 1.5 0 008.9 21h6.2a1.5 1.5 0 001.4-1.5L18 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                    </svg>
-                  </button>
-                </Popconfirm>
-              </div>
-            )}
           </div>
-        ))}
-        {showNewGroupInput ? (
-          <Input
-            size="small"
-            placeholder="分组名称"
-            value={newGroupName}
-            onChange={(e) => setNewGroupName(e.target.value)}
-            onPressEnter={handleCreateGroup}
-            onBlur={() => {
-              setShowNewGroupInput(false)
-              setNewGroupName('')
-            }}
-            style={{ width: 120 }}
-            autoFocus
-          />
-        ) : (
-          <button
-            type="button"
-            className="ledger-inline-action-btn"
-            onClick={() => setShowNewGroupInput(true)}
-          >
-            + 新建分组
-          </button>
-        )}
-      </div>
 
-      <PortfolioTable
-        rows={filteredRows}
-        groups={groups}
-        getAssetGroupIds={handleGetAssetGroupIds}
-        onToggleAssetGroup={handleToggleAssetGroup}
-        onGoToDetail={(row) => goToDetail(row)}
-        onEdit={openEdit}
-        onRemove={onRemoveRow}
-        onEditTransaction={onEditTransaction}
-        onRemoveTransaction={onRemoveTransaction}
-      />
+          <PortfolioTable
+            rows={filteredRows}
+            groups={groups}
+            getAssetGroupIds={handleGetAssetGroupIds}
+            onToggleAssetGroup={handleToggleAssetGroup}
+            onGoToDetail={(row) => goToDetail(row)}
+            onEdit={openEdit}
+            onRemove={onRemoveRow}
+            onEditTransaction={onEditTransaction}
+            onRemoveTransaction={onRemoveTransaction}
+            hideAmounts={hideAmounts}
+          />
+
+          <RecentTransactionsCard items={recentTransactions} hideAmounts={hideAmounts} />
+        </div>
+
+        <DashboardSideRail
+          slices={assetTypeDistribution}
+          riskMetrics={riskMetrics}
+          hideAmounts={hideAmounts}
+        />
+      </div>
 
       <DashboardOpportunities
         opportunities={opportunities}
         onGoToDetail={(row) => goToDetail(row)}
+        hideAmounts={hideAmounts}
       />
 
       <HousingYieldCard />
@@ -693,33 +751,53 @@ export function DashboardPage() {
         dateRange={riskMetrics?.commonDateRange}
       />
 
-      {((distribution && distribution.length > 0) || riskDistribution.length > 0 || groupDistribution.length > 0) && (
+      {((distribution && distribution.length > 0) || hasMoreDistributions) && (
         <div className="page-section">
           <div className="ledger-section-head">
             <h2>持仓结构分布</h2>
+            {hasMoreDistributions && (
+              <button
+                type="button"
+                className="ledger-inline-action-btn dashboard-more-distributions-trigger"
+                aria-expanded={showMoreDistributions}
+                onClick={() => setShowMoreDistributions((current) => !current)}
+              >
+                {showMoreDistributions ? '收起更多分布' : '更多分布'}
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                  style={{ transform: showMoreDistributions ? 'rotate(180deg)' : undefined }}
+                >
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            )}
           </div>
           <Row gutter={[16, 16]}>
             {distribution && distribution.length > 0 && (
               <Col xs={24} md={12} xl={8}>
                 <div className="ledger-toolbar-card">
                   <h3 style={{ margin: '0 0 8px', fontSize: 14, color: '#475569' }}>按行业</h3>
-                  <IndustryDistributionPie distribution={distribution} />
+                  <IndustryDistributionPie distribution={distribution} hideAmounts={hideAmounts} />
                 </div>
               </Col>
             )}
-            {riskDistribution.length > 0 && (
+            {showMoreDistributions && riskDistribution.length > 0 && (
               <Col xs={24} md={12} xl={8}>
                 <div className="ledger-toolbar-card">
                   <h3 style={{ margin: '0 0 8px', fontSize: 14, color: '#475569' }}>按风险等级</h3>
-                  <PortfolioDistributionPie items={riskDistribution} />
+                  <PortfolioDistributionPie items={riskDistribution} hideAmounts={hideAmounts} />
                 </div>
               </Col>
             )}
-            {groupDistribution.length > 0 && (
+            {showMoreDistributions && groupDistribution.length > 0 && (
               <Col xs={24} md={12} xl={8}>
                 <div className="ledger-toolbar-card">
                   <h3 style={{ margin: '0 0 8px', fontSize: 14, color: '#475569' }}>按自定义分组</h3>
-                  <PortfolioDistributionPie items={groupDistribution} />
+                  <PortfolioDistributionPie items={groupDistribution} hideAmounts={hideAmounts} />
                 </div>
               </Col>
             )}

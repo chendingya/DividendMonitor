@@ -2303,3 +2303,270 @@ button.ledger-breadcrumb-item:hover {
     overflow-x: auto;
   }
 }
+
+/* ── Dashboard Summary Strip ── */
+
+.dashboard-summary-strip {
+  position: relative;
+  padding: 18px 22px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 8px 22px rgba(44, 47, 49, 0.03);
+}
+
+.dashboard-amount-toggle {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(211, 217, 224, 0.92);
+  border-radius: 999px;
+  background: rgba(243, 245, 247, 0.92);
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-soft);
+  cursor: pointer;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.dashboard-amount-toggle:hover {
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--primary);
+}
+
+.dashboard-amount-toggle[aria-pressed="true"] {
+  background: #eef4ff;
+  border-color: rgba(0, 82, 208, 0.3);
+  color: var(--primary);
+}
+
+.dashboard-amount-toggle:focus-visible {
+  outline: 2px solid rgba(0, 82, 208, 0.42);
+  outline-offset: 2px;
+}
+
+.dashboard-summary-cells {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr 1fr;
+  padding-top: 6px;
+}
+
+.dashboard-summary-cell {
+  padding: 2px 18px;
+  border-left: 1px solid rgba(171, 173, 175, 0.18);
+}
+
+.dashboard-summary-cell:first-child {
+  border-left: none;
+  padding-left: 0;
+}
+
+.dashboard-summary-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+}
+
+.dashboard-summary-value {
+  display: block;
+  margin-top: 6px;
+  font-family: "Plus Jakarta Sans", Inter, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-summary-cell:first-child .dashboard-summary-value {
+  font-size: 28px;
+}
+
+.dashboard-summary-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* ── Dashboard Layout Grid ── */
+
+.dashboard-layout-grid {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
+  align-items: start;
+}
+
+.dashboard-layout-main {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.dashboard-side-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  position: sticky;
+  top: 80px;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-layout-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-side-rail {
+    position: static;
+  }
+}
+
+/* ── Side Rail: Allocation Legend ── */
+
+.dashboard-allocation-legend {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dashboard-allocation-legend li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.dashboard-allocation-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.dashboard-allocation-legend strong {
+  margin-left: auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-allocation-legend small {
+  color: var(--text-faint);
+  font-size: 12px;
+  width: 36px;
+  text-align: right;
+}
+
+/* ── Side Rail: Risk Rows ── */
+
+.dashboard-risk-rows {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dashboard-risk-rows > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dashboard-risk-rows dt {
+  font-size: 13px;
+  color: var(--text-soft);
+  font-weight: 600;
+}
+
+.dashboard-risk-rows dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Distribution: More Toggle ── */
+
+.dashboard-more-distributions-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Recent Transactions ── */
+
+.dashboard-recent-tx-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-recent-tx-row {
+  display: grid;
+  grid-template-columns: 80px 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid rgba(171, 173, 175, 0.12);
+}
+
+.dashboard-recent-tx-row:first-child {
+  border-top: none;
+}
+
+.dashboard-recent-tx-date {
+  font-size: 12px;
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.dashboard-recent-tx-asset strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.dashboard-recent-tx-asset small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.dashboard-recent-tx-kind {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.dashboard-recent-tx-kind.is-buy {
+  background: #ffe9e0;
+  color: #b3400f;
+}
+
+.dashboard-recent-tx-kind.is-sell {
+  background: #dff5e8;
+  color: #1b7a47;
+}
+
+.dashboard-recent-tx-kind.is-dividend {
+  background: #dff5e8;
+  color: #1b7a47;
+}
+
+.dashboard-recent-tx-amount {
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
