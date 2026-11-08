@@ -15,7 +15,7 @@ npm run dist:dir             # 构建目录产物（electron-builder --dir）
 npm run dist:win             # 构建 Windows NSIS 安装包
 npm run preview              # electron-vite 预览
 npm run typecheck            # TypeScript 类型检查（tsc --noEmit）
-npm test                     # 运行全部测试（vitest run，tests/ 420+ 测试）
+npm test                     # 运行全部测试（vitest run，tests/ 107 个文件 630+ 测试）
 npm run test:watch           # 监听模式运行测试
 ```
 
