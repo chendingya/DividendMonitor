@@ -39,7 +39,7 @@ describe('登录生命周期', () => {
     startAuthListener()
     await authService.login('test@example.com', 'test-password')
     fake.signOutError = { message: 'network unavailable' }
-    await expect(authService.logout()).rejects.toThrow('退出登录失败')
+    await expect(authService.logout()).rejects.toThrow('[AUTH:NETWORK]')
     expect((await authService.getSession())?.user.id).toBe('test-user')
     expect(getRuntimeMode()).toBe('online')
   })

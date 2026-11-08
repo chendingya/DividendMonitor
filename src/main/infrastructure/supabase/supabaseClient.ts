@@ -39,7 +39,16 @@ export function resolveSessionStorage(): SupabaseSyncStorage {
  */
 let networkWarningLogged = false
 
-const QUIET_ERROR_CODES = new Set(['ENOTFOUND', 'ECONNREFUSED', 'EAI_AGAIN', 'ETIMEDOUT'])
+const QUIET_ERROR_CODES = new Set([
+  'ENOTFOUND',
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'EPIPE',
+  'EAI_AGAIN',
+  'ETIMEDOUT',
+  'UND_ERR_CONNECT_TIMEOUT',
+  'UND_ERR_SOCKET'
+])
 
 function isNetworkUnreachableError(error: unknown): boolean {
   if (!(error instanceof Error)) return false

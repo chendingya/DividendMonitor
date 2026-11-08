@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@renderer/contexts/AuthContext'
 import { AppCard } from '@renderer/components/app/AppCard'
+import { decodeAuthError } from '@shared/authErrors'
 
 export function LoginPage() {
   const navigate = useNavigate()
@@ -12,30 +13,37 @@ export function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [errorFromServer, setErrorFromServer] = useState(false)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const [isRegister, setIsRegister] = useState(false)
+
+  const serverError = errorFromServer && errorMsg ? decodeAuthError(errorMsg) : null
 
   async function handleSubmit() {
     const trimmedEmail = email.trim()
     const trimmedPassword = password.trim()
 
     if (!trimmedEmail || !trimmedPassword) {
+      setErrorFromServer(false)
       setErrorMsg('请输入邮箱和密码')
       return
     }
 
     if (trimmedPassword.length < 6) {
+      setErrorFromServer(false)
       setErrorMsg('密码至少需要 6 位')
       return
     }
 
     if (isRegister && trimmedPassword !== confirmPassword.trim()) {
+      setErrorFromServer(false)
       setErrorMsg('两次输入的密码不一致')
       return
     }
 
     setSubmitting(true)
     setErrorMsg(null)
+    setErrorFromServer(false)
     setSuccessMsg(null)
 
     try {
@@ -55,7 +63,8 @@ export function LoginPage() {
       setConfirmPassword('')
     } catch (err) {
       setConfirmPassword('')
-      setErrorMsg(err instanceof Error ? err.message : '操作失败')
+      setErrorFromServer(true)
+      setErrorMsg(err instanceof Error ? err.message : String(err))
     } finally {
       setSubmitting(false)
     }
@@ -84,7 +93,25 @@ export function LoginPage() {
         </div>
 
         <AppCard>
-          {errorMsg ? (
+          {serverError ? (
+            <div className="auth-error" role="alert">
+              <div className="auth-error-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
+                  <path d="M12 7.5v5.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                  <circle cx="12" cy="16.6" r="1" fill="currentColor" />
+                </svg>
+                {serverError.title}
+              </div>
+              <p className="auth-error-hint">{serverError.hint}</p>
+              {serverError.detail ? (
+                <details className="auth-error-detail">
+                  <summary>技术详情</summary>
+                  <code>{serverError.detail}</code>
+                </details>
+              ) : null}
+            </div>
+          ) : errorMsg ? (
             <div style={{
               background: '#fff1f0', border: '1px solid #ffa39e', borderRadius: 8,
               padding: '8px 14px', marginBottom: 16, color: '#cf1322', fontSize: 13

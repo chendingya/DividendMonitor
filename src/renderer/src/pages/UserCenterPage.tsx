@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@renderer/contexts/AuthContext'
 import { getSyncDesktopApi } from '@renderer/services/desktopApi'
 import { AppCard } from '@renderer/components/app/AppCard'
+import { describeAuthError } from '@shared/authErrors'
 import './userCenterMobile.css'
 
 type SyncDirection = 'push' | 'pull' | 'bidirectional'
@@ -79,7 +80,7 @@ export function UserCenterPage() {
       setNewPassword('')
       setConfirmNewPassword('')
     } catch (err) {
-      setPasswordMsg({ type: 'error', text: err instanceof Error ? err.message : '修改密码失败' })
+      setPasswordMsg({ type: 'error', text: describeAuthError(err instanceof Error ? err.message : String(err)) })
     } finally {
       setChangingPassword(false)
     }

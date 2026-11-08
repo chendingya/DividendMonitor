@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { AuthSessionDto, SyncStatusDto } from '@shared/contracts/api'
+import { encodeAuthError } from '@shared/authErrors'
 import { getAuthDesktopApi, getSyncDesktopApi } from '@renderer/services/desktopApi'
 
 type AuthState = {
@@ -83,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const authApi = getAuthDesktopApi()
     const s = await authApi.login(email, password)
-    if (!s) throw new Error('登录失败：未返回会话')
+    if (!s) throw new Error(encodeAuthError('UNKNOWN', '登录响应缺少会话信息'))
     setSession(s)
     setMode('online')
   }, [])
@@ -92,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const authApi = getAuthDesktopApi()
     const result = await authApi.register(email, password)
     if (!result) {
-      throw new Error('注册失败：服务未返回结果')
+      throw new Error(encodeAuthError('UNKNOWN', '注册响应缺少结果'))
     }
     if (result.session) {
       setSession(result.session)
