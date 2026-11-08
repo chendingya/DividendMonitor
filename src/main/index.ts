@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, net } from 'electron'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { startLocalHttpServer, stopLocalHttpServer } from '@main/http/server'
@@ -7,7 +7,7 @@ import { AssetCacheSyncService } from '@main/application/services/assetCacheSync
 import { syncAllDividendEvents } from '@main/application/services/dividendSyncService'
 import { authService } from '@main/infrastructure/supabase/authService'
 import { migrateLegacySession, sessionFileStorage } from '@main/infrastructure/supabase/sessionStorage'
-import { setSessionStorage } from '@main/infrastructure/supabase/supabaseClient'
+import { setSessionStorage, setSupabaseFetch } from '@main/infrastructure/supabase/supabaseClient'
 import { installNodeHttpDefaults } from '@main/infrastructure/http/nodeHttpDefaults'
 import { installElectronSqliteProvider } from '@main/infrastructure/db/electronSqliteProvider'
 import { installElectronBroadcasters } from '@main/infrastructure/supabase/electronBroadcasters'
@@ -73,6 +73,12 @@ process.stdout?.on('error', () => undefined)
 process.stderr?.on('error', () => undefined)
 
 app.whenReady().then(async () => {
+  // 复用 Chromium 网络栈，使 Supabase 请求遵循系统代理（Node 原生 fetch 不读系统代理）
+  setSupabaseFetch(
+    ((input: RequestInfo | URL, init?: RequestInit) =>
+      net.fetch(input as Parameters<typeof net.fetch>[0], init)) as typeof fetch
+  )
+
   await installElectronSqliteProvider()
   // Migrate legacy plaintext session file to encrypted storage
   migrateLegacySession()

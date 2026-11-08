@@ -8,6 +8,18 @@ let client: SupabaseClient | null = null
 
 let sessionStorage: SupabaseSyncStorage = browserSessionStorage
 
+/**
+ * 底层网络实现。默认使用运行时自带的 fetch；
+ * Electron 入口会替换为 net.fetch，以复用 Chromium 的系统代理与证书策略。
+ */
+let baseFetch: typeof fetch = (input, init) => fetch(input, init)
+
+/** 在创建客户端前注入平台网络实现。 */
+export function setSupabaseFetch(fetcher: typeof fetch): void {
+  baseFetch = fetcher
+  resetSupabaseClient()
+}
+
 /** 在创建客户端前注入平台存储；Electron 入口负责安装加密文件存储。 */
 export function setSessionStorage(storage: SupabaseSyncStorage): void {
   sessionStorage = storage
@@ -43,7 +55,7 @@ function isNetworkUnreachableError(error: unknown): boolean {
 
 const quietSupabaseFetch: typeof fetch = async (input, init) => {
   try {
-    return await fetch(input, init)
+    return await baseFetch(input, init)
   } catch (error) {
     if (!isNetworkUnreachableError(error)) throw error
 
