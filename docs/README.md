@@ -14,6 +14,8 @@
 8. `HTTP-API.md`：本地 HTTP API（headless 模式）路由清单与认证
 9. `PACKAGING-AND-DEPLOYMENT.md`：Windows exe 打包与网页部署现状、步骤和缺口
 10. `UI-UX-DESIGN-PRINCIPLES.md`：页面视觉与交互风格
+11. `ANDROID-IMPLEMENTATION.md`：Android App 实现地图（代码对照，改 app 端前必读）
+12. `ANDROID-BUILD.md`：Android 构建、设备测试与验收记录
 
 ## 2. 当前有效文档
 
@@ -34,6 +36,7 @@
 - `HTTP-API.md`
 - `PACKAGING-AND-DEPLOYMENT.md`
 - `ANDROID-PORT-ASSESSMENT.md`：Android 移植技术评估与历史路线决策
+- `ANDROID-IMPLEMENTATION.md`：Android App 实现地图 — 启动链/运行时选择/数据库/网络/认证/UI 适配/功能门禁/构建/测试的代码对照
 - `ANDROID-BUILD.md`：Android 原生 SQLite/HTTP 运行时、APK 构建、设备测试与当前限制
 
 ### 数据源调研与沉淀
@@ -54,7 +57,10 @@
 
 ## 4. 与代码的对应关系
 
-- `src/main/`：主进程 use case、repository、adapter、infrastructure
-- `src/preload/`：桥接层
+- `src/main/`：主进程 use case、repository、adapter、infrastructure（Android 进程内运行时在 WebView 中复用同一层）
+- `src/preload/`：桥接层（仅桌面）
 - `src/renderer/src/`：页面、组件、hook、runtime service
 - `shared/contracts/api.ts`：跨进程共享 DTO 与 API 契约（IPC 与 HTTP 的唯一共享源）
+- `android/`：Capacitor Android 工程（原生插件、Gradle 配置、instrumentation 测试）
+- `mobile/www/`：移动端构建产物（gitignore，由 `npm run build:mobile` 生成）
+- `capacitor.config.ts` / `vite.config.mobile.ts` / `scripts/build-android.mjs`：移动端打包配置与构建脚本

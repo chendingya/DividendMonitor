@@ -29,16 +29,17 @@ npm run test:watch           # 监听模式运行测试
 
 ## 项目概述
 
-收息佬（DividendMonitor）是一个 Electron + React + TypeScript 桌面应用，面向 A 股/ETF/基金/贵金属的长期投资者的收益分析工具。核心功能：多资产搜索、分红追踪、估值对比、自选分组管理、持仓管理、股息复投回测、分红统计中心、行业分析、股息率地图（全市场 TTM）、房产观察（70 城房价指数/租售比/房贷）、图表导出（PNG/CSV）、本地优先 + Supabase 在线模式（认证、云同步、备份恢复）。
+收息佬（DividendMonitor）是面向 A 股/ETF/基金/贵金属长期投资者的收益分析工具，**Electron 桌面 + Android App 双端共用一份 React + TypeScript 代码库**。核心功能：多资产搜索、分红追踪、估值对比、自选分组管理、持仓管理、股息复投回测、分红统计中心、行业分析、股息率地图（全市场 TTM）、房产观察（70 城房价指数/租售比/房贷）、图表导出（PNG/CSV）、本地优先 + Supabase 在线模式（认证、云同步、备份恢复）。
 
 ## 技术栈
 
 - **桌面框架**: Electron 35 + electron-vite 3
+- **移动端**: Capacitor 7（`@capacitor-community/sqlite` 原生数据库 + `CapacitorHttp` 原生网络），Android 工程在 `android/`
 - **前端**: React 18 + TypeScript 5.8 (strict) + Ant Design 5 + ECharts 5
 - **路由**: HashRouter（兼容 Electron `file://` 协议）
-- **数据存储**: SQLite（Node 内建 `node:sqlite`，无 ORM），迁移位于 `src/main/infrastructure/db/migrations/`
+- **数据存储**: SQLite，无 ORM；桌面用 Node 内建 `node:sqlite`，Android 用 Capacitor 原生 SQLite；迁移位于 `src/main/infrastructure/db/migrations/`，两端共用
 - **在线模式**: Supabase（`@supabase/supabase-js`，认证 + 云端仓储），配置见 `.env`（`SUPABASE_URL` / `SUPABASE_ANON_KEY`）
-- **测试**: Vitest（测试位于 `tests/`，70 个文件 420+ 测试）
+- **测试**: Vitest（测试位于 `tests/`，107 个文件 630+ 测试）+ Android instrumentation 测试（`android/app/src/androidTest/`）
 - **数据源**: 东方财富 / 腾讯 / 新浪免费接口 + 中指研究院（房产），通过统一网关（SourceGateway）调度
 - **其他**: zod（DTO 校验）、electron-log（日志）
 
@@ -58,6 +59,7 @@ TypeScript 编译、Vite 构建、Vitest 测试均已配置这些别名。跨进
 ```
 UI (renderer) → Hook → renderer service → runtime selector
   → Electron bridge → IPC → UseCase → Repository → Adapter → Infra
+  → Android inprocessRuntimeApi → UseCase（WebView 内直载 @main）→ 原生 SQLite/HTTP
   → browser fallback (mock / HTTP API)
 ```
 
@@ -69,7 +71,7 @@ src/main/
 │   ├── entities/     #   实体定义（Stock、Settings 等）
 │   └── services/     #   领域服务（估值、收益率、复投回测、风险指标、行业分析、贵金属换算、未来股息率、租金收益率/租售比、房价指数重建）
 ├── application/
-│   ├── useCases/     #   用例编排（每个文件一个用例函数，共 48 个）
+│   ├── useCases/     #   用例编排（每个文件一个用例函数，共 50 个；Android 进程内运行时直接复用）
 │   └── mappers/      #   DTO 转换（领域模型 ↔ API 合约）
 ├── repositories/     # 数据访问层（本地 SQLite + Supabase 云端仓储，repositoryFactory 按模式切换）
 ├── adapters/         # 外部数据源适配器（eastmoney / sina / danjuan / cihIndex，策略模式）
@@ -126,7 +128,37 @@ src/renderer/src/
 
 dev 模式下 SQLite 位于 `.runtime-data/db/dividend-monitor.sqlite`；安装版位于 `%APPDATA%\shou-xi-lao\db\`。
 
-Android 不依赖本机 HTTP 服务；启动 React 前先完成原生数据库初始化。共享 SQL 边界是异步的，所有读写必须 await；`transaction` 回调内只使用传入的执行器（不要重入全局排队连接）。构建及限制见 `docs/ANDROID-BUILD.md`。
+Android 不依赖本机 HTTP 服务；启动 React 前先完成原生数据库初始化。共享 SQL 边界是异步的，所有读写必须 await；`transaction` 回调内只使用传入的执行器（不要重入全局排队连接）。实现对照见 `docs/ANDROID-IMPLEMENTATION.md`，构建、设备测试及限制见 `docs/ANDROID-BUILD.md`。
+
+## 双端同步开发规范
+
+四个运行时共用一份代码库，**共享层改动默认同时影响桌面与 app**。任何改动先判断所属层，再按下表强制验证：
+
+| 改动层 | 范围示例 | 必须验证 |
+|--------|----------|----------|
+| 共享业务层 | `src/main/domain`、`application`、`repositories`、`adapters`、`infrastructure`、`shared/contracts` | `npm run typecheck` + `npm test` + `npm run build:mobile` |
+| 共享 UI 层 | `src/renderer` 页面/组件/hooks/样式 | 上述三项 + 检查 ≤900px 断点手机布局（`useIsMobile` / `*Mobile.css`） |
+| 桌面壳层 | IPC 通道、preload、electron 配置、备份文件服务 | 桌面验证 + 确认 app 端无回归（进程内 API 是否受影响） |
+| App 专属层 | 原生 SQLite/HTTP provider、`android/`、`capacitor.config.ts`、`vite.config.mobile.ts` | `npm run typecheck` + `npm test` + `npm run android:debug`（有设备时 `npm run android:test`） |
+
+**改 Electron 专属功能前必须先确认 app 端对应行为**：
+
+- app 应当支持 → 双端同步实现并验证，不允许只改桌面。
+- app 无法支持 → 用 `isNativeRuntime()` 门禁 + 界面文案说明，并更新 `docs/ANDROID-IMPLEMENTATION.md` 与 `docs/ANDROID-BUILD.md` 的限制清单。
+
+**新增/修改 API 四处同步清单**（缺一处即断一个运行时）：
+
+1. `shared/contracts/api.ts` — 契约（唯一共享源）
+2. `src/main/ipc/channels/` — Electron IPC
+3. `src/main/http/routes/` — 浏览器预览 HTTP
+4. `src/renderer/src/services/inprocessRuntimeApi.ts` — Android 进程内（浏览器 fallback `browserHttpRuntimeApi` / `browserRuntimeApi` 按需补齐）
+
+**其他双端约束**：
+
+- 数据库迁移（`src/main/infrastructure/db/migrations/`）两端共用，新迁移必须在原生 SQLite 上可执行；避免逐行跨桥写入，批量操作保持同一事务。
+- 不在 renderer 写平台专属业务逻辑；平台差异收敛到 infrastructure 注入点（数据库 resolver、HTTP transport、会话存储）。
+- 移动构建只注入公开配置（`SUPABASE_URL` / `SUPABASE_ANON_KEY`），禁止引入 `service_role` 或服务端密钥。
+- 影响双端的 commit 在描述中注明两端影响面（如 `fix(portfolio): …（桌面+Android）`）。
 
 ## 在线模式（Supabase）
 
@@ -150,7 +182,7 @@ FUND:A_SHARE:160222    # 基金
 
 - **领域层纯净性**: `src/main/domain/` 中的代码不依赖 Electron、IPC、React 或任何 Node.js API，保证可独立单测
 - **回测计算必须放在 main/domain**：前端只展示结果，不做核心计算
-- **渲染进程不直接访问数据库或第三方接口**：所有数据通过 preload API / browser fallback 获取
+- **渲染进程不直接写 SQL 或直调第三方接口**：数据一律经用例→仓储→基础设施获取；桌面走 preload API，浏览器走 fallback，Android 进程内运行时在 WebView 中加载同一套 main 层代码，不另写一份业务逻辑
 - **共享 UI 组件不依赖业务模块**：`components/app/` 中的组件只通过 props 渲染，不感知股票、分红等业务概念
 - **DTO 流**: Repository 返回领域对象 → UseCase 返回 DTO → renderer service 生成 ViewModel → component 接收 ViewModel
 - **无全局状态管理库**：状态通过 hooks + local state + API 调用管理
@@ -161,9 +193,25 @@ FUND:A_SHARE:160222    # 基金
 
 ## 测试
 
-- 全部测试在 `tests/`（65 个文件 370+ 个），覆盖领域服务、适配器、网关、仓储、迁移、安全、导出工具与渲染工具函数
-- 修改领域/适配器/仓储/安全代码后运行 `npm test`；任何改动后运行 `npm run typecheck`
+- 全部 Vitest 测试在 `tests/`（107 个文件 630+ 个），覆盖领域服务、适配器、网关、仓储、迁移、安全、导出工具、渲染工具函数与运行时选择
+- Android 相关单测：`tests/main/infrastructure/db/mobileNativeSqliteProvider.test.ts`、`serializedDatabase.test.ts`、`tests/main/infrastructure/http/nativeHttpTransport.test.ts`、`tests/renderer/services/desktopApi.test.ts`、`inprocessRuntimeApi.test.ts`
+- Android instrumentation 测试在 `android/app/src/androidTest/`（`npm run android:test`），职责与测试安装要求见 `docs/ANDROID-BUILD.md`
+- 修改领域/适配器/仓储/安全代码后运行 `npm test`；任何改动后运行 `npm run typecheck`；双端验证强度按「双端同步开发规范」分层执行
 
-## 详细文档
+## 上下文路由（分层披露，按需阅读）
 
-见 `docs/README.md` 索引（架构、多资产、数据源网关、在线版、IPC 契约、HTTP API、UI 设计原则等）。
+开发上下文分三层：**AGENTS.md（本文件，L0 总纲，必读）→ `docs/README.md`（L1 索引）→ 专项文档（L2，按任务读）→ 代码（L3，最终事实源）**。不要一次性通读全部文档；按下表路由到与当前任务相关的最小集合：
+
+| 任务类型 | 先读 |
+|----------|------|
+| Android/app 端任何改动 | `docs/ANDROID-IMPLEMENTATION.md`（实现地图）→ `docs/ANDROID-BUILD.md`（构建与验收） |
+| 新增/修改跨进程 API | `shared/contracts/api.ts` + `docs/IPC-CONTRACTS.md` + `docs/HTTP-API.md` |
+| 数据源/行情接口 | `docs/DATA-SOURCE-GATEWAY-ARCHITECTURE.md` |
+| 多资产扩展（ETF/基金/贵金属） | `docs/MULTI-ASSET-ARCHITECTURE.md` |
+| 在线模式/认证/云同步 | `docs/ONLINE-ARCHITECTURE.md` |
+| 打包发布（桌面/移动） | `docs/PACKAGING-AND-DEPLOYMENT.md` + `docs/ANDROID-BUILD.md` |
+| UI 风格与交互 | `docs/UI-UX-DESIGN-PRINCIPLES.md` |
+| 整体架构/分层 | `docs/ARCHITECTURE.md` + `docs/SDD.md` |
+| 找其他文档 | `docs/README.md` 全量索引 |
+
+文档滞后于代码时以代码为准，并在同一次变更中修正文档。
