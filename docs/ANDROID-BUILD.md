@@ -110,3 +110,9 @@ Android 15 使用原生系统栏边距避免遮挡。系统返回键返回上一
 修复 ETF 每十份分红解析及无分红时的详情展示、资产识别失效与竞态、买卖费用方向、编辑日期及 JSON 的除权重复应用、房产金额口径和失败反馈，以及白银单位与空报价缓存。手机使用中文 Ant Design 日期面板，并调整详情、回测和房产录入布局。
 
 各真实界面阶段、金额断言、测试安装要求和覆盖边界见 [本轮验收记录](ANDROID-MOBILE-ACCEPTANCE-2026-10-30.md)。本轮交付文件为 `release/android/shou-xi-lao-0.3.0-mobile-extended-debug.apk`；凭据、截图、日志及安装包不提交仓库。
+
+## 2026-11-08 首页摘要布局与 instrumentation 回归
+
+- 首页摘要条、右侧摘要栏、最近交易与金额隐藏开关通过真实后端验证：桌面浏览器（无头主进程 + 本地 SQLite，9 笔真实持仓）与 Android 15 x86_64 专用模拟器（真实 APK、原生 SQLite）实测；隐藏开关可同时遮蔽表格、侧栏指标与图表提示，偏好跨重启保留，手机单列布局无横向溢出。
+- `npm run android:debug` 构建调试 APK 并在模拟器冷启动，原生数据库正常写入；`npm run android:test` 运行 9 项用例，7 项通过、0 失败，2 项 opt-in 旅程测试按设计跳过（需专用测试账号）。设备为未登录安装，CSS 视口约 411px。
+- instrumentation 首次运行失败于 `j2objc-annotations:2.8` 依赖解析：全局 Gradle `init.gradle` 注入的 Aliyun jcenter 镜像存在该版本 POM 但缺 jar（POM 200 / jar 404），Gradle 不会回退到其它仓库取构件。项目在 `android/build.gradle` 移除该镜像并补齐 central + public 仓库；机器全局脚本同步修复（旧文件备份为 `init.gradle.bak`，修复后副本见 [gradle-init.gradle](gradle-init.gradle)，复制到 `~/.gradle/init.gradle` 即可复用）。
