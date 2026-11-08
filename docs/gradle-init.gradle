@@ -1,0 +1,22 @@
+// Canonical copy of the machine-level ~/.gradle/init.gradle used for this project.
+// Replaces Maven Central / jcenter with Aliyun public mirror (aggregates both).
+// Fixes: the previous script declared two url lines in one maven block, so the
+// jcenter url silently overrode the public one, and Gradle 8's mavenCentral
+// (repo.maven.apache.org) was never replaced.
+allprojects {
+    repositories {
+        def ALIYUN_PUBLIC_URL = 'https://maven.aliyun.com/repository/public'
+        all { ArtifactRepository repo ->
+            if (repo instanceof MavenArtifactRepository) {
+                def url = repo.url.toString()
+                if (url.startsWith('https://repo1.maven.org/maven2')
+                        || url.startsWith('https://repo.maven.apache.org/maven2')
+                        || url.startsWith('https://jcenter.bintray.com/')) {
+                    project.logger.lifecycle "Repository ${repo.url} replaced by $ALIYUN_PUBLIC_URL."
+                    remove repo
+                }
+            }
+        }
+        maven { url ALIYUN_PUBLIC_URL }
+    }
+}
