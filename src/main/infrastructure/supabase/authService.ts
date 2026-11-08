@@ -1,5 +1,6 @@
 import { getSupabaseClient } from '@main/infrastructure/supabase/supabaseClient'
 import { setRuntimeMode } from '@main/infrastructure/supabase/runtimeMode'
+import { encodeAuthError, type AuthErrorCode } from '@shared/authErrors'
 import type { Session, User } from '@supabase/supabase-js'
 
 /** Supabase User type does not expose `identities` in its TS definition,
@@ -26,6 +27,38 @@ function toAuthSession(session: Session | null): AuthSession | null {
     },
     expiresAt: session.expires_at ?? 0
   }
+}
+
+type SupabaseAuthErrorLike = {
+  status?: number
+  code?: string
+  message?: string
+}
+
+const NETWORK_ERROR_PATTERN =
+  /network_unreachable|network unavailable|network error|网络不可达|fetch failed|failed to fetch|ECONNRESET|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|ETIMEDOUT|UND_ERR|net::ERR/i
+
+/** 把 Supabase / 传输层错误归类，供渲染层展示「原因 + 处理建议」。 */
+export function classifyAuthError(error: SupabaseAuthErrorLike, fallback: AuthErrorCode = 'UNKNOWN'): AuthErrorCode {
+  const message = error.message ?? ''
+  const code = error.code ?? ''
+  const combined = `${code} ${message}`
+
+  if (NETWORK_ERROR_PATTERN.test(combined)) return 'NETWORK'
+  if (error.status === 429 || /rate limit|too many requests|over_email_send_rate_limit/i.test(combined)) return 'RATE_LIMITED'
+  if (typeof error.status === 'number' && error.status >= 500) return 'SERVICE_UNAVAILABLE'
+  if (/invalid login credentials/i.test(message)) return 'INVALID_CREDENTIALS'
+  if (/email not confirmed|email_not_confirmed/i.test(combined)) return 'EMAIL_NOT_CONFIRMED'
+  if (/already registered|already been registered|user already exists/i.test(message)) return 'EMAIL_REGISTERED'
+  if (/password should be at least|weak.?password/i.test(combined)) return 'WEAK_PASSWORD'
+  if (/invalid email|email address .* invalid|unable to validate email/i.test(combined)) return 'INVALID_EMAIL'
+  return fallback
+}
+
+function toAuthError(error: SupabaseAuthErrorLike, fallback: AuthErrorCode = 'UNKNOWN'): Error {
+  const code = classifyAuthError(error, fallback)
+  const detail = error.message?.trim()
+  return new Error(encodeAuthError(code, detail))
 }
 
 /** 邮件确认回调地址：跟随 LOCAL_HTTP_API_PORT（端口退避后仍可直达 API） */
@@ -93,15 +126,10 @@ export function stopAuthListener(): void {
 export const authService = {
   async login(email: string, password: string): Promise<AuthSession | null> {
     const supabase = getSupabaseClient()
-    if (!supabase) throw new Error('在线服务未配置（缺少 SUPABASE_URL / SUPABASE_ANON_KEY）')
+    if (!supabase) throw new Error(encodeAuthError('NOT_CONFIGURED'))
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) {
-      if (error.message.includes('Invalid login credentials')) {
-        throw new Error('邮箱或密码错误')
-      }
-      throw new Error(`登录失败：${error.message}`)
-    }
+    if (error) throw toAuthError(error)
 
     const session = toAuthSession(data.session)
     cachedSession = session
@@ -111,7 +139,7 @@ export const authService = {
 
   async register(email: string, password: string): Promise<{ session: AuthSession | null; needsConfirmation: boolean }> {
     const supabase = getSupabaseClient()
-    if (!supabase) throw new Error('在线服务未配置（缺少 SUPABASE_URL / SUPABASE_ANON_KEY）')
+    if (!supabase) throw new Error(encodeAuthError('NOT_CONFIGURED'))
 
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -121,19 +149,13 @@ export const authService = {
       }
     })
 
-    if (error) {
-      // Supabase may return "User already registered" for duplicate emails
-      if (error.message.includes('already registered') || error.message.includes('already been registered')) {
-        throw new Error('该邮箱已注册，请直接登录。')
-      }
-      throw new Error(`注册失败：${error.message}`)
-    }
+    if (error) throw toAuthError(error)
 
     // Supabase security measure: for duplicate emails with email confirmation enabled,
     // it silently returns { session: null, user.identities: [] } instead of an error.
     // We detect this by checking if identities is empty.
     if (data?.user && (data.user as SupabaseUserWithIdentities).identities?.length === 0) {
-      throw new Error('该邮箱已注册，请直接登录。')
+      throw new Error(encodeAuthError('EMAIL_REGISTERED'))
     }
 
     if (data?.session) {
@@ -150,13 +172,13 @@ export const authService = {
 
   async confirmEmailToken(accessToken: string, refreshToken?: string): Promise<AuthSession | null> {
     const supabase = getSupabaseClient()
-    if (!supabase) throw new Error('在线服务未配置（缺少 SUPABASE_URL / SUPABASE_ANON_KEY）')
+    if (!supabase) throw new Error(encodeAuthError('NOT_CONFIGURED'))
 
     const { data, error } = await supabase.auth.setSession({
       access_token: accessToken,
       refresh_token: refreshToken ?? ''
     })
-    if (error) throw new Error(`邮箱验证失败：${error.message}`)
+    if (error) throw toAuthError(error)
 
     const session = toAuthSession(data.session)
     cachedSession = session
@@ -166,12 +188,10 @@ export const authService = {
 
   async updatePassword(newPassword: string): Promise<void> {
     const supabase = getSupabaseClient()
-    if (!supabase) throw new Error('在线服务未配置（缺少 SUPABASE_URL / SUPABASE_ANON_KEY）')
+    if (!supabase) throw new Error(encodeAuthError('NOT_CONFIGURED'))
 
     const { error } = await supabase.auth.updateUser({ password: newPassword })
-    if (error) {
-      throw new Error(`修改密码失败：${error.message}`)
-    }
+    if (error) throw toAuthError(error)
   },
 
   async logout(): Promise<void> {
@@ -179,7 +199,7 @@ export const authService = {
     if (!supabase) return
 
     const { error } = await supabase.auth.signOut()
-    if (error) throw new Error(`退出登录失败：${error.message}`)
+    if (error) throw toAuthError(error)
     cachedSession = null
     setRuntimeMode('offline')
   },
