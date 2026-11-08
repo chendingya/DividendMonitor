@@ -21,6 +21,14 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // 全局 init 脚本只注入了 Aliyun jcenter（其 url 两次赋值后者覆盖前者），
+        // 该仓库有 j2objc-annotations:2.8 的 POM 却缺 jar，导致 UTP 测试依赖解析失败。
+        // 移除它，补 central + public（public 聚合 central 与 jcenter）。
+        maven { url 'https://maven.aliyun.com/repository/central' }
+        maven { url 'https://maven.aliyun.com/repository/public' }
+    }
+    repositories.removeAll { repo ->
+        repo instanceof MavenArtifactRepository && repo.url.toString().contains('/repositories/jcenter')
     }
 }
 
