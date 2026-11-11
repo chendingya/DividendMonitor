@@ -946,12 +946,6 @@ button.ledger-breadcrumb-item:hover {
     align-items: flex-start;
   }
 
-  .user-center-email {
-    font-size: 18px;
-    line-height: 1.35;
-    letter-spacing: -0.02em;
-  }
-
   .user-center-avatar {
     width: 48px;
     height: 48px;
