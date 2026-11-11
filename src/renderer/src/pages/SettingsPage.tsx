@@ -268,15 +268,17 @@ function SettingsPage() {
                       </div>
                       <div className="ledger-calc-summary-item">
                         <span>最低佣金</span>
-                        <input
-                          type="number"
-                          className="ledger-date-input"
-                          style={{ width: 100, marginTop: 8 }}
-                          min={0} max={100} step={1}
-                          value={local.buyMinCommission}
-                          onChange={(e) => merge('buyMinCommission', parseInt(e.target.value, 10) || 5)}
-                        />
-                        <span style={{ marginLeft: 6, color: '#66707a', fontSize: 12, fontWeight: 600 }}>元</span>
+                        <div className="ledger-inline-field">
+                          <input
+                            type="number"
+                            className="ledger-date-input"
+                            style={{ width: 100 }}
+                            min={0} max={100} step={1}
+                            value={local.buyMinCommission}
+                            onChange={(e) => merge('buyMinCommission', parseInt(e.target.value, 10) || 5)}
+                          />
+                          <span className="ledger-inline-unit">元</span>
+                        </div>
                       </div>
                     </div>
                     <p className="ledger-transaction-hint">添加/编辑持仓时自动计算佣金：佣金 = max(成交额 × 费率, 最低佣金)，实际成本价 = (成交额 + 佣金) ÷ 股数。默认万分之一、最低5元（不免五）。</p>
@@ -349,15 +351,17 @@ function SettingsPage() {
                       </div>
                       <div className="ledger-calc-summary-item">
                         <span>最低佣金</span>
-                        <input
-                          type="number"
-                          className="ledger-date-input"
-                          style={{ width: 100, marginTop: 8 }}
-                          min={0} max={100} step={1}
-                          value={local.backtestMinCommission}
-                          onChange={(e) => merge('backtestMinCommission', parseInt(e.target.value, 10) || 5)}
-                        />
-                        <span style={{ marginLeft: 6, color: '#66707a', fontSize: 12, fontWeight: 600 }}>元</span>
+                        <div className="ledger-inline-field">
+                          <input
+                            type="number"
+                            className="ledger-date-input"
+                            style={{ width: 100 }}
+                            min={0} max={100} step={1}
+                            value={local.backtestMinCommission}
+                            onChange={(e) => merge('backtestMinCommission', parseInt(e.target.value, 10) || 5)}
+                          />
+                          <span className="ledger-inline-unit">元</span>
+                        </div>
                       </div>
                     </div>
                   )}

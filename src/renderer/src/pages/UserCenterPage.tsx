@@ -190,7 +190,7 @@ export function UserCenterPage() {
         <div className="ledger-hero-copy">
           <div>
             <div className="ledger-section-kicker">用户中心</div>
-            <h1 className="ledger-hero-title">{email}</h1>
+            <h1 className="ledger-hero-title user-center-email">{email}</h1>
             <p className="ledger-hero-subtitle">
               <span className={`pill ${syncStatusClass}`} style={{ marginRight: 8 }}>
                 {syncStatusLabel}
@@ -198,13 +198,7 @@ export function UserCenterPage() {
               在线模式 · 云端数据同步已开启
             </p>
           </div>
-          <div style={{
-            width: 64, height: 64, borderRadius: 32,
-            background: 'linear-gradient(135deg, #2866eb, #0052d0)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: '#fff', fontSize: 26, fontWeight: 800, flexShrink: 0,
-            boxShadow: '0 12px 24px rgba(0,82,208,0.2)'
-          }}>
+          <div className="user-center-avatar">
             {initial}
           </div>
         </div>
