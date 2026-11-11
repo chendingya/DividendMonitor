@@ -921,6 +921,45 @@ button.ledger-breadcrumb-item:hover {
   letter-spacing: -0.05em;
 }
 
+.user-center-email {
+  overflow-wrap: anywhere;
+}
+
+.user-center-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 32px;
+  background: linear-gradient(135deg, #2866eb, #0052d0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 26px;
+  font-weight: 800;
+  flex-shrink: 0;
+  box-shadow: 0 12px 24px rgba(0, 82, 208, 0.2);
+}
+
+@media (max-width: 600px) {
+  .user-center-page .ledger-hero-copy {
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .user-center-email {
+    font-size: 18px;
+    line-height: 1.35;
+    letter-spacing: -0.02em;
+  }
+
+  .user-center-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 24px;
+    font-size: 20px;
+  }
+}
+
 .ledger-hero-subtitle {
   margin: 8px 0 0;
   color: var(--text-soft);
@@ -1733,6 +1772,19 @@ button.ledger-breadcrumb-item:hover {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.ledger-inline-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.ledger-inline-unit {
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .ledger-calc-summary-item span {

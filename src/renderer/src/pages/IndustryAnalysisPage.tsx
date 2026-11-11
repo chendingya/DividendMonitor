@@ -42,7 +42,7 @@ export function IndustryAnalysisPage() {
                 <Table
                   dataSource={data.map((d) => ({ ...d.summary, key: d.industryName }))}
                   columns={[
-                    { title: '行业', dataIndex: 'industryName', key: 'industryName' },
+                    { title: '行业', dataIndex: 'industryName', key: 'industryName', width: 96 },
                     { title: '样本数', dataIndex: 'stockCount', key: 'stockCount', width: 80 },
                     { title: '平均股息率', dataIndex: 'avgDividendYield', key: 'avgDividendYield', render: (v: number) => percentFormatter.format(v) },
                     { title: '平均PE', dataIndex: 'avgPeRatio', key: 'avgPeRatio', render: (v: number) => v > 0 ? v.toFixed(1) : '--' },
@@ -50,6 +50,7 @@ export function IndustryAnalysisPage() {
                   ]}
                   pagination={false}
                   size="small"
+                  scroll={{ x: 520 }}
                 />
               </Card>
             </Col>
@@ -68,6 +69,7 @@ export function IndustryAnalysisPage() {
               columns={stockColumns}
               pagination={false}
               size="small"
+              scroll={{ x: 560 }}
             />
           </Card>
         ))}
