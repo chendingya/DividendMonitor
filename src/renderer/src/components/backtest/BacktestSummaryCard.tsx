@@ -1,6 +1,7 @@
-import { List, Tag, Typography } from 'antd'
+import { Alert, List, Tag, Typography } from 'antd'
 import type { BacktestResultDto } from '@shared/contracts/api'
 import { AppCard } from '@renderer/components/app/AppCard'
+import { getInsufficientCapitalHint } from '@renderer/utils/backtestCapital'
 import './backtestMobile.css'
 
 const currency = new Intl.NumberFormat('zh-CN', {
@@ -67,8 +68,19 @@ function MetricCardGlyph({ kind }: { kind: string }) {
 }
 
 export function BacktestSummaryCard({ result }: { result: BacktestResultDto }) {
+  const insufficientCapitalHint = getInsufficientCapitalHint(result)
+
   return (
     <div className="page-section">
+      {insufficientCapitalHint ? (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="本次回测未能建仓"
+          description={insufficientCapitalHint}
+        />
+      ) : null}
       <div className="ledger-metric-grid backtest-metric-grid">
         <div className="ledger-metric-panel is-primary">
           <div className="ledger-metric-top">
