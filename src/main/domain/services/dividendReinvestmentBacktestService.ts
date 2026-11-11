@@ -107,6 +107,11 @@ function calcShares(
 }
 
 function calculateReturn(initialValue: number, finalValue: number, startDate: string, endDate: string) {
+  // 初始资金不足以买入一手时 initialCost 为 0，避免 0/0 产生 NaN 并透传到界面
+  if (!Number.isFinite(initialValue) || initialValue <= 0) {
+    return { totalReturn: 0, annualizedReturn: 0 }
+  }
+
   const totalReturn = finalValue / initialValue - 1
   const holdingDays = daysBetween(startDate, endDate)
   const annualizedReturn = Math.pow(finalValue / initialValue, 365 / holdingDays) - 1
