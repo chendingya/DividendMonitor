@@ -143,6 +143,45 @@ export function mapDividendRecordsToEvents(
     .sort((a, b) => (a.exDate ?? '').localeCompare(b.exDate ?? ''))
 }
 
+/**
+ * 读取 ROE 与行业。
+ * push2 快照的 f100 字段在部分交易日对全部 A 股均不返回，因此行业缺失时
+ * 仍需回退 F10 简介接口；仅在快照请求抛错时回退会遗漏这种空字段情况。
+ */
+export async function resolveValuationSnapshot(
+  symbol: string
+): Promise<{ roe?: number; industry?: string }> {
+  let roe: number | undefined
+  let industry: string | undefined
+
+  try {
+    const response = await getDefaultSourceGateway().request<ValuationSnapshotInput, ValuationSnapshotOutput>({
+      capability: 'valuation.snapshot',
+      routeContext: { assetType: 'STOCK', market: 'A_SHARE', code: symbol },
+      input: { code: symbol }
+    })
+    roe = response.data.roe
+    industry = response.data.industry
+  } catch {
+    // 快照失败时继续尝试 F10 简介
+  }
+
+  if (!industry) {
+    try {
+      const profile = await getDefaultSourceGateway().request<AssetProfileInput, AssetProfileOutput>({
+        capability: 'asset.profile',
+        routeContext: { assetType: 'STOCK', market: 'A_SHARE', code: symbol },
+        input: { code: symbol }
+      })
+      industry = profile.data.industry
+    } catch {
+      // 行业缺失不阻断详情加载
+    }
+  }
+
+  return { roe, industry }
+}
+
 export class EastmoneyAShareDataSource implements AShareDataSource {
   async search(keyword: string) {
     const normalized = keyword.trim()
@@ -212,26 +251,7 @@ export class EastmoneyAShareDataSource implements AShareDataSource {
   }
 
   private async getValuationSnapshot(symbol: string): Promise<{ roe?: number; industry?: string }> {
-    try {
-      const response = await getDefaultSourceGateway().request<ValuationSnapshotInput, ValuationSnapshotOutput>({
-        capability: 'valuation.snapshot',
-        routeContext: { assetType: 'STOCK', market: 'A_SHARE', code: symbol },
-        input: { code: symbol }
-      })
-      return { roe: response.data.roe, industry: response.data.industry }
-    } catch {
-      // Fallback to F10 profile endpoint for industry info
-      try {
-        const profile = await getDefaultSourceGateway().request<AssetProfileInput, AssetProfileOutput>({
-          capability: 'asset.profile',
-          routeContext: { assetType: 'STOCK', market: 'A_SHARE', code: symbol },
-          input: { code: symbol }
-        })
-        return { industry: profile.data.industry }
-      } catch {
-        return {}
-      }
-    }
+    return resolveValuationSnapshot(symbol)
   }
 
   private async getEastmoneyKline(symbol: string): Promise<HistoricalPricePoint[]> {
