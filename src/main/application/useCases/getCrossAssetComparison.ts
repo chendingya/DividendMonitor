@@ -4,6 +4,7 @@ import { HousingService } from '@main/application/services/housingService'
 import { compareAssets } from '@main/application/useCases/compareAssets'
 import {
   buildCrossAssetComparison,
+  ratioToPercent,
   type CrossAssetHousingSource,
   type CrossAssetStockSource
 } from '@main/domain/services/crossAssetComparisonService'
@@ -37,8 +38,9 @@ export async function getCrossAssetComparison(): Promise<CrossAssetComparisonDto
     name: row.name,
     code: row.code,
     symbol: row.symbol,
-    yieldPercent: row.estimatedFutureYield ?? row.averageYield,
-    volatilityPercent: row.annualVolatility,
+    // compareAssets 返回小数口径，跨资产点按百分数展示
+    yieldPercent: ratioToPercent(row.estimatedFutureYield ?? row.averageYield),
+    volatilityPercent: ratioToPercent(row.annualVolatility),
     industry: row.industry
   }))
 

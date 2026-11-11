@@ -27,6 +27,17 @@ export type CrossAssetComparisonSource = {
 
 const DEFAULT_RISK_FREE_RATE = 2.5
 
+/**
+ * 行情模型中的股息率与波动率以小数存储（0.0423 表示 4.23%），
+ * 跨资产 DTO 与图表统一使用百分数，必须在此换算，避免数值缩小 100 倍。
+ */
+export function ratioToPercent(value: number | undefined | null): number | undefined {
+  if (value == null || !Number.isFinite(value)) {
+    return undefined
+  }
+  return value * 100
+}
+
 function formatPercent(value: number | undefined): string {
   return value == null ? '--' : `${value.toFixed(2)}%`
 }

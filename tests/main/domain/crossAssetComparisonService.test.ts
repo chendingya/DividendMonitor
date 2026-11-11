@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildCrossAssetComparison } from '@main/domain/services/crossAssetComparisonService'
+import { buildCrossAssetComparison, ratioToPercent } from '@main/domain/services/crossAssetComparisonService'
 
 describe('crossAssetComparisonService', () => {
   it('merges stock and housing sources into unified points', () => {
@@ -83,5 +83,19 @@ describe('crossAssetComparisonService', () => {
     })
     expect(result.riskFreeRatePercent).toBe(2.0)
     expect(result.generatedAt).toBe(generatedAt)
+  })
+})
+
+describe('ratioToPercent', () => {
+  it('converts fractional ratios to percentage points', () => {
+    expect(ratioToPercent(0.0423)).toBeCloseTo(4.23, 6)
+    expect(ratioToPercent(0.26)).toBeCloseTo(26, 6)
+  })
+
+  it('keeps missing or invalid values undefined', () => {
+    expect(ratioToPercent(undefined)).toBeUndefined()
+    expect(ratioToPercent(null)).toBeUndefined()
+    expect(ratioToPercent(Number.NaN)).toBeUndefined()
+    expect(ratioToPercent(Number.POSITIVE_INFINITY)).toBeUndefined()
   })
 })
