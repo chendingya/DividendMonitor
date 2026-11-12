@@ -1312,30 +1312,49 @@ export const browserRuntimeApi: DividendMonitorApi = {
   },
   portfolio: {
     async list() {
-      return readPortfolioPositions().map((item) => ({
-        id: item.id,
-        assetKey: buildStockAssetKey(item.symbol ?? ''),
-        assetType: 'STOCK' as const,
-        market: 'A_SHARE' as const,
-        code: item.symbol ?? '',
-        symbol: item.symbol,
-        name: item.name,
-        direction: item.direction === 'SELL' ? 'SELL' : 'BUY',
-        shares: item.shares,
-        avgCost: item.avgCost,
-        createdAt: item.updatedAt,
-        updatedAt: item.updatedAt
-      }))
+      return readPortfolioPositions().map((item) => {
+        const assetType = item.assetType ?? 'STOCK'
+        const market = item.market ?? 'A_SHARE'
+        const code = item.code ?? item.symbol ?? ''
+        return {
+          id: item.id,
+          assetKey: item.assetKey ?? (assetType === 'STOCK'
+            ? buildStockAssetKey(code)
+            : buildAssetKey(assetType, market, code)),
+          assetType,
+          market,
+          code,
+          symbol: assetType === 'STOCK' ? (item.symbol ?? code) : undefined,
+          name: item.name,
+          direction: item.direction === 'SELL' ? 'SELL' : 'BUY',
+          shares: item.shares,
+          avgCost: item.avgCost,
+          tradePrice: item.tradePrice,
+          openedAt: item.openedAt,
+          riskLevel: item.riskLevel,
+          corporateActionsAppliedUntil: item.corporateActionsAppliedUntil,
+          createdAt: item.updatedAt,
+          updatedAt: item.updatedAt
+        }
+      })
     },
 
     async upsert(request) {
       upsertPortfolioPosition({
         id: request.id ?? '',
-        symbol: request.symbol ?? request.code,
+        assetKey: request.assetKey,
+        assetType: request.assetType,
+        market: request.market,
+        code: request.code ?? request.symbol,
+        symbol: request.symbol,
         name: request.name,
         direction: request.direction,
         shares: request.shares,
-        avgCost: request.avgCost
+        avgCost: request.avgCost,
+        tradePrice: request.tradePrice,
+        openedAt: request.openedAt,
+        riskLevel: request.riskLevel,
+        corporateActionsAppliedUntil: request.corporateActionsAppliedUntil
       })
     },
 
