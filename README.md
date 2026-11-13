@@ -145,6 +145,6 @@ UI (renderer) → Hook → renderer service → runtime selector
 
 ## 状态
 
-- 版本：`0.3.0`
+- 版本：`0.4.0`
 - 平台：Windows 桌面优先（electron-builder + NSIS），跨平台可构建
 - 数据范围：A 股 / ETF / 基金 / 贵金属

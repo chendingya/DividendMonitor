@@ -7,7 +7,7 @@ export function createNativeHttpTransport(request: (options: HttpOptions) => Pro
   return async (url, responseType, config) => {
     const headers = AxiosHeaders.from({
       Accept: 'application/json,text/plain,*/*',
-      'User-Agent': 'Mozilla/5.0 DividendMonitor/0.3.0',
+      'User-Agent': 'Mozilla/5.0 DividendMonitor/0.4.0',
       ...AxiosHeaders.from(config.headers as RawAxiosHeaders | AxiosHeaders | undefined).toJSON()
     }).toJSON(true) as Record<string, string>
     const response = await request({

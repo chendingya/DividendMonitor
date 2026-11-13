@@ -143,6 +143,6 @@ Licensed under the [GNU Affero General Public License v3.0](LICENSE):
 
 ## Status
 
-- Version: `0.3.0`
+- Version: `0.4.0`
 - Platform: Windows desktop first (electron-builder + NSIS), cross-platform buildable
 - Asset scope: A-shares / ETFs / funds / precious metals
